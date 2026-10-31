@@ -62,13 +62,12 @@ namespace KLTN.Infrastructure.Economy
 
     /// <summary>
     /// Persistence boundary for currencies and owned cards.
-    /// Phase 1: FirestoreEconomyGateway (client writes, Security Rules validate).
-    /// Phase 2: a Cloud Code backed gateway can replace it without touching UI code.
+    /// Match rewards are written only by Cloud Code (ReportResult from the dedicated server);
+    /// the client can read the wallet but has no reward write path (FR-SHOP-09).
     /// </summary>
     public interface IEconomyGateway
     {
         Task<EconomyResult> LoadOrCreateProfileAsync(IReadOnlyList<string> starterCardIds);
         Task<EconomyResult> PurchaseAsync(ShopEntry entry);
-        Task<EconomyResult> ClaimMatchRewardAsync(string matchId, MatchReward reward);
     }
 }

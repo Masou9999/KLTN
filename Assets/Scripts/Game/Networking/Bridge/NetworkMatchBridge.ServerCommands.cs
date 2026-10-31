@@ -261,6 +261,7 @@ namespace KLTN.Game.Networking
             }
 
             BroadcastUpdate(result.Resolution, result.RoundTransition);
+            TrySettleFinishedMatch();
         }
 
         #endregion

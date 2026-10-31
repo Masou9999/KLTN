@@ -8,41 +8,9 @@ using UnityEngine;
 
 namespace KLTN.Infrastructure.Ranking
 {
-    public enum RankedReportStatus
-    {
-        Applied = 0,
-        AlreadyApplied,
-        NotEligible,
-        Failed,
-    }
-
-    /// <summary>What happened to one finished match's season points, for the result screen.</summary>
-    public sealed class RankedMatchReport
-    {
-        public RankedReportStatus Status { get; }
-        public string Message { get; }
-        public RankedResult Result { get; }
-        public SeasonStanding Before { get; }
-        public SeasonStanding After { get; }
-
-        public RankedMatchReport(
-            RankedReportStatus status,
-            string message,
-            RankedResult result,
-            SeasonStanding before = null,
-            SeasonStanding after = null
-        )
-        {
-            Status = status;
-            Message = message;
-            Result = result;
-            Before = before;
-            After = after;
-        }
-    }
-
     /// <summary>
-    /// Client-side access to seasons and the leaderboard, plus recording ranked results.
+    /// Client-side, read-mostly access to seasons and the leaderboard. Ranked results are
+    /// recorded by the backend; call <see cref="GetMyCurrentTierAsync"/> to re-read the row.
     /// Created automatically; survives scene changes (same lifecycle as PlayerProfileService).
     /// </summary>
     public sealed class LeaderboardService : MonoBehaviour
@@ -58,8 +26,6 @@ namespace KLTN.Infrastructure.Ranking
         public SeasonStanding MyStanding { get; private set; }
 
         public event Action<SeasonStanding> MyStandingChanged;
-
-        private readonly HashSet<string> recordedMatches = new HashSet<string>(StringComparer.Ordinal);
 
         #region Bootstrap
 
@@ -142,7 +108,6 @@ namespace KLTN.Infrastructure.Ranking
         {
             CurrentSeason = null;
             MyStanding = null;
-            recordedMatches.Clear();
             MyStandingChanged?.Invoke(null);
         }
 
@@ -203,67 +168,6 @@ namespace KLTN.Infrastructure.Ranking
             }
 
             return standing;
-        }
-
-        #endregion
-
-        #region Commands
-
-        /// <summary>
-        /// Applies one finished ranked match to the running season. Safe to call repeatedly:
-        /// the results/{matchId} document makes the write idempotent.
-        /// </summary>
-        public async Task<RankedMatchReport> RecordRankedMatchAsync(
-            string matchId,
-            RankedResult result,
-            long matchStartedUtcMs
-        )
-        {
-            if (string.IsNullOrEmpty(matchId) || !recordedMatches.Add(matchId))
-            {
-                return new RankedMatchReport(RankedReportStatus.AlreadyApplied, string.Empty, result);
-            }
-
-            RankingResult<SeasonWindow?> season = await RefreshSeasonAsync();
-
-            if (!season.Success)
-            {
-                recordedMatches.Remove(matchId);
-                return new RankedMatchReport(RankedReportStatus.Failed, season.Message, result);
-            }
-
-            RankedEligibility eligibility =
-                RankedEligibilityPolicy.Check(season.Value, matchStartedUtcMs, ServerClock.UtcNowMs);
-
-            if (eligibility != RankedEligibility.Eligible)
-            {
-                return new RankedMatchReport(RankedReportStatus.NotEligible, EligibilityMessage(eligibility), result);
-            }
-
-            string username = await ResolveUsernameAsync();
-            int seasonId = season.Value.Value.SeasonId;
-            RankingResult<RankedRecord> record =
-                await Gateway.RecordResultAsync(seasonId, username, matchId, result, matchStartedUtcMs);
-
-            if (!record.Success)
-            {
-                recordedMatches.Remove(matchId);
-                return new RankedMatchReport(RankedReportStatus.Failed, record.Message, result);
-            }
-
-            SetMyStanding(record.Value.After);
-            Debug.Log(
-                $"[Leaderboard] Season {seasonId}: {RankPointsPolicy.WireName(result.Kind)} {result.Delta:+#;-#;0} "
-                    + $"-> {record.Value.After.Points} điểm ({record.Value.After.Tier})."
-            );
-
-            return new RankedMatchReport(
-                record.Value.AlreadyApplied ? RankedReportStatus.AlreadyApplied : RankedReportStatus.Applied,
-                string.Empty,
-                result,
-                record.Value.Before,
-                record.Value.After
-            );
         }
 
         #endregion

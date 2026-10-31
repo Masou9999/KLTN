@@ -15,7 +15,7 @@ namespace KLTN.Infrastructure.Economy
     ///                                       lastPurchase, lastRewardMatchId, username
     ///   usernames/{username}                uid, createdAt   (uniqueness key, create-only)
     ///   users/{uid}/ownedCards/{cardId}     acquiredAt, source
-    ///   users/{uid}/matchRewards/{matchId}  result, coins, silver, createdAt
+    ///   users/{uid}/matchRewards/{matchId}  result, coins, silver, createdAt  (written by Cloud Code ReportResult)
     /// Every write is one :commit batch so Security Rules can validate it with getAfter().
     /// </summary>
     public sealed class FirestoreEconomyGateway : IEconomyGateway
@@ -107,61 +107,6 @@ namespace KLTN.Infrastructure.Economy
             {
                 EconomyResult failure = Map(response);
                 Debug.LogWarning($"[Economy] Purchase {entry.CardId} failed: {failure.Error} {failure.Message}");
-                return failure;
-            }
-
-            return await ReadProfileAsync(uid, token);
-        }
-
-        public async Task<EconomyResult> ClaimMatchRewardAsync(string matchId, MatchReward reward)
-        {
-            if (string.IsNullOrWhiteSpace(matchId) || matchId.Length > 64 || matchId.Contains("/"))
-            {
-                return EconomyResult.Fail(EconomyErrorCode.Rejected, "Mã trận không hợp lệ.");
-            }
-
-            (string uid, string token, EconomyResult error) = await SessionAsync();
-
-            if (error != null)
-            {
-                return error;
-            }
-
-            string rewardPath = $"{UserPath(uid)}/matchRewards/{matchId}";
-            FirestoreResponse existing = await client.GetDocumentAsync(rewardPath, token);
-
-            if (existing.Success)
-            {
-                EconomyResult current = await ReadProfileAsync(uid, token);
-                return current.Success ? EconomyResult.Ok(current.Profile, alreadyApplied: true) : current;
-            }
-
-            var writes = new List<JObject>
-            {
-                client.UpdateWrite(
-                    UserPath(uid),
-                    new Dictionary<string, object> { ["lastRewardMatchId"] = matchId },
-                    new Dictionary<string, long> { ["coins"] = reward.Coins, ["silver"] = reward.Silver },
-                    "updatedAt"
-                ),
-                client.CreateWrite(
-                    rewardPath,
-                    new Dictionary<string, object>
-                    {
-                        ["result"] = ResultName(reward.Kind),
-                        ["coins"] = reward.Coins,
-                        ["silver"] = reward.Silver,
-                    },
-                    "createdAt"
-                ),
-            };
-
-            FirestoreResponse response = await client.CommitAsync(writes, token);
-
-            if (!response.Success)
-            {
-                EconomyResult failure = Map(response);
-                Debug.LogWarning($"[Economy] Reward claim {matchId} failed: {failure.Error} {failure.Message}");
                 return failure;
             }
 
@@ -364,21 +309,6 @@ namespace KLTN.Infrastructure.Economy
         private static string UserPath(string uid)
         {
             return $"users/{uid}";
-        }
-
-        private static string ResultName(MatchResultKind kind)
-        {
-            switch (kind)
-            {
-                case MatchResultKind.Win:
-                    return "win";
-                case MatchResultKind.Draw:
-                    return "draw";
-                case MatchResultKind.EarlySurrender:
-                    return "surrender_early";
-                default:
-                    return "loss";
-            }
         }
 
         private static EconomyResult Map(FirestoreResponse response)

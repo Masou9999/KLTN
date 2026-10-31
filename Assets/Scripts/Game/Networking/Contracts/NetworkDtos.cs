@@ -230,6 +230,44 @@ namespace KLTN.Game.Networking
         public AbilityResolutionEventDto[] events;
     }
 
+    public enum MatchSettlementState
+    {
+        // Dedicated server is reporting the result to the backend.
+        Saving = 0,
+        Saved = 1,
+        Failed = 2,
+
+        // Listen-host (Host/Join): no rewards or season points.
+        PrivateMatch = 3,
+    }
+
+    /// <summary>
+    /// Rewards and season points the backend applied to one player, forwarded by the
+    /// dedicated server (FR-SHOP-08/09, FR-RANK-10/11). Clients only display it.
+    /// </summary>
+    [Serializable]
+    public sealed class MatchSettlementDto
+    {
+        public string matchId;
+
+        // MatchSettlementState.
+        public int state;
+        public string message;
+
+        // "win", "loss", "draw", "surrender_early" or "surrender".
+        public string result;
+        public int coins;
+        public int silver;
+
+        public bool ranked;
+        public int rankDelta;
+        public int pointsBefore;
+        public int pointsAfter;
+        public int tierBefore;
+        public int tierAfter;
+        public string notScoredReason;
+    }
+
     [Serializable]
     public sealed class MatchUpdateDto
     {

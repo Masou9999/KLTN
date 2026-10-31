@@ -10,8 +10,9 @@ namespace KLTN.Infrastructure.Economy
 {
     /// <summary>
     /// Client-side cache of the signed-in player's wallet and owned cards.
-    /// Loads after login, clears on logout, and exposes purchase/reward commands
-    /// to the UI. Created automatically; survives scene changes.
+    /// Loads after login, clears on logout, and exposes purchase commands to the UI.
+    /// Match rewards are applied by the backend; the result screen only reloads the profile.
+    /// Created automatically; survives scene changes.
     /// </summary>
     public sealed class PlayerProfileService : MonoBehaviour
     {
@@ -25,7 +26,6 @@ namespace KLTN.Infrastructure.Economy
 
         private IEconomyGateway gateway;
         private Task<EconomyResult> loadTask;
-        private readonly HashSet<string> claimedOrClaimingMatches = new HashSet<string>(StringComparer.Ordinal);
 
         #region Bootstrap
 
@@ -90,7 +90,6 @@ namespace KLTN.Infrastructure.Economy
         private async void HandleLogin()
         {
             Current = null;
-            claimedOrClaimingMatches.Clear();
             EconomyResult result = await EnsureLoadedAsync();
 
             if (!result.Success)
@@ -103,7 +102,6 @@ namespace KLTN.Infrastructure.Economy
         {
             Current = null;
             loadTask = null;
-            claimedOrClaimingMatches.Clear();
             ProfileChanged?.Invoke(null);
         }
 
@@ -156,28 +154,6 @@ namespace KLTN.Infrastructure.Economy
             {
                 // Local cache was stale (e.g. purchase from another device). Resync.
                 await EnsureLoadedAsync(forceReload: true);
-            }
-
-            return result;
-        }
-
-        /// <summary>Claims the reward for one finished match. Safe to call repeatedly.</summary>
-        public async Task<EconomyResult> ClaimMatchRewardAsync(string matchId, MatchReward reward)
-        {
-            if (string.IsNullOrEmpty(matchId) || !claimedOrClaimingMatches.Add(matchId))
-            {
-                return EconomyResult.Ok(Current, alreadyApplied: true);
-            }
-
-            EconomyResult result = await gateway.ClaimMatchRewardAsync(matchId, reward);
-
-            if (result.Success)
-            {
-                Apply(result.Profile);
-            }
-            else
-            {
-                claimedOrClaimingMatches.Remove(matchId);
             }
 
             return result;
