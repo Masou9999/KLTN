@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using KLTN.Game.Domain.Ranking;
-using KLTN.Infrastructure.Ranking;
+using KLTN.Infrastructure.CloudCode;
 using TMPro;
 using Unity.Netcode;
 using Unity.Netcode.Transports.UTP;
@@ -22,7 +22,9 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
 
     // Matchmaker queue rule (Dashboard): Difference on Players.CustomData.rank_tier <= 1.
     private const string RankTierKey = "rank_tier";
-    private const int RankLookupTimeoutMilliseconds = 5000;
+
+    // Must exceed the server's 10 s AdmitPlayer timeout (not part of NGO's config hash).
+    private const int ConnectionBufferTimeoutSeconds = 15;
 
     #endregion
 
@@ -236,29 +238,12 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
     }
 
     /// <summary>
-    /// Own tier in the running season for the ticket's rank_tier. Players who have not played
-    /// this season (or when the lookup fails or is slow) search as Bronze.
+    /// Ticket rank_tier computed by Cloud Code (GetTicketTier, FR-RANK-12) instead of the
+    /// client's own leaderboard row. Falls back to Bronze; the allocator checks it again.
     /// </summary>
-    private static async Task<RankTier> ResolveRankTierAsync()
+    private static Task<RankTier> ResolveRankTierAsync()
     {
-        LeaderboardService leaderboard = LeaderboardService.Instance;
-
-        if (leaderboard == null)
-        {
-            return RankTier.Bronze;
-        }
-
-        try
-        {
-            Task<RankTier> lookup = leaderboard.GetMyCurrentTierAsync();
-            Task finished = await Task.WhenAny(lookup, Task.Delay(RankLookupTimeoutMilliseconds));
-            return finished == lookup ? lookup.Result : leaderboard.MyStanding?.Tier ?? RankTier.Bronze;
-        }
-        catch (Exception exception)
-        {
-            Debug.LogWarning($"[Matchmaker] Rank lookup failed, searching as Bronze: {exception.Message}");
-            return RankTier.Bronze;
-        }
+        return MatchServerModuleClient.GetTicketTierAsync();
     }
 
     private async Task<IpPortAssignment> WaitForAssignmentAsync(
@@ -391,6 +376,7 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
         ushort port = checked((ushort)assignment.Port.Value);
         Debug.Log($"Connecting to Edgegap endpoint {assignment.Ip}:{port}");
         transport.SetConnectionData(assignment.Ip, port);
+        ConfigureConnectionApproval(networkManager, assignment.MatchId);
         isConnecting = true;
         SetActionLabel("Đang kết nối");
         ShowResultState("Đã tìm thấy trận. Đang kết nối server...");
@@ -407,6 +393,44 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
                 "NetworkManager.StartClient returned false."
             );
         }
+    }
+
+    /// <summary>
+    /// The dedicated server admits only allocated players: send who we are (FR-MM-09).
+    /// ConnectionApproval must match the server's flag because NGO hashes it.
+    /// </summary>
+    private static void ConfigureConnectionApproval(NetworkManager networkManager, string matchId)
+    {
+        var payload = new ConnectionPayload
+        {
+            playerId = AuthenticationService.Instance.PlayerId,
+            accessToken = AuthenticationService.Instance.AccessToken,
+            matchId = matchId,
+        };
+
+        networkManager.NetworkConfig.ConnectionApproval = true;
+        networkManager.NetworkConfig.ConnectionData = payload.ToBytes();
+        networkManager.NetworkConfig.ClientConnectionBufferTimeout = Math.Max(
+            networkManager.NetworkConfig.ClientConnectionBufferTimeout,
+            ConnectionBufferTimeoutSeconds
+        );
+        networkManager.OnClientStopped -= RestoreListenConfig;
+        networkManager.OnClientStopped += RestoreListenConfig;
+    }
+
+    /// <summary>Host/Join (listen-host) runs without approval; undo the dedicated settings.</summary>
+    private static void RestoreListenConfig(bool wasHost)
+    {
+        NetworkManager networkManager = NetworkManager.Singleton;
+
+        if (networkManager == null)
+        {
+            return;
+        }
+
+        networkManager.OnClientStopped -= RestoreListenConfig;
+        networkManager.NetworkConfig.ConnectionApproval = false;
+        networkManager.NetworkConfig.ConnectionData = Array.Empty<byte>();
     }
 
     private void OnClientConnected(ulong clientId)

@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using KLTN.Game.Content;
 using KLTN.Game.Domain;
+using KLTN.Infrastructure.CloudCode;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -23,7 +24,8 @@ namespace KLTN.Game.Networking
 
         private const float LoadoutTimeoutSeconds = 10f;
 
-        // Server: owned card IDs reported by each seat. Phase 2 will verify them server-side.
+        // Server: owned card IDs reported by each seat. On a dedicated server they only narrow
+        // the list verified by AdmitPlayer (see ServerLoadoutPolicy).
         private readonly Dictionary<SeatId, string[]> loadoutBySeat = new Dictionary<SeatId, string[]>();
         private Coroutine loadoutTimeoutCoroutine;
         private bool loadoutTimeoutElapsed;
@@ -139,7 +141,9 @@ namespace KLTN.Game.Networking
         }
 
         /// <summary>
-        /// Keeps only known card IDs. Falls back to the starter set when the report is
+        /// Keeps only known card IDs. On a dedicated server the owned list comes from
+        /// AdmitPlayer and the client's report can only narrow it (FR-MATCH-11); listen-host
+        /// trusts the report (private match). Falls back to the starter set when the list is
         /// missing or smaller than the starter set, then builds a weighted 25-card deck.
         /// Requires definitionsById to be populated.
         /// </summary>
@@ -149,8 +153,18 @@ namespace KLTN.Game.Networking
 
             List<string> starterIds = shopCatalog != null ? shopCatalog.StarterCardIds() : new List<string>();
             loadoutBySeat.TryGetValue(seat, out string[] reported);
+            IReadOnlyList<string> verified = VerifiedOwnedCardIds(seat);
+            IReadOnlyList<string> allowed = ServerLoadoutPolicy.Resolve(verified, reported);
 
-            List<CardDefinition> owned = ResolveDefinitions(reported);
+            if (verified != null)
+            {
+                Debug.Log(
+                    $"[Loadout] {seat}: {verified.Count} verified owned, "
+                        + $"{reported?.Length ?? 0} reported, {allowed.Count} allowed."
+                );
+            }
+
+            List<CardDefinition> owned = ResolveDefinitions(allowed);
             List<CardDefinition> starters = ResolveDefinitions(starterIds);
 
             if (owned.Count < Math.Max(1, starters.Count))
@@ -173,6 +187,25 @@ namespace KLTN.Game.Networking
                 Debug.LogWarning($"[Loadout] Weighted deck failed for {seat} ({exception.Message}); using default builder.");
                 return DefaultDeckBuilder.Build(owned);
             }
+        }
+
+        /// <summary>Owned IDs verified by the backend for the seat; null when unverified.</summary>
+        private IReadOnlyList<string> VerifiedOwnedCardIds(SeatId seat)
+        {
+            if (!MatchServerContext.IsDedicated)
+            {
+                return null;
+            }
+
+            foreach (KeyValuePair<ulong, SeatId> pair in seatByClient)
+            {
+                if (pair.Value == seat && MatchServerContext.TryGetAdmission(pair.Key, out PlayerAdmission admission))
+                {
+                    return admission.OwnedCardIds;
+                }
+            }
+
+            return null;
         }
 
         private List<CardDefinition> ResolveDefinitions(IEnumerable<string> ids)

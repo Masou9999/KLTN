@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using KLTN.Game.Domain;
+using KLTN.Infrastructure.CloudCode;
 using Unity.Netcode;
 using Unity.Netcode.Transports.UTP;
 using UnityEngine;
@@ -25,9 +27,25 @@ public sealed class DedicatedServerBootstrap : MonoBehaviour
     [SerializeField]
     private float emptyServerTimeoutSeconds = 120f;
 
+    [Header("Admission")]
+    [SerializeField]
+    private float admissionTimeoutSeconds = 10f;
+
+    [Tooltip("Must exceed the admission timeout; NGO drops pending connections after it.")]
+    [SerializeField]
+    private int connectionBufferTimeoutSeconds = 15;
+
+    [Tooltip("Longest wait for an in-flight ReportResult before the empty server quits.")]
+    [SerializeField]
+    private float reportShutdownGraceSeconds = 120f;
+
     [Header("Editor Testing")]
     [SerializeField]
     private bool allowEditorDedicatedServer;
+
+    [Tooltip("Editor only: use StubMatchResultReporter instead of Cloud Code.")]
+    [SerializeField]
+    private bool useStubReporterInEditor = true;
 
     #endregion
 
@@ -40,7 +58,11 @@ public sealed class DedicatedServerBootstrap : MonoBehaviour
 
     #region Runtime State
 
+    // Admitted clients whose connection completed.
     private readonly HashSet<ulong> connectedClients = new();
+
+    // Players whose AdmitPlayer call is still running.
+    private readonly HashSet<string> verifyingPlayerIds = new(StringComparer.Ordinal);
     private CancellationTokenSource lifetimeCancellation;
     private bool gameSceneLoadStarted;
 
@@ -74,6 +96,11 @@ public sealed class DedicatedServerBootstrap : MonoBehaviour
         {
             networkManager.OnClientConnectedCallback -= OnClientConnected;
             networkManager.OnClientDisconnectCallback -= OnClientDisconnected;
+
+            if (networkManager.ConnectionApprovalCallback == ApproveConnection)
+            {
+                networkManager.ConnectionApprovalCallback = null;
+            }
         }
     }
 
@@ -94,8 +121,22 @@ public sealed class DedicatedServerBootstrap : MonoBehaviour
     private void StartDedicatedServer()
     {
         Application.runInBackground = true;
-        string matchId = Environment.GetEnvironmentVariable("MATCH_ID") ?? "local-match";
+        string envMatchId = Environment.GetEnvironmentVariable("MATCH_ID");
+        string matchId = string.IsNullOrWhiteSpace(envMatchId) ? "local-match" : envMatchId.Trim();
         Debug.Log($"Starting dedicated server. Match ID: {matchId}");
+
+        IMatchResultReporter reporter = MatchResultReporterFactory.Create(
+            Application.isEditor && useStubReporterInEditor
+        );
+        MatchServerContext.StartDedicated(matchId, reporter);
+
+        // Clients enable ConnectionApproval too: it is part of NGO's config hash.
+        networkManager.NetworkConfig.ConnectionApproval = true;
+        networkManager.NetworkConfig.ClientConnectionBufferTimeout = Math.Max(
+            connectionBufferTimeoutSeconds,
+            Mathf.CeilToInt(admissionTimeoutSeconds) + 1
+        );
+        networkManager.ConnectionApprovalCallback = ApproveConnection;
         networkManager.OnClientConnectedCallback += OnClientConnected;
         networkManager.OnClientDisconnectCallback += OnClientDisconnected;
         transport.SetConnectionData("0.0.0.0", listenPort, "0.0.0.0");
@@ -114,17 +155,150 @@ public sealed class DedicatedServerBootstrap : MonoBehaviour
 
     #endregion
 
+    #region Connection Approval
+
+    /// <summary>
+    /// Accepts only the players allocated to this match (FR-MM-09): the payload is checked
+    /// locally, then AdmitPlayer verifies the UGS token, match token and owned cards.
+    /// </summary>
+    private void ApproveConnection(
+        NetworkManager.ConnectionApprovalRequest request,
+        NetworkManager.ConnectionApprovalResponse response
+    )
+    {
+        ulong clientId = request.ClientNetworkId;
+
+        if (!ConnectionPayload.TryParse(request.Payload, out ConnectionPayload payload))
+        {
+            Reject(clientId, response, AdmissionRejection.MissingPayload);
+            return;
+        }
+
+        var knownPlayerIds = new List<string>(verifyingPlayerIds);
+        knownPlayerIds.AddRange(MatchServerContext.AdmittedPlayerIds());
+
+        AdmissionRejection rejection = MatchAdmissionPolicy.PreCheck(
+            payload.playerId,
+            payload.accessToken,
+            payload.matchId,
+            // The allocator creates its own MATCH_ID, different from the matchmaker ID the
+            // client knows, so membership is checked by AdmitPlayer (players + MATCH_TOKEN).
+            null,
+            knownPlayerIds,
+            requiredPlayerCount,
+            gameSceneLoadStarted
+        );
+
+        if (rejection != AdmissionRejection.None)
+        {
+            Reject(clientId, response, rejection);
+            return;
+        }
+
+        response.Pending = true;
+        verifyingPlayerIds.Add(payload.playerId);
+        _ = AdmitAsync(clientId, payload, response);
+    }
+
+    private async Task AdmitAsync(
+        ulong clientId,
+        ConnectionPayload payload,
+        NetworkManager.ConnectionApprovalResponse response
+    )
+    {
+        PlayerAdmission admission;
+
+        try
+        {
+            using var timeout = new CancellationTokenSource(
+                TimeSpan.FromSeconds(admissionTimeoutSeconds)
+            );
+            admission = await MatchServerContext.Reporter.AdmitPlayerAsync(
+                MatchServerContext.MatchId,
+                payload.playerId,
+                payload.accessToken,
+                timeout.Token
+            );
+        }
+        catch (OperationCanceledException)
+        {
+            admission = PlayerAdmission.Reject(payload.playerId, "Hết thời gian xác minh người chơi.");
+        }
+        catch (Exception exception)
+        {
+            Debug.LogException(exception);
+            admission = PlayerAdmission.Reject(payload.playerId, "Không xác minh được người chơi.");
+        }
+        finally
+        {
+            verifyingPlayerIds.Remove(payload.playerId);
+        }
+
+        if (this == null || networkManager == null || !networkManager.IsListening)
+        {
+            return;
+        }
+
+        if (admission.Admitted && gameSceneLoadStarted)
+        {
+            admission = PlayerAdmission.Reject(
+                payload.playerId,
+                MatchAdmissionPolicy.Describe(AdmissionRejection.MatchStarted)
+            );
+        }
+
+        if (admission.Admitted && !networkManager.PendingClients.ContainsKey(clientId))
+        {
+            // The client gave up while being verified.
+            response.Approved = false;
+            response.Pending = false;
+            return;
+        }
+
+        if (admission.Admitted)
+        {
+            MatchServerContext.Admit(clientId, admission);
+            Debug.Log($"Admitted client {clientId} as player {admission.PlayerId}.");
+        }
+        else
+        {
+            Debug.LogWarning(
+                $"Rejected client {clientId} (player {payload.playerId}): {admission.Reason}"
+            );
+        }
+
+        response.Approved = admission.Admitted;
+        response.Reason = admission.Admitted ? string.Empty : admission.Reason;
+        response.CreatePlayerObject = networkManager.NetworkConfig.PlayerPrefab != null;
+        response.Pending = false;
+    }
+
+    private static void Reject(
+        ulong clientId,
+        NetworkManager.ConnectionApprovalResponse response,
+        AdmissionRejection rejection
+    )
+    {
+        Debug.LogWarning($"Rejected client {clientId}: {rejection}.");
+        response.Approved = false;
+        response.Reason = MatchAdmissionPolicy.Describe(rejection);
+        response.Pending = false;
+    }
+
+    #endregion
+
     #region Client Lifecycle
 
     private void OnClientConnected(ulong clientId)
     {
-        if (gameSceneLoadStarted)
+        if (!MatchServerContext.TryGetAdmission(clientId, out _))
         {
-            networkManager.DisconnectClient(clientId);
+            // Approval guarantees this; kept as a guard against configuration mistakes.
+            networkManager.DisconnectClient(clientId, "Chưa được xác minh.");
             return;
         }
 
-        if (connectedClients.Count >= requiredPlayerCount)
+        if (gameSceneLoadStarted)
         {
             networkManager.DisconnectClient(clientId);
             return;
@@ -135,6 +309,7 @@ public sealed class DedicatedServerBootstrap : MonoBehaviour
             $"Client connected: {clientId}. Players: {connectedClients.Count}/{requiredPlayerCount}"
         );
 
+        // Only admitted players count, so the match starts with exactly the allocated pair.
         if (connectedClients.Count == requiredPlayerCount)
         {
             LoadGameScene();
@@ -144,14 +319,20 @@ public sealed class DedicatedServerBootstrap : MonoBehaviour
     private void OnClientDisconnected(ulong clientId)
     {
         connectedClients.Remove(clientId);
+
+        if (!gameSceneLoadStarted)
+        {
+            // Frees the seat; after the match started the admission is kept for the report.
+            MatchServerContext.Forget(clientId);
+        }
+
         Debug.Log(
             $"Client disconnected: {clientId}. Remaining players: {connectedClients.Count}"
         );
 
         if (gameSceneLoadStarted && connectedClients.Count == 0)
         {
-            Debug.Log("All clients left. Stopping server.");
-            Application.Quit();
+            _ = QuitAfterReportAsync();
         }
     }
 
@@ -183,6 +364,21 @@ public sealed class DedicatedServerBootstrap : MonoBehaviour
     #endregion
 
     #region Server Lifetime
+
+    private async Task QuitAfterReportAsync()
+    {
+        Task report = MatchServerContext.PendingReport ?? Task.CompletedTask;
+
+        if (!report.IsCompleted)
+        {
+            Debug.Log("All clients left. Waiting for the match report before stopping.");
+            int graceMilliseconds = Mathf.CeilToInt(reportShutdownGraceSeconds * 1000f);
+            await Task.WhenAny(report, Task.Delay(graceMilliseconds));
+        }
+
+        Debug.Log("All clients left. Stopping server.");
+        Application.Quit();
+    }
 
     private async Task QuitIfUnusedAsync(CancellationToken cancellationToken)
     {

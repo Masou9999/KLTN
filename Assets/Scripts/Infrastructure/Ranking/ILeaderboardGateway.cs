@@ -65,25 +65,10 @@ namespace KLTN.Infrastructure.Ranking
         }
     }
 
-    public sealed class RankedRecord
-    {
-        public SeasonStanding Before { get; }
-        public SeasonStanding After { get; }
-        public bool AlreadyApplied { get; }
-
-        public RankedRecord(SeasonStanding before, SeasonStanding after, bool alreadyApplied)
-        {
-            Before = before;
-            After = after;
-            AlreadyApplied = alreadyApplied;
-        }
-    }
-
     /// <summary>
     /// Persistence boundary for seasons and leaderboard rows.
-    /// Phase 1: FirestoreLeaderboardGateway (client writes its own result, Security Rules
-    /// validate points, season window and a 60 s rate limit). Phase 2: a server-side
-    /// gateway can replace it without touching the UI.
+    /// FirestoreLeaderboardGateway reads seasons and rows and creates the player's empty row.
+    /// Ranked results are written only by Cloud Code ReportResult (FR-RANK-11).
     /// </summary>
     public interface ILeaderboardGateway
     {
@@ -106,13 +91,5 @@ namespace KLTN.Infrastructure.Ranking
 
         /// <summary>1-based position of <paramref name="standing"/> using COUNT aggregations.</summary>
         Task<RankingResult<int>> GetPositionAsync(int seasonId, SeasonStanding standing);
-
-        Task<RankingResult<RankedRecord>> RecordResultAsync(
-            int seasonId,
-            string username,
-            string matchId,
-            RankedResult result,
-            long matchStartedUtcMs
-        );
     }
 }

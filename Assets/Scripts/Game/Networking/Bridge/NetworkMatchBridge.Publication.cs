@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using CMCMProductions;
 using KLTN.Game.Content;
 using KLTN.Game.Domain;
+using KLTN.Infrastructure.CloudCode;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -88,13 +89,19 @@ namespace KLTN.Game.Networking
                     firstSeat
                 );
 
-                currentMatchId = Guid.NewGuid().ToString("N");
+                // A dedicated server reports under the allocator's MATCH_ID so the backend can
+                // match it to matches/{matchId}; listen-host matches get a local ID.
+                currentMatchId = MatchServerContext.IsDedicated
+                    ? MatchServerContext.MatchId
+                    : Guid.NewGuid().ToString("N");
                 currentMatchStartedUtcMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
-                // Dedicated (Find Random) matches are always ranked; Host/Client only when
-                // enabled on the host's RankingSettings (quick testing).
-                currentMatchRanked =
-                    !NetworkManager.IsHost || RankingSettings.Load().HostClientPointsEnabled;
+                // Dedicated matches are ranked when the backend reporter is configured.
+                // Listen-host (Host/Join) matches are private and never scored; the
+                // RankingSettings flag only marks them as ranked in the HUD for dev testing.
+                currentMatchRanked = MatchServerContext.IsDedicated
+                    ? MatchServerContext.Reporter.IsRanked
+                    : RankingSettings.Load().HostClientPointsEnabled;
 
                 rulesEngine = new MatchRulesEngine(definitionsById, random);
 

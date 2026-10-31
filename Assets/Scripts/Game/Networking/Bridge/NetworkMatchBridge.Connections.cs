@@ -139,6 +139,7 @@ namespace KLTN.Game.Networking
             }
 
             SendUpdate(senderClientId, viewerSeat, null);
+            ResendSettlement(senderClientId, viewerSeat);
         }
 
         private void QueueSnapshotWhenVisible(ulong clientId)

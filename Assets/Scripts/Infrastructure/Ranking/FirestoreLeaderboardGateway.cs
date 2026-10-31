@@ -18,7 +18,8 @@ namespace KLTN.Infrastructure.Ranking
     ///   seasons/{seasonId}/entries/{uid}               username, points, wins, losses, draws, matches,
     ///                                                  lastMatchId, updatedAt
     ///   seasons/{seasonId}/entries/{uid}/results/{matchId}   result, delta, matchStartedAt, createdAt
-    /// A result is one :commit batch (entry + results doc) so Rules can check it with getAfter().
+    /// Match results (entry update + results doc) are written only by Cloud Code ReportResult;
+    /// the client creates its empty entry and reads.
     /// </summary>
     public sealed class FirestoreLeaderboardGateway : ILeaderboardGateway
     {
@@ -27,9 +28,6 @@ namespace KLTN.Infrastructure.Ranking
         private const string ConfigPath = "config/season";
         private const string SeasonsCollection = "seasons";
         private const string EntriesCollection = "entries";
-
-        /// <summary>Rules require 60 s between two results; wait a little longer to absorb clock skew.</summary>
-        private const long RateLimitMs = (RankPointsPolicy.MinSecondsBetweenResults + 2) * 1000L;
 
         #endregion
 
@@ -285,117 +283,9 @@ namespace KLTN.Infrastructure.Ranking
                 : Fail<SeasonStanding>(response);
         }
 
-        public async Task<RankingResult<RankedRecord>> RecordResultAsync(
-            int seasonId,
-            string username,
-            string matchId,
-            RankedResult result,
-            long matchStartedUtcMs
-        )
-        {
-            if (string.IsNullOrWhiteSpace(matchId) || matchId.Length > 64 || matchId.Contains("/"))
-            {
-                return RankingResult<RankedRecord>.Fail(RankingErrorCode.Rejected, "Mã trận không hợp lệ.");
-            }
-
-            if (!UsernamePolicy.IsValid(username))
-            {
-                return RankingResult<RankedRecord>.Fail(RankingErrorCode.Rejected, "Tài khoản chưa có username.");
-            }
-
-            string uid = userIdProvider();
-            string token = await tokenProvider();
-
-            if (string.IsNullOrEmpty(uid) || string.IsNullOrEmpty(token))
-            {
-                return RankingResult<RankedRecord>.Fail(RankingErrorCode.NotSignedIn, "Bạn chưa đăng nhập.");
-            }
-
-            string entryPath = EntryPath(seasonId, uid);
-            string resultPath = $"{entryPath}/results/{matchId}";
-
-            FirestoreResponse entry = await client.GetDocumentAsync(entryPath, token);
-
-            if (!entry.Success && !entry.IsNotFound)
-            {
-                return Fail<RankedRecord>(entry);
-            }
-
-            bool exists = entry.Success;
-            SeasonStanding before = exists
-                ? ParseStanding(entry.Body)
-                : new SeasonStanding(uid, username, 0, 0, 0, 0, 0);
-
-            FirestoreResponse existing = await client.GetDocumentAsync(resultPath, token);
-
-            if (existing.Success)
-            {
-                return RankingResult<RankedRecord>.Ok(new RankedRecord(before, before, alreadyApplied: true));
-            }
-
-            if (exists)
-            {
-                long sinceLast = ServerClock.UtcNowMs - FirestoreValueMapper.GetTimestampMs(entry.Body, "updatedAt");
-
-                if (sinceLast >= 0 && sinceLast < RateLimitMs)
-                {
-                    // Rules allow one result per 60 s; a very short match waits instead of being lost.
-                    await Task.Delay(TimeSpan.FromMilliseconds(RateLimitMs - sinceLast));
-                    token = await tokenProvider();
-                }
-            }
-
-            SeasonStanding after = Apply(before, uid, username, result);
-
-            Dictionary<string, object> fields = StandingFields(after, matchId);
-
-            var writes = new List<JObject>
-            {
-                exists
-                    ? client.UpdateWrite(entryPath, fields, null, "updatedAt")
-                    : client.CreateWrite(entryPath, fields, "updatedAt"),
-                client.CreateWrite(
-                    resultPath,
-                    new Dictionary<string, object>
-                    {
-                        ["result"] = RankPointsPolicy.WireName(result.Kind),
-                        ["delta"] = result.Delta,
-                        ["matchStartedAt"] = DateTimeOffset.FromUnixTimeMilliseconds(matchStartedUtcMs).UtcDateTime,
-                    },
-                    "createdAt"
-                ),
-            };
-
-            FirestoreResponse response = await client.CommitAsync(writes, token);
-
-            if (!response.Success)
-            {
-                Debug.LogWarning(
-                    $"[Leaderboard] Result {matchId} for season {seasonId} rejected: "
-                        + $"{response.ErrorStatus} {response.ErrorMessage}"
-                );
-                return Fail<RankedRecord>(response);
-            }
-
-            return RankingResult<RankedRecord>.Ok(new RankedRecord(before, after, alreadyApplied: false));
-        }
-
         #endregion
 
         #region Parsing
-
-        private static SeasonStanding Apply(SeasonStanding before, string uid, string username, RankedResult result)
-        {
-            return new SeasonStanding(
-                uid,
-                username,
-                RankPointsPolicy.ApplyDelta(before.Points, result.Delta),
-                before.Wins + (result.Kind == RankedResultKind.Win ? 1 : 0),
-                before.Losses + (result.Kind == RankedResultKind.Loss || result.Kind == RankedResultKind.Surrender ? 1 : 0),
-                before.Draws + (result.Kind == RankedResultKind.Draw ? 1 : 0),
-                before.Matches + 1
-            );
-        }
 
         private static Dictionary<string, object> StandingFields(SeasonStanding standing, string lastMatchId)
         {

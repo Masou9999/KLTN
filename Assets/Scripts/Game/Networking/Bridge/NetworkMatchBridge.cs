@@ -55,6 +55,7 @@ namespace KLTN.Game.Networking
         public override void OnNetworkSpawn()
         {
             hasReceivedSnapshot = false;
+            MatchSettlementRegistry.Reset();
 
             if (IsServer)
             {
