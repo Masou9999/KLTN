@@ -7,6 +7,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
+using KLTN.CloudCode.Shared;
 using KLTN.Game.Domain.Ranking;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -162,7 +163,7 @@ namespace KLTN.CloudCode.Season
             long lockMs = lockMinutes * 60_000L;
 
             (JsonObject document, string updateTime) = await firestore.GetAsync("config/season");
-            SeasonConfig? current = document == null ? null : ParseConfig(document);
+            SeasonConfig? current = document == null ? null : SeasonDocuments.ParseConfig(document);
             SeasonConfig next = SeasonSchedule.Plan(current, now, durationMs, lockMs);
             var writes = new JsonArray();
             string status = "running";
@@ -239,44 +240,6 @@ namespace KLTN.CloudCode.Season
             }
 
             return fields;
-        }
-
-        private static SeasonConfig? ParseConfig(JsonObject document)
-        {
-            JsonObject fields = document["fields"]?.AsObject();
-
-            if (Long(fields, "anchorSeasonId") < 1 || Long(fields, "durationMs") <= 0)
-            {
-                return null;
-            }
-
-            var active = new SeasonCalendar(
-                (int)Long(fields, "anchorSeasonId"),
-                Long(fields, "anchorStartMs"),
-                Long(fields, "durationMs"),
-                Long(fields, "lockMs")
-            );
-
-            int pendingId = (int)Long(fields, "pendingSeasonId");
-
-            if (pendingId <= 0)
-            {
-                return new SeasonConfig(active);
-            }
-
-            var pending = new SeasonCalendar(
-                pendingId,
-                Long(fields, "pendingStartMs"),
-                Long(fields, "pendingDurationMs"),
-                Long(fields, "pendingLockMs")
-            );
-            return new SeasonConfig(active, pending);
-        }
-
-        private static long Long(JsonObject fields, string name)
-        {
-            string text = fields?[name]?["integerValue"]?.GetValue<string>();
-            return text == null ? 0 : long.Parse(text, CultureInfo.InvariantCulture);
         }
 
         private static SeasonState State(string status, SeasonWindow window)
@@ -457,218 +420,6 @@ namespace KLTN.CloudCode.Season
         {
             string text = fields?[name]?["integerValue"]?.GetValue<string>();
             return text == null ? 0 : long.Parse(text, CultureInfo.InvariantCulture);
-        }
-    }
-
-    /// <summary>Tiny Firestore REST client authenticated as the service account.</summary>
-    public sealed class FirestoreAdmin
-    {
-        private readonly HttpClient http;
-        private readonly GoogleServiceAccount account;
-        private readonly string root;
-
-        private readonly string host;
-
-        public FirestoreAdmin(HttpClient http, GoogleServiceAccount account)
-            : this(http, account, account.ProjectId, "https://firestore.googleapis.com")
-        {
-        }
-
-        /// <summary>Emulator/test constructor: <paramref name="account"/> null sends "Bearer owner".</summary>
-        public FirestoreAdmin(HttpClient http, GoogleServiceAccount account, string projectId, string host)
-        {
-            this.http = http;
-            this.account = account;
-            this.host = host.TrimEnd('/');
-            root = $"projects/{projectId}/databases/(default)/documents";
-        }
-
-        public async Task<(JsonObject document, string updateTime)> GetAsync(string path)
-        {
-            using HttpRequestMessage request = await RequestAsync(HttpMethod.Get, $"{host}/v1/{root}/{path}");
-            using HttpResponseMessage response = await http.SendAsync(request);
-
-            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
-            {
-                return (null, null);
-            }
-
-            string text = await response.Content.ReadAsStringAsync();
-
-            if (!response.IsSuccessStatusCode)
-            {
-                throw new InvalidOperationException($"Firestore GET {path} failed ({(int)response.StatusCode}): {text}");
-            }
-
-            JsonObject document = JsonNode.Parse(text).AsObject();
-            return (document, document["updateTime"]?.GetValue<string>());
-        }
-
-        /// <summary>Every document of a collection (follows page tokens).</summary>
-        public async Task<List<JsonObject>> ListAsync(string collectionPath)
-        {
-            var documents = new List<JsonObject>();
-            string pageToken = null;
-
-            do
-            {
-                string url = $"{host}/v1/{root}/{collectionPath}?pageSize=300";
-
-                if (pageToken != null)
-                {
-                    url += "&pageToken=" + Uri.EscapeDataString(pageToken);
-                }
-
-                using HttpRequestMessage request = await RequestAsync(HttpMethod.Get, url);
-                using HttpResponseMessage response = await http.SendAsync(request);
-                string text = await response.Content.ReadAsStringAsync();
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    throw new InvalidOperationException($"Firestore list {collectionPath} failed ({(int)response.StatusCode}): {text}");
-                }
-
-                JsonObject page = JsonNode.Parse(text).AsObject();
-
-                if (page["documents"] is JsonArray rows)
-                {
-                    foreach (JsonNode row in rows)
-                    {
-                        documents.Add(row.AsObject());
-                    }
-                }
-
-                pageToken = page["nextPageToken"]?.GetValue<string>();
-            }
-            while (!string.IsNullOrEmpty(pageToken));
-
-            return documents;
-        }
-
-        public static string DocumentId(JsonObject document)
-        {
-            string name = document["name"]?.GetValue<string>() ?? string.Empty;
-            return name.Substring(name.LastIndexOf('/') + 1);
-        }
-
-        /// <summary>Sets only the given fields of an existing document (optionally at a known version).</summary>
-        public JsonObject Patch(string path, JsonObject fields, string updateTime = null)
-        {
-            var mask = new JsonArray();
-
-            foreach (KeyValuePair<string, JsonNode> field in fields)
-            {
-                mask.Add(field.Key);
-            }
-
-            JsonObject write = updateTime != null
-                ? Write(path, fields, updateTime: updateTime)
-                : Write(path, fields, exists: true);
-            write["updateMask"] = new JsonObject { ["fieldPaths"] = mask };
-            return write;
-        }
-
-        /// <summary>Non-atomic writes (500 per request); returns how many succeeded.</summary>
-        public async Task<int> BatchWriteAsync(JsonArray writes)
-        {
-            int succeeded = 0;
-            var all = new List<JsonNode>(writes);
-
-            for (int offset = 0; offset < all.Count; offset += 500)
-            {
-                var chunk = new JsonArray();
-
-                for (int index = offset; index < Math.Min(all.Count, offset + 500); index++)
-                {
-                    chunk.Add(JsonNode.Parse(all[index].ToJsonString()));
-                }
-
-                var body = new JsonObject { ["writes"] = chunk };
-                using HttpRequestMessage request = await RequestAsync(HttpMethod.Post, $"{host}/v1/{root}:batchWrite");
-                request.Content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json");
-                using HttpResponseMessage response = await http.SendAsync(request);
-                string text = await response.Content.ReadAsStringAsync();
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    throw new InvalidOperationException($"Firestore batchWrite failed ({(int)response.StatusCode}): {text}");
-                }
-
-                if (JsonNode.Parse(text)?["status"] is JsonArray statuses)
-                {
-                    foreach (JsonNode status in statuses)
-                    {
-                        // google.rpc.Status: code is absent (0 = OK) on success.
-                        if ((status?["code"]?.GetValue<int>() ?? 0) == 0)
-                        {
-                            succeeded++;
-                        }
-                    }
-                }
-            }
-
-            return succeeded;
-        }
-
-        public JsonObject Write(string path, JsonObject fields, bool? exists = null, string updateTime = null)
-        {
-            var write = new JsonObject
-            {
-                ["update"] = new JsonObject { ["name"] = $"{root}/{path}", ["fields"] = fields },
-            };
-
-            if (updateTime != null)
-            {
-                write["currentDocument"] = new JsonObject { ["updateTime"] = updateTime };
-            }
-            else if (exists.HasValue)
-            {
-                write["currentDocument"] = new JsonObject { ["exists"] = exists.Value };
-            }
-
-            return write;
-        }
-
-        public async Task CommitAsync(JsonArray writes)
-        {
-            var body = new JsonObject { ["writes"] = writes };
-            using HttpRequestMessage request = await RequestAsync(HttpMethod.Post, $"{host}/v1/{root}:commit");
-            request.Content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json");
-            using HttpResponseMessage response = await http.SendAsync(request);
-
-            if (!response.IsSuccessStatusCode)
-            {
-                string text = await response.Content.ReadAsStringAsync();
-                throw new InvalidOperationException($"Firestore commit failed ({(int)response.StatusCode}): {text}");
-            }
-        }
-
-        public static JsonObject Integer(long value)
-        {
-            return new JsonObject { ["integerValue"] = value.ToString(CultureInfo.InvariantCulture) };
-        }
-
-        public static JsonObject Timestamp(long unixMs)
-        {
-            return new JsonObject
-            {
-                ["timestampValue"] = DateTimeOffset.FromUnixTimeMilliseconds(unixMs)
-                    .UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'", CultureInfo.InvariantCulture),
-            };
-        }
-
-        public static long ParseTimestamp(JsonNode value)
-        {
-            string text = value?["timestampValue"]?.GetValue<string>();
-            return DateTimeOffset.Parse(text, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal).ToUnixTimeMilliseconds();
-        }
-
-        private async Task<HttpRequestMessage> RequestAsync(HttpMethod method, string url)
-        {
-            var request = new HttpRequestMessage(method, url);
-            string token = account != null ? await account.GetAccessTokenAsync(http) : "owner";
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-            return request;
         }
     }
 }

@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- UGS Cloud Code C# module: rolls the ranked season over in Firestore.
+       Built and deployed from the Unity Deployment window (Assets/CloudCode/SeasonModule.ccmr)
+       or with the UGS CLI. Not part of the Unity build (lives outside Assets/). -->
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <LangVersion>10.0</LangVersion>
+    <AssemblyName>SeasonModule</AssemblyName>
+    <RootNamespace>KLTN.CloudCode.Season</RootNamespace>
+    <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Com.Unity.Services.CloudCode.Core" Version="0.0.7" />
+    <PackageReference Include="Com.Unity.Services.CloudCode.Apis" Version="0.0.27" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="6.0.4" />
+  </ItemGroup>
+
+  <!-- Same season arithmetic, win rate and username rules as the game (pure C#, no Unity references). -->
+  <ItemGroup>
+    <Compile Include="../../../Assets/Scripts/Game/Domain/Ranking/SeasonWindow.cs" Link="Shared/SeasonWindow.cs" />
+    <Compile Include="../../../Assets/Scripts/Game/Domain/Ranking/SeasonStanding.cs" Link="Shared/SeasonStanding.cs" />
+    <Compile Include="../../../Assets/Scripts/Game/Domain/Ranking/RankTier.cs" Link="Shared/RankTier.cs" />
+  </ItemGroup>
+
+  <!-- Firestore admin client shared with MatchServerModule and EdgegapAllocator (CloudCode/Shared). -->
+  <ItemGroup>
+    <Compile Include="../../Shared/GoogleServiceAccount.cs" Link="Shared/GoogleServiceAccount.cs" />
+    <Compile Include="../../Shared/FirestoreAdmin.cs" Link="Shared/FirestoreAdmin.cs" />
+    <Compile Include="../../Shared/SeasonDocuments.cs" Link="Shared/SeasonDocuments.cs" />
+  </ItemGroup>
+
+</Project>

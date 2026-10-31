@@ -1,0 +1,6 @@
+# The root .gitignore drops *.sln / *.csproj (Unity regenerates its own). Cloud Code modules
+# are plain .NET projects that must be committed, so re-include them here.
+!*.sln
+!*.csproj
+bin/
+obj/

@@ -1,3 +1,4 @@
+#nullable disable
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
@@ -6,12 +7,12 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-namespace KLTN.CloudCode.Season
+namespace KLTN.CloudCode.Shared
 {
     /// <summary>
     /// Mints a Google OAuth access token from a Firebase service account key (JSON stored
     /// in UGS Secret Manager). Admin tokens bypass Firestore Security Rules, which is what
-    /// lets this module write config/season and seasons/{id}.
+    /// lets Cloud Code modules write documents clients may not (config/season, matches, rewards).
     /// </summary>
     public sealed class GoogleServiceAccount
     {

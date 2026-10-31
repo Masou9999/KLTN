@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <!-- Unity Matchmaker hosting-provider sample (Edgegap), see LICENSE.md. Extended for KLTN:
+         tier re-check, matches/{matchId} + MATCH_TOKEN, UGS service account variables for the server. -->
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <Configurations>Debug;Release</Configurations>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Com.Unity.Services.CloudCode.Apis" Version="0.0.24" />
+      <PackageReference Include="Com.Unity.Services.CloudCode.Core" Version="0.0.3" />
+      <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="7.0.1" />
+    </ItemGroup>
+
+    <PropertyGroup>
+        <PublishReadyToRunComposite>true</PublishReadyToRunComposite>
+    </PropertyGroup>
+
+    <!-- Tier thresholds, matchmaking tier rule and season arithmetic from the game (pure C#, linked). -->
+    <ItemGroup>
+      <Compile Include="../../../Assets/Scripts/Game/Domain/Ranking/RankTier.cs" Link="Domain/RankTier.cs" />
+      <Compile Include="../../../Assets/Scripts/Game/Domain/Ranking/SeasonWindow.cs" Link="Domain/SeasonWindow.cs" />
+      <Compile Include="../../../Assets/Scripts/Game/Domain/Ranking/SeasonStanding.cs" Link="Domain/SeasonStanding.cs" />
+    </ItemGroup>
+
+    <!-- Firestore admin client and match/player records shared with the other Cloud Code modules. -->
+    <ItemGroup>
+      <Compile Include="../../Shared/GoogleServiceAccount.cs" Link="Shared/GoogleServiceAccount.cs" />
+      <Compile Include="../../Shared/FirestoreAdmin.cs" Link="Shared/FirestoreAdmin.cs" />
+      <Compile Include="../../Shared/SeasonDocuments.cs" Link="Shared/SeasonDocuments.cs" />
+      <Compile Include="../../Shared/MatchRecords.cs" Link="Shared/MatchRecords.cs" />
+    </ItemGroup>
+</Project>

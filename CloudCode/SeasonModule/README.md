@@ -17,6 +17,7 @@ UGS Scheduler (season-tick, cron 0 * * * *  — UGS chỉ cho tối thiểu mỗ
 Bảng xếp hạng sắp theo **điểm giảm dần → tỉ lệ thắng giảm dần → username tăng dần**. Tỉ lệ thắng được
 lưu ở trường `winRate` (phần vạn: `wins * 10000 / matches`, làm tròn xuống), Rules kiểm tra đúng công thức.
 Người chơi đăng nhập (hoặc mở bảng xếp hạng) cũng tự tạo hàng trống của mình, nên tài khoản mới không phải đợi lần chạy kế tiếp.
+Điểm và thống kê sau mỗi trận do `MatchServerModule/ReportResult` ghi (Rules chặn client ghi điểm).
 
 Idempotent: chạy lại nhiều lần không đổi gì; hai lần chạy song song thì precondition `updateTime`
 làm một lần thất bại.
@@ -59,13 +60,17 @@ mùa cũ có `closedAt`, đổi cài đặt đồng thời chỉ ghi một lần
 
 - Việc Trigger truyền `Payload` của schedule thành tham số `durationHours`/`lockMinutes` của hàm.
   Nếu log Cloud Code báo thiếu tham số, gửi log để sửa. (`deploy/*.sched|.tr` chỉ dùng với UGS CLI.)
-- `modulePath` tương đối trong `.ccmr` (`Matchmaker.ccmr` hiện dùng đường dẫn tuyệt đối). Nếu
+- `modulePath` tương đối trong `.ccmr` (cả 3 module đều dùng đường dẫn tương đối). Nếu
   Deployment window báo không thấy module, đổi thành đường dẫn tuyệt đối tới `SeasonModule.sln`.
+
+`SeasonModule.sln`/`.csproj` trước đây bị `.gitignore` gốc (`*.sln`, `*.csproj`) bỏ qua; `CloudCode/.gitignore`
+đưa chúng vào repo. `GoogleServiceAccount`/`FirestoreAdmin` nay nằm ở `CloudCode/Shared` (link source, dùng chung
+với MatchServerModule và EdgegapAllocator).
 
 ## Matchmaker: chỉ ghép rank chênh ≤ 1 bậc
 
-Client gửi `rank_tier` (0 = Đồng … 6 = Thách đấu) trong custom data của ticket
-(`DedicatedMatchmakerClient`). Trong Dashboard → Matchmaker → Queue → Pool → Rules, thêm:
+Client gửi `rank_tier` (0 = Đồng … 6 = Thách đấu) trong custom data của ticket, lấy từ
+`MatchServerModule/GetTicketTier` (plan 02). Trong Dashboard → Matchmaker → Queue → Pool → Rules, thêm:
 
 ```json
 {
@@ -79,5 +84,6 @@ Client gửi `rank_tier` (0 = Đồng … 6 = Thách đấu) trong custom data c
 ```
 
 `[Chưa kiểm chứng]` cú pháp rule trên Dashboard. Có thể thêm relaxation (nới lên 2 sau 60s) nếu
-hàng chờ ít người. Lưu ý: `rank_tier` do client tự khai → client sửa đổi có thể khai sai (nợ kỹ thuật).
-Host/Client (listen) không đi qua Matchmaker nên không bị giới hạn rank.
+hàng chờ ít người. `rank_tier` trong ticket vẫn do client gửi, nhưng `EdgegapAllocator` đọc lại tier thật
+từ Firestore và từ chối cấp phát khi lệch > 1 bậc (FR-RANK-12), nên khai sai không ghép được.
+Host/Client (listen) không đi qua Matchmaker nên không bị giới hạn rank (và không xếp hạng, không thưởng).

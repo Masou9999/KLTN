@@ -1,4 +1,4 @@
-using System; using System.Net.Http; using System.Threading.Tasks; using KLTN.CloudCode.Season; using KLTN.Game.Domain.Ranking;
+using System; using System.Net.Http; using System.Threading.Tasks; using KLTN.CloudCode.Season; using KLTN.CloudCode.Shared; using KLTN.Game.Domain.Ranking;
 class P { static async Task<int> Main() {
   var http = new HttpClient();
   var fs = new FirestoreAdmin(http, null, "demo-kltn", "http://127.0.0.1:8080");

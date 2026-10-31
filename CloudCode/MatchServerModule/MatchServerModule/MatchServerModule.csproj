@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- UGS Cloud Code C# module: server-trusted match admission and settlement (rewards + season points).
+       Built and deployed from the Unity Deployment window (Assets/CloudCode/MatchServerModule.ccmr)
+       or with the UGS CLI. Not part of the Unity build (lives outside Assets/). -->
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <LangVersion>10.0</LangVersion>
+    <AssemblyName>MatchServerModule</AssemblyName>
+    <RootNamespace>KLTN.CloudCode.MatchServer</RootNamespace>
+    <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Com.Unity.Services.CloudCode.Core" Version="0.0.7" />
+    <PackageReference Include="Com.Unity.Services.CloudCode.Apis" Version="0.0.27" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="6.0.4" />
+  </ItemGroup>
+
+  <!-- Same reward table, points table, tiers and season arithmetic as the game (pure C#, no Unity references).
+       Linked, not copied: a balance change in the Domain reaches the server on the next deploy. -->
+  <ItemGroup>
+    <Compile Include="../../../Assets/Scripts/Game/Domain/Economy/MatchRewardPolicy.cs" Link="Domain/MatchRewardPolicy.cs" />
+    <Compile Include="../../../Assets/Scripts/Game/Domain/Economy/EconomyModels.cs" Link="Domain/EconomyModels.cs" />
+    <Compile Include="../../../Assets/Scripts/Game/Domain/Ranking/RankPointsPolicy.cs" Link="Domain/RankPointsPolicy.cs" />
+    <Compile Include="../../../Assets/Scripts/Game/Domain/Ranking/RankTier.cs" Link="Domain/RankTier.cs" />
+    <Compile Include="../../../Assets/Scripts/Game/Domain/Ranking/SeasonWindow.cs" Link="Domain/SeasonWindow.cs" />
+    <Compile Include="../../../Assets/Scripts/Game/Domain/Ranking/SeasonStanding.cs" Link="Domain/SeasonStanding.cs" />
+    <Compile Include="../../../Assets/Scripts/Game/Domain/Match/SeatId.cs" Link="Domain/SeatId.cs" />
+    <Compile Include="../../../Assets/Scripts/Game/Domain/Cards/CardModels.cs" Link="Domain/CardModels.cs" />
+  </ItemGroup>
+
+  <!-- Firestore admin client and match/player records shared with SeasonModule and EdgegapAllocator. -->
+  <ItemGroup>
+    <Compile Include="../../Shared/GoogleServiceAccount.cs" Link="Shared/GoogleServiceAccount.cs" />
+    <Compile Include="../../Shared/FirestoreAdmin.cs" Link="Shared/FirestoreAdmin.cs" />
+    <Compile Include="../../Shared/SeasonDocuments.cs" Link="Shared/SeasonDocuments.cs" />
+    <Compile Include="../../Shared/MatchRecords.cs" Link="Shared/MatchRecords.cs" />
+  </ItemGroup>
+
+</Project>
