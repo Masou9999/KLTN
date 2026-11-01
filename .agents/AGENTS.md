@@ -1,7 +1,8 @@
 # AGENTS.md — KLTN
 
-> Trạng thái: **bản nháp, còn chỉnh sửa**. Cập nhật lần cuối: 16/10/2026 (thêm Leaderboard theo mùa + điểm rank + reset bằng Cloud Code).
-> Nguồn: báo cáo Phase 3 (14/09/2026) + đối chiếu source hiện tại (commit `b221f62`).
+> Trạng thái: **bản nháp, còn chỉnh sửa**. Cập nhật lần cuối: 01/11/2026 (đợt 1 sau giữa kỳ đã merge vào `main`:
+> plan 01 server tin cậy, plan 02 vào trận có xác minh + loadout/kết quả từ server, plan 04 client polish & resilience).
+> Nguồn: báo cáo Phase 3 (14/09/2026) + đối chiếu source hiện tại (commit `272bb39`).
 > Đọc kèm: `.agents/memory.md` (kỹ thuật đã áp dụng) và `.agents/rules/*.md` (quy tắc bắt buộc).
 
 ## 1. Dự án là gì
@@ -27,7 +28,9 @@ Stack chính:
 ```text
 Assets/
 ├── Scripts/
-│   ├── Authentication/          # IAuthService, FirebaseRestAuthService, GoogleAuthService, AuthManager
+│   ├── Authentication/          # IAuthService, FirebaseRestAuthService, GoogleAuthService, AuthManager (+ quên mật khẩu)
+│   │   └── Validation/          # asmdef KLTN.Authentication.Validation — AuthInputValidator (global namespace, test được)
+│   ├── Audio/                   # AudioVolumeSettings (PlayerPrefs Music/SFX), UIClickManager, MenuMusicManager
 │   ├── Client/                  # UGSInitializer
 │   ├── Game/
 │   │   ├── Domain/              # asmdef KLTN.Game.Domain (noEngineReferences) — LÕI LUẬT
@@ -41,8 +44,10 @@ Assets/
 │   │   ├── Networking/          # Bridge (NGO RPC, + .Loadout) / Contracts (DTO) / Projection (snapshot, inbox, DTO mapper)
 │   │   └── Presentation/        # Cards / Combat (animation, VFX) / Match (presenter, HUD, selection)
 │   ├── Infrastructure/
+│   │   ├── CloudCode/           # IMatchResultReporter (AdmitPlayer/ReportResult), CloudCode/Null/Stub reporter, MatchServerContext, MatchServerModuleClient (GetTicketTier)
+│   │   ├── Resilience/          # asmdef KLTN.Infrastructure.Resilience — NetworkRetryPolicy (1+3 lần, 1/2/4 s + jitter)
 │   │   ├── Networking/Common/   # PersistentNetworkRoot
-│   │   ├── Networking/Dedicated/# Matchmaker client, DedicatedServerBootstrap, PublicIpResolver (Edgegap path)
+│   │   ├── Networking/Dedicated/# Matchmaker client, DedicatedServerBootstrap (ConnectionApproval), ConnectionPayload, PublicIpResolver (Edgegap path)
 │   │   ├── Networking/Listen/   # ListenSessionController (Session/Relay path)
 │   │   ├── SceneFlow/           # SceneNames, MainMenuController
 │   │   ├── Firestore/           # FirestoreRestClient, FirestoreValueMapper (REST + typed values)
@@ -52,12 +57,14 @@ Assets/
 │   └── UI/                      # AppFlowManager, Login/Register, Surrender, Graveyard, Settings
 │       ├── Leaderboard/         # LeaderboardController (mùa, phân trang, dòng ghim), LeaderboardRowView
 │       └── Shop/                # ShopController, ShopCardItemView, ShopTopBarView, ShopListQuery, ShopScrollRect, HoverScale, ShopConfirmDialog
-├── Tests/EditMode/Domain/       # asmdef KLTN.Game.Domain.Tests (Abilities/Cards/Combat/Match)
+├── Tests/EditMode/Domain/       # asmdef KLTN.Game.Domain.Tests (Abilities/Cards/Combat/Match/Ranking/Economy)
+├── Tests/EditMode/Client/       # asmdef KLTN.Client.Tests (NetworkRetryPolicy, AuthInputValidator)
 ├── Editor/KLTN/                 # CardContentInstaller, ShopCatalogInstaller, ShopSceneBuilder, LeaderboardSceneBuilder, AbilityTargetLink*
 ├── Resources/Cards/             # 19 card asset (.asset)
 ├── Resources/ShopCatalog.asset  # starter/giá/tier — sinh bởi ShopCatalogInstaller
 ├── Prefabs/UI/ShopCardItem.prefab # sinh bởi ShopSceneBuilder
-├── CloudCode/Matchmaker.ccmr    # tham chiếu module EdgegapAllocator (Cloud Code)
+├── CloudCode/Matchmaker.ccmr    # đường dẫn tương đối → CloudCode/EdgegapAllocator (deploy thành module tên **EdgegapAllocator**, theo assembly)
+├── CloudCode/MatchServerModule.ccmr # → CloudCode/MatchServerModule (GetTicketTier/AdmitPlayer/ReportResult)
 ├── CloudCode/SeasonModule.ccmr  # tham chiếu CloudCode/SeasonModule (reset mùa)
 ├── Resources/RankingSettings.asset, RankCatalog.asset # sinh bởi Tools/KLTN/Install Ranking Assets
 ├── Sprites/Ranks/               # 2 sheet, 7 icon rank (Đồng → Thách đấu)
@@ -67,6 +74,11 @@ Firebase/firestore.rules         # (ngoài Assets) sinh bởi Tools/KLTN/Export 
 Firebase/firestore.indexes.json  # index entries (points, wins) — sinh cùng lúc với rules
 Firebase/rules.test.mjs          # test rules trên emulator: cd Firebase && npm install && npm test
 CloudCode/SeasonModule/          # (ngoài Assets) module C# reset mùa + README cài đặt
+CloudCode/MatchServerModule/     # GetTicketTier (client), AdmitPlayer + ReportResult (chỉ server) + Tests (emulator) + README Access Control
+CloudCode/EdgegapAllocator/      # allocator Matchmaker → Edgegap (đọc tier thật, sinh MATCH_ID/MATCH_TOKEN, ghi matches/{id})
+CloudCode/Shared/                # GoogleServiceAccount, FirestoreAdmin, SeasonDocuments, MatchRecords (link source vào các module)
+CloudCode/.gitignore             # re-include *.sln/*.csproj (gitignore gốc chặn), bỏ bin/obj
+Claude outputs/                  # báo cáo/tệp tạm do Claude tạo — đã nằm trong .gitignore, không commit
 ```
 
 Dependency hợp lệ (mũi tên = "được phép phụ thuộc vào"):
@@ -79,8 +91,10 @@ Infrastructure/Auth/UI → Networking (qua facade), UGS/Firebase SDK
 Infrastructure/Economy → Domain.Economy, Content (ShopCatalog), Firestore REST; nạp loadout qua MatchLoadoutRegistry
 Infrastructure/Ranking → Domain.Ranking, Content (RankingSettings), Firestore REST
 CloudCode/SeasonModule → link Domain/Ranking/SeasonWindow.cs (không tham chiếu Unity)
+CloudCode/MatchServerModule, EdgegapAllocator → link policy Domain (MatchRewardPolicy, RankPointsPolicy, ...) + CloudCode/Shared
+Infrastructure/CloudCode → Domain (MatchAdmissionPolicy, MatchResultBanner); NetworkMatchBridge gọi qua IMatchResultReporter
 Networking   ↛ Economy (chỉ đọc delegate MatchLoadoutRegistry.LocalOwnedCardIds)
-Tests        → Domain
+Tests        → Domain; Client.Tests → Resilience, Authentication.Validation
 Domain       → (không gì cả ngoài System.*)
 ```
 
@@ -102,10 +116,13 @@ Presenter/UI → NetworkMatchBridge.Request...()          (client, CommandId tă
 ```text
 Login → PlayerProfileService.EnsureLoadedAsync → FirestoreEconomyGateway
   → users/{uid} chưa có? :commit tạo user (0 xu/0 bạc) + 8 ownedCards starter
-Vào trận: NetworkMatchBridge.OnNetworkSpawn → SubmitLoadoutRpc(ownedIds CSV)
+Vào trận dedicated: ownedCardIds lấy từ AdmitPlayer (server đọc Firestore) — danh sách client gửi chỉ lấy giao (ServerLoadoutPolicy)
+Vào trận listen-host: SubmitLoadoutRpc(ownedIds CSV) như cũ (trận riêng, không thưởng/điểm)
   → server chờ đủ 2 seat (timeout 10s → starter) → WeightedDeckBuilder (25 lá, trọng số theo tier)
-  → MatchFactory.Create(hostDeck, guestDeck) + matchId (Guid)
-Hết trận: MatchResultPresenter → MatchRewardPolicy.Compute → ClaimMatchRewardAsync(matchId) (1 lần/trận)
+  → MatchFactory.Create(hostDeck, guestDeck); matchId = env MATCH_ID (dedicated) / Guid (listen)
+Hết trận dedicated: NetworkMatchBridge.Settlement → IMatchResultReporter.ReportResult (Cloud Code, idempotent theo matchId,
+  retry 2/4/8/16 s) → ReceiveSettlementRpc(MatchSettlementDto) → MatchResultPresenter hiển thị + đọc lại ví/standing.
+  Client KHÔNG ghi thưởng/điểm nữa (Rules chặn matchRewards/results/entries update).
 Shop: ShopController → modal xác nhận → PlayerProfileService.PurchaseAsync → :commit (trừ tiền + tạo ownedCards)
 ```
 
@@ -113,18 +130,20 @@ Shop: ShopController → modal xác nhận → PlayerProfileService.PurchaseAsyn
 
 ```text
 Cloud Code AdvanceSeason (Scheduler mỗi giờ) → config/season (lịch) + seasons/{id} (lịch sử)  — mùa tính theo đồng hồ
-Vào trận: snapshot.isRanked (dedicated luôn true; listen theo RankingSettings.HostClientPointsEnabled)
+Vào trận: snapshot.isRanked (dedicated = reporter có xếp hạng; listen chỉ là cờ hiển thị, không ghi gì)
           + matchStartedUtcMs (giờ server bắt đầu trận)
-Hết trận: MatchResultPresenter → LeaderboardService.RecordRankedMatchAsync
-  → RankedEligibilityPolicy (bắt đầu trong [startAt, lockAt), ghi trước endAt; giờ theo ServerClock)
-  → RankPointsPolicy (+30/−20/0/−20) → :commit entries/{uid} + results/{matchId} (Rules kiểm lại)
+Hết trận dedicated: ReportResult (Cloud Code MatchServerModule) áp RankedEligibilityPolicy + RankPointsPolicy
+  (+30/−20/0/−20) → ghi entries/{uid} + results/{matchId} + matchRewards trong một commit (server-only)
 LeaderboardScene: entries orderBy points desc, winRate desc, username asc → trang 50; vị trí của mình = 3 COUNT (điểm cao hơn; bằng điểm + tỉ lệ cao hơn; bằng cả hai + username nhỏ hơn) + 1. Hàng trống 0 điểm cho mọi tài khoản. Trước khi đổi thiết kế dữ liệu: nêu đánh đổi và hỏi user trước.
-Matchmaker: ticket customData rank_tier → rule Difference ≤ 1 trên Dashboard
+Matchmaker: rank_tier lấy từ Cloud Code GetTicketTier (không còn client tự khai); allocator đọc lại tier thật, lệch > 1 → từ chối
 ```
 
 **Auth + vào trận dedicated:** Firebase ID token → UGS `SignInWithOpenIdConnectAsync("oidc-firebase")`
-→ UGS PlayerId/access token → Matchmaker ticket → Cloud Code `EdgegapAllocator` → Edgegap deployment
-→ `IpPortAssignment` → client connect UTP. Chi tiết và lỗ hổng: xem `memory.md` §5–6.
+→ UGS PlayerId/access token → **GetTicketTier** (bắt buộc trước ticket: ghi `ugsPlayers/{playerId}` → uid)
+→ Matchmaker ticket → Cloud Code `EdgegapAllocator` (ghi `matches/{matchId}`, truyền `MATCH_ID`/`MATCH_TOKEN`)
+→ Edgegap deployment → `IpPortAssignment` → client `StartClient` với `ConnectionPayload {playerId, accessToken, matchId}`
+→ server `ConnectionApproval` → `AdmitPlayer` (≤ 10 s) → đủ 2 người đã admit mới nạp GameScene.
+Chi tiết: `memory.md` §6–7, §13 (bài học vận hành khi deploy).
 
 ## 4. Quy tắc bắt buộc (tóm tắt — chi tiết trong `rules/`)
 
@@ -144,21 +163,28 @@ Matchmaker: ticket customData rank_tier → rule Difference ≤ 1 trên Dashboar
     chạy lại menu, không sửa tay scene (sẽ bị ghi đè). Tương tự `LeaderboardScene` ← `LeaderboardSceneBuilder`.
 13. **Rank là dẫn xuất từ điểm**: không lưu `tier` vào Firestore; đổi điểm/ngưỡng → sửa `RankPointsPolicy`/`RankPolicy`
     (Domain) rồi Export Firestore Rules (rules nhúng bảng điểm) và dán lên Console. Thời gian mùa chỉ do Cloud Code ghi.
+14. **Thưởng/điểm/tier chỉ do server ghi** (Cloud Code `MatchServerModule` với service account). Client chỉ đọc;
+    đừng thêm lại đường ghi `matchRewards`/`entries`/`results` từ client. Hàm Cloud Code mới cho server → nhớ Deny Player
+    trong Access Control; hàm cho client → cần statement Allow riêng (xem `memory.md` §13).
 12. **Tuân thủ docs Unity 6000.5.4f1**: mọi code sinh ra phải đúng Scripting API của phiên bản đang dùng; không dùng API obsolete
     (VD `FindFirstObjectByType` → `FindAnyObjectByType`, `GetInstanceID` → `GetEntityId`). Xem `rules/unity-api-compliance.md`.
 
 ## 5. Build & kiểm chứng
 
-- Unity Test Runner → EditMode → `KLTN.Game.Domain.Tests` (hiện 120 test attribute trong 17 file) phải pass.
-- Kinh tế: đăng nhập tài khoản mới → log `[Profile] Loaded ... 8 thẻ`; chơi 1 trận → `matchRewards` đúng 1 doc/người;
+- Unity Test Runner → EditMode → `KLTN.Game.Domain.Tests` + `KLTN.Client.Tests` phải pass (216/216 sau đợt 1, 01/11/2026).
+  CLI: `Unity.exe -batchmode -projectPath <wt> -runTests -testPlatform EditMode -testResults <file>.xml`.
+- Cloud Code: `dotnet run --project CloudCode/MatchServerModule/MatchServerModule.Tests` (40 case) và SeasonModule.Tests
+  (13 case), cần Firestore emulator (`cd Firebase && npx firebase emulators:start --only firestore --project demo-kltn`).
+- Kinh tế: đăng nhập tài khoản mới → log `[Profile] Loaded ... 8 thẻ`; chơi 1 trận Find Random → `matchRewards` đúng 1 doc/người (do Cloud Code ghi);
   mua 1 thẻ → trừ đúng giá. Rules: `cd Firebase && npm install && npm test` (emulator, có test batch).
-- Xếp hạng: thêm 3 file test `Domain/Ranking`; Cloud Code: `dotnet run --project CloudCode/SeasonModule/SeasonModule.Tests`
-  với emulator đang chạy. Thủ công: 2 tài khoản đánh 1 trận → log `[Leaderboard]`, `seasons/{id}/entries` +30/−20,
+- Xếp hạng: thủ công 2 tài khoản đánh 1 trận Find Random → `seasons/{id}/entries` +30/−20 (server ghi),
   LeaderboardScene hiện đúng 2 dòng; đánh lại trong < 60s → trận sau vẫn ghi (client chờ hết cooldown).
 - Compile 0 warning / 0 error — đặc biệt không có `CS0618/CS0619` (API obsolete của Unity 6.5) (`.editorconfig`: CRLF, 4 space, Allman, max 90 cột).
 - Thay đổi networking/presentation: test thủ công host + guest (Multiplayer Play Mode) từ Mulligan tới ≥ 2 round,
   targeted ability (confirm/cancel/retry/no-target), combat có keyword, surrender, disconnect.
 - Sau khi move file: kiểm tra Missing Script ở `GameScene`, `MainMenu`, prefab card.
+- Dedicated đầu–cuối: build profile **Linux Server** phải Override Global Scene List = `ServerBootstrap` (đầu tiên) + `GameScene`;
+  Edgegap gói Free chỉ 1 deployment → terminate deployment cũ trước khi test lại. Chi tiết `memory.md` §13.
 
 ## 6. Nợ kỹ thuật đang mở (đừng vô tình làm tệ hơn)
 
@@ -170,17 +196,19 @@ Matchmaker: ticket customData rank_tier → rule Difference ≤ 1 trên Dashboar
 | 4 | Static registry/singleton | `MatchProjectionRegistry`, `MatchUpdateInboxRegistry`, `UgsSessionService.Instance`, `AuthManager.Instance`, `GoogleAuthService.Instance`, `AppFlowManager.Instance` |
 | 5 | `CardPresentationCatalog` (Content) tham chiếu `CardArtworkView` (Presentation) | `Game/Content/Catalogs` |
 | 6 | 29 file ngoài `Game/` còn global namespace | `Authentication`, `UI`, `Infrastructure`, ... |
-| 7 | Dedicated server không xác thực danh tính client (không ConnectionApproval/UGS token check) | `DedicatedServerBootstrap.cs` |
-| 8 | `Matchmaker.ccmr` trỏ đường dẫn tuyệt đối trong `Downloads` máy cá nhân | `Assets/CloudCode` |
+| 7 | ~~Dedicated server không xác thực danh tính client~~ Đã sửa (plan 02): ConnectionApproval + AdmitPlayer | `DedicatedServerBootstrap.cs` |
+| 8 | ~~`Matchmaker.ccmr` trỏ đường dẫn tuyệt đối~~ Đã sửa (plan 01): `CloudCode/EdgegapAllocator` trong repo | `Assets/CloudCode` |
 | 9 | Scene trùng `GameScene Test Skills Animation.unity` | `Assets/Scenes` |
 | 10 | Spell/stack/CounterSpell chưa triển khai (validator chủ động từ chối) | `EffectKind.CounterSpell` |
 | 11 | ~~Dùng API obsolete `FindFirstObjectByType` (CS0618)~~ Đã sửa 18/10 → `FindAnyObjectByType` | `UI/SurrenderUI.cs:24` |
-| 12 | Kinh tế giai đoạn 1: client tự ghi tiền, Rules chặn sai giá/sai mức thưởng nhưng client sửa đổi vẫn bịa được `matchId` | `FirestoreEconomyGateway`, `firestore.rules` → giai đoạn 2: Cloud Code |
-| 13 | Server tin danh sách thẻ client gửi (chỉ lọc ID hợp lệ) | `NetworkMatchBridge.Loadout.cs` |
-| 14 | Rớt mạng giữa trận → trận bị hủy, không ai nhận thưởng | `NetworkMatchBridge.Connections.cs` |
+| 12 | ~~Client tự ghi thưởng~~ Đã sửa (plan 01+02): thưởng do `ReportResult` ghi; client vẫn tự ghi mua thẻ/tạo hồ sơ (Rules kiểm giá) | `FirestoreEconomyGateway`, `firestore.rules` |
+| 13 | ~~Server tin danh sách thẻ client~~ Đã sửa trên dedicated (thẻ từ AdmitPlayer); listen-host vẫn tin client (trận riêng, không thưởng) | `NetworkMatchBridge.Loadout.cs` |
+| 14 | Rớt mạng giữa trận → trận bị hủy, không ai nhận thưởng, không có report (plan 03 xử lý) | `NetworkMatchBridge.Connections.cs` |
 | 15 | ~~`firestore.rules` chưa chạy trên emulator~~ → đã có `Firebase/rules.test.mjs` (35 case) | `Firebase/` |
-| 16 | Điểm rank do client ghi; Rules chặn sai bảng điểm/sai mùa/<60s nhưng client sửa đổi vẫn khai thắng được | `FirestoreLeaderboardGateway` → giai đoạn 2: server ghi qua Cloud Code |
-| 17 | `rank_tier` trong ticket Matchmaker do client tự khai | `DedicatedMatchmakerClient.cs` |
+| 16 | ~~Điểm rank do client ghi~~ Đã sửa (plan 01+02): `ReportResult` ghi, Rules chặn client | `CloudCode/MatchServerModule` |
+| 17 | ~~`rank_tier` do client tự khai~~ Đã sửa: `GetTicketTier` + allocator đọc lại tier thật | `DedicatedMatchmakerClient.cs`, `EdgegapAllocator.cs` |
+| 19 | Allocator luôn tạo deployment Edgegap mới (1 trận = 1 container), gói Free chỉ 1 deployment | `EdgegapAllocator.PlaceMatchAsync` → plan 05 |
+| 20 | Chưa có EditMode test cho `ConnectionPayload`, `CloudCodeMatchResultReporter.ParseSettlement` (nằm trong Assembly-CSharp) | `Infrastructure/CloudCode`, `Networking/Dedicated` |
 | 18 | Hòa điểm xếp theo wins rồi uid; vị trí của mình dùng COUNT(points > mine) nên có thể lệch vài hạng khi bằng điểm | `FirestoreLeaderboardGateway.GetPositionAsync` |
 
 ## 7. Tìm code nhanh
@@ -190,6 +218,6 @@ rg -n "RequestSurrender|SubmitSurrenderRpc|TrySurrender" Assets/Scripts   # theo
 rg -n "Phase\s*=" Assets/Scripts/Game/Domain                              # mọi mutation phase
 rg -n "thien_linh_cai_play" Assets                                        # theo 1 ability ID
 rg -n "Registry\.Current" Assets/Scripts                                  # nơi dùng static registry
-rg -n "SubmitLoadoutRpc|WeightedDeckBuilder|ClaimMatchRewardAsync" Assets/Scripts # luồng kinh tế
-rg -n "RecordRankedMatchAsync|isRanked|rank_tier|AdvanceSeason" Assets CloudCode  # luồng xếp hạng
+rg -n "SubmitLoadoutRpc|WeightedDeckBuilder|AdmitPlayer" Assets/Scripts CloudCode # luồng loadout/vào trận
+rg -n "ReportResult|MatchSettlement|isRanked|rank_tier|GetTicketTier|AdvanceSeason" Assets CloudCode # kết quả/xếp hạng
 ```
