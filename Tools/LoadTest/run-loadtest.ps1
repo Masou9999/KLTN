@@ -22,19 +22,34 @@ param(
     [int] $SampleSeconds = 2,
     # Leave empty to start the server here; set to run only bots against a server elsewhere.
     [string] $ServerHost = "",
-    [string] $OutDir = (Join-Path $PSScriptRoot ("results-" + (Get-Date -Format "yyyyMMdd-HHmmss")))
+    [string] $OutDir = ""
 )
 
 $ErrorActionPreference = "Stop"
+# Windows PowerShell 5.1 leaves $PSScriptRoot empty inside param() defaults.
+if ($OutDir -eq "") {
+    $scriptDir = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
+    $OutDir = Join-Path $scriptDir ("results-" + (Get-Date -Format "yyyyMMdd-HHmmss"))
+}
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 $server = $null
 
+# Start-Process joins arguments with spaces and does not quote them; paths here contain spaces.
+function Quote([string] $text) { return '"' + $text + '"' }
+
 if ($ServerHost -eq "") {
+    # A server left over from an earlier run (a multi-match server idles 120 s) would take the bots.
+    $busy = Get-NetUDPEndpoint -LocalPort $Port -ErrorAction SilentlyContinue
+    if ($busy) {
+        $owners = ($busy | ForEach-Object { (Get-Process -Id $_.OwningProcess -ErrorAction SilentlyContinue).ProcessName }) -join ", "
+        throw "UDP port $Port is already in use ($owners). Stop it first, e.g. Get-Process KLTN | Stop-Process"
+    }
+
     $env:MATCH_CAPACITY = "$Capacity"
     $env:MATCH_REPORTER_STUB = "1"
     Remove-Item Env:MATCH_ID, Env:SERVER_ID, Env:SERVER_TOKEN -ErrorAction SilentlyContinue
     $server = Start-Process -FilePath $Build -PassThru -WindowStyle Hidden `
-        -ArgumentList @("-batchmode", "-nographics", "-logFile", (Join-Path $OutDir "server.log"))
+        -ArgumentList @("-batchmode", "-nographics", "-logFile", (Quote (Join-Path $OutDir "server.log")))
     Write-Host "Server PID $($server.Id), capacity $Capacity. Waiting for it to listen..."
     Start-Sleep -Seconds 8
     $target = "127.0.0.1:$Port"
@@ -49,7 +64,7 @@ for ($i = 1; $i -le 2 * $Pairs; $i++) {
         "-loadTestClient", $target,
         "-loadTestMatchSeconds", "$MatchSeconds",
         "-loadTestActionSeconds", "$ActionSeconds",
-        "-logFile", (Join-Path $OutDir "bot-$i.log"))
+        "-logFile", (Quote (Join-Path $OutDir "bot-$i.log")))
     # Arrival order pairs the bots: 1+2 form the first match, 3+4 the second, ...
     Start-Sleep -Milliseconds 700
 }
@@ -88,8 +103,12 @@ Write-Host "All bots finished after $([math]::Round(((Get-Date) - $start).TotalS
 if ($server -ne $null) {
     $rows = Import-Csv $csv | Where-Object { [double]$_.cpuPercent -gt 0 -or [double]$_.workingSetMB -gt 0 }
     $log = Join-Path $OutDir "server.log"
-    $started = (Select-String -Path $log -Pattern "Match initialized" -ErrorAction SilentlyContinue).Count
-    $errors = (Select-String -Path $log -Pattern "Exception|\bError\b" -ErrorAction SilentlyContinue).Count
+    $started = 0
+    $errors = -1
+    if (Test-Path $log) {
+        $started = (Select-String -Path $log -Pattern "Match initialized").Count
+        $errors = (Select-String -Path $log -Pattern "Exception|\bError\b").Count
+    }
     $summary = [pscustomobject]@{
         pairs             = $Pairs
         capacity          = $Capacity

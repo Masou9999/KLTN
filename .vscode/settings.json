@@ -67,7 +67,7 @@
         "*.sln": "*.csproj",
         "*.slnx": "*.csproj"
     },
-    "dotnet.defaultSolution": "KLTN-wt-03.slnx",
+    "dotnet.defaultSolution": "KLTN.slnx",
     "[csharp]": {
         "editor.defaultFormatter": "csharpier.csharpier-vscode",
         "editor.formatOnSave": true,

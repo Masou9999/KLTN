@@ -301,14 +301,15 @@ Màn kết quả có **HÒA** riêng (`MatchResultBanner`).
 | 02 Vào trận có xác minh | `feature/match-admission-loadout` | Đã merge (01/11) |
 | 04 Client polish | `feature/client-polish-resilience` | Đã merge (01/11) |
 | 03 Giữ ghế khi mất kết nối | `feature/reconnect-grace-period` | Đã merge (01/11) |
-| 05 Nhiều trận / reuse server | `feature/multi-match-server` | Làm xong 01/11, chưa commit (worktree `KLTN-wt-05`) |
+| 05 Nhiều trận / reuse server | `feature/multi-match-server` | Đã merge (02/11, commit `a9a8a1a`) |
 | 06 Integration/system tests | `feature/integration-system-tests` | Đợt 3 |
 
 Quy ước: mỗi plan một worktree + branch tách từ `main` mới nhất; agent **không commit, không merge**, người dùng tự merge.
 
 ## 16. Nhiều trận trên một server (plan 05, 01/11/2026)
 
-`[Đã kiểm chứng bằng test]` EditMode (Application) + emulator Cloud Code/Rules. `[Chưa kiểm chứng]` trên Edgegap thật.
+`[Đã kiểm chứng]` EditMode 279/279, emulator Cloud Code 57/57, Rules 48/48, test tải cục bộ 1–16 trận (02/11/2026).
+`[Đã kiểm chứng một phần trên Edgegap]` Find Random capacity 1 (vào trận, kết quả, rớt quá 30 s → thua). Capacity > 1 với người chơi thật: chưa.
 
 - **Application layer** (`KLTN.Game.ApplicationLayer`): `MatchSession` = MatchState + MatchRulesEngine + `SeatConnectionTracker`
   + ghế theo connection + command id + revision + loadout; `MatchSessionRegistry` (capacity, `clientId → matchId`,
@@ -327,5 +328,42 @@ Quy ước: mỗi plan một worktree + branch tách từ `main` mới nhất; a
 - **Allocator**: `servers/{serverId} {deploymentId, capacity, slots[], tokenHash, lastHeartbeat, draining}`; chọn server sống
   (heartbeat ≤ 10 s), không draining, còn slot, đầy nhất trước; ghi slot với precondition `updateTime`. Server mới chỉ được
   dùng lại sau heartbeat đầu. `AllocationData.requestId` = deploymentId của server được chọn (Poll giữ nguyên).
-- Rules: `servers/**` cấm client. Access Control: thêm Deny Player cho `GetAssignedMatches`.
+- Rules: `servers/**` cấm client. Access Control: policy hiện tại `DenyPlayerSeasonModule` có resource
+  `urn:ugs:cloud-code:/**/modules/**` (chặn Player gọi mọi module) + Allow riêng `MatchServerModule/GetTicketTier`
+  → `GetAssignedMatches` đã bị chặn với Player, không cần statement mới. Hàm mới cho Player gọi thì phải thêm Allow.
 - Test tải: `Tools/LoadTest/run-loadtest.ps1` (bản build Windows Dedicated Server, `-loadTestClient host:port` biến build thành bot).
+  Build profile **Windows Server** (Multiplayer Role = Server, scene list `ServerBootstrap` + `GameScene`); chọn thư mục build
+  qua mũi tên cạnh nút Build → *Clean Build...*. Chạy bằng `powershell -ExecutionPolicy Bypass -File .\run-loadtest.ps1 ...`
+  (PowerShell 5.1: `$PSScriptRoot` rỗng trong param mặc định; `Start-Process` không tự quote đường dẫn có dấu cách;
+  server capacity > 1 sót lại giữ cổng 7777 120 s → script kiểm tra cổng trước khi chạy). Kết quả `results-*/` không commit.
+
+**Kết quả test tải (02/11/2026, máy 8 core, bot cùng máy, trận 60 s, bot ra lệnh mỗi 2 s)**
+
+| Trận/process | Chạy được | CPU đỉnh (trên 8 core) | RAM server đỉnh |
+|---|---|---|---|
+| 1 | 1/1 | 0,58 % | 158 MB |
+| 2 | 2/2 | 0,68 % | 160 MB |
+| 4 | 4/4 | 0,68 % | 162 MB |
+| 8 | 8/8 | 0,48 % | 166 MB |
+| 12 | 12/12 | 0,87 % | 173 MB |
+| 16 (tối đa code cho phép) | 16/16 | 0,58 % | 175 MB |
+
+→ Process server nền ~157 MB, mỗi trận thêm ~1 MB; 16 trận ≈ 0,05 core. Mỗi client/bot (cùng bản build headless) ước
+~150 MB RAM `[ước lượng, chưa đo riêng]`. "Lỗi" trong log server chỉ là `Curl error 6` của Unity Analytics.
+
+**Cấu hình vận hành đã chốt (02/11/2026)**
+- Secret UGS `MATCH_SERVER_CAPACITY = 4` (allocator truyền `MATCH_CAPACITY=4` vào container). Lý do chọn 4 dù tài nguyên đủ 16:
+  một server sập chỉ ảnh hưởng ≤ 4 trận, và dùng lại server bỏ qua vị trí người chơi (không nên vượt 8).
+- Edgegap app version: **0,5 vCPU / 1 GiB RAM** mỗi deployment (trước đó 1,5 vCPU / 3 GiB). Giá Pay-as-you-go
+  0,00115 USD/phút/vCPU → 0,5 vCPU ≈ 0,0173 USD (~450 VND) mỗi 30 phút; 50.000 VND/tháng ≈ 105–110 lượt server 30 phút
+  (đã tính ~5 MB băng thông/trận, 0,10 USD/GB — ước lượng). Server tự tắt khi rảnh 120 s là thứ giữ chi phí thấp.
+- Không cần load balancer/CDN riêng: allocator + Edgegap làm phần cân bằng tải (game server giữ state, UDP); asset nằm trong
+  build. Cache đáng làm nếu cần giảm lượt đọc Firestore: leaderboard phía client 30–60 s, shop catalog/hồ sơ trong phiên.
+
+**Bài học khi test tay plan 05 (02/11/2026)**
+1. Client phải có `ServerBootstrap` **enabled** trong scene list chung (Build Profiles → Scene List). Commit `393e112` từng tắt
+   nó → client lỗi NGO "Scene Hash … does not exist in the HashToBuildIndex" khi vào server đang ở ServerBootstrap, kẹt "Đang kết nối".
+2. `Run In Background` phải bật (Player Settings). Tắt thì bản build mất focus > 5 s bị tính rớt mạng (DisconnectTimeout 5 s),
+   > 30 s bị xử thua. Đã bật 02/11.
+3. Đẩy image server mới lên Edgegap → sửa `VersionName` trong `EdgegapAllocator.cs` rồi deploy lại `Matchmaker.ccmr`.
+4. Chạy bản server Windows tay: `.\KLTN.exe -batchmode -nographics -logFile -` (thiếu `-logFile -` thì không thấy log).

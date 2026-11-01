@@ -59,7 +59,7 @@ public class EdgegapAllocator(
 {
     // Configuration - users should modify these constants for their setup
     private const string ApplicationName = "kltn"; // TODO: Replace with actual application name
-    private const string VersionName = "26.11.01-01.20.09-UTC"; // TODO: Replace with actual version name
+    private const string VersionName = "26.11.01-21.04.19-UTC"; // TODO: Replace with actual version name
     private const string PortName = "gameport"; // TODO: Replace with actual port name
 
     // Edgegap Constants
@@ -271,7 +271,11 @@ public class EdgegapAllocator(
             Variable("MATCH_TOKEN", matchToken, true),
             Variable("MATCHMAKER_MATCH_ID", matchmakerMatchId, false),
             Variable("MATCH_PLAYERS", string.Join(",", playerIds), false),
-            Variable("MATCH_CAPACITY", capacity.ToString(System.Globalization.CultureInfo.InvariantCulture), false),
+            Variable(
+                "MATCH_CAPACITY",
+                capacity.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                false
+            ),
             Variable("UGS_PROJECT_ID", context.ProjectId, false),
             Variable("UGS_ENVIRONMENT_ID", context.EnvironmentId, false),
             Variable("UGS_SERVICE_ACCOUNT_KEY_ID", serviceKeyId.Value, true),
@@ -346,7 +350,10 @@ public class EdgegapAllocator(
     {
         try
         {
-            Secret secret = await gameApiClient.SecretManager.GetSecret(context, ServerCapacitySecretName);
+            Secret secret = await gameApiClient.SecretManager.GetSecret(
+                context,
+                ServerCapacitySecretName
+            );
 
             if (int.TryParse(secret.Value, out int capacity))
             {
@@ -355,7 +362,11 @@ public class EdgegapAllocator(
         }
         catch (Exception exception)
         {
-            logger.LogDebug(exception, "No {Secret} secret; one match per server.", ServerCapacitySecretName);
+            logger.LogDebug(
+                exception,
+                "No {Secret} secret; one match per server.",
+                ServerCapacitySecretName
+            );
         }
 
         return DefaultServerCapacity;

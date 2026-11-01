@@ -191,6 +191,8 @@ Chi tiết: `memory.md` §6–7, §13 (bài học vận hành khi deploy).
 - Thay đổi networking/presentation: test thủ công host + guest (Multiplayer Play Mode) từ Mulligan tới ≥ 2 round,
   targeted ability (confirm/cancel/retry/no-target), combat có keyword, surrender, disconnect.
 - Sau khi move file: kiểm tra Missing Script ở `GameScene`, `MainMenu`, prefab card.
+- Scene list chung (client) phải **bật** `ServerBootstrap`, nếu không client kẹt khi NGO đồng bộ scene; Player Settings bật **Run In Background**.
+- Vận hành hiện tại: secret `MATCH_SERVER_CAPACITY = 4`, Edgegap 0,5 vCPU / 1 GiB mỗi deployment (`memory.md` §16).
 - Dedicated đầu–cuối: build profile **Linux Server** phải Override Global Scene List = `ServerBootstrap` (đầu tiên) + `GameScene`;
   Edgegap gói Free chỉ 1 deployment → terminate deployment cũ trước khi test lại. Chi tiết `memory.md` §13.
 
@@ -216,7 +218,7 @@ Chi tiết: `memory.md` §6–7, §13 (bài học vận hành khi deploy).
 | 16 | ~~Điểm rank do client ghi~~ Đã sửa (plan 01+02): `ReportResult` ghi, Rules chặn client | `CloudCode/MatchServerModule` |
 | 17 | ~~`rank_tier` do client tự khai~~ Đã sửa: `GetTicketTier` + allocator đọc lại tier thật | `DedicatedMatchmakerClient.cs`, `EdgegapAllocator.cs` |
 | 19 | ~~Allocator luôn tạo deployment mới~~ Plan 05: dùng lại server còn slot khi secret `MATCH_SERVER_CAPACITY` > 1 (mặc định 1 = như cũ) | `EdgegapAllocator.cs`, `ServerRecords.cs` |
-| 21 | Dùng lại server bỏ qua vị trí người chơi; capacity chưa đo trên Edgegap (xem `Tools/LoadTest`) | `ServerRecords.TryReserveAsync` |
+| 21 | Dùng lại server bỏ qua vị trí người chơi (server đặt gần cặp đầu tiên); capacity đã đo cục bộ, chưa đo với người chơi thật trên Edgegap | `ServerRecords.TryReserveAsync` |
 | 20 | Chưa có EditMode test cho `ConnectionPayload`, `CloudCodeMatchResultReporter.ParseSettlement` (nằm trong Assembly-CSharp) | `Infrastructure/CloudCode`, `Networking/Dedicated` |
 | 18 | Hòa điểm xếp theo wins rồi uid; vị trí của mình dùng COUNT(points > mine) nên có thể lệch vài hạng khi bằng điểm | `FirestoreLeaderboardGateway.GetPositionAsync` |
 

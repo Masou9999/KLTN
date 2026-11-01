@@ -84,3 +84,6 @@ crashlytics-build.properties
 
 # Báo cáo/tệp tạm do Claude tạo
 Claude outputs/
+
+# Kết quả test tải (plan 05)
+Tools/LoadTest/results-*/

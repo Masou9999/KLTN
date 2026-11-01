@@ -20,8 +20,32 @@ MonoBehaviour:
     rid: 3559392321970896991
   m_ActivePlatformGuid: 
   m_AdditionalPlatformBuildSettings: []
-  m_OverrideGlobalSceneList: 0
-  m_Scenes: []
+  m_OverrideGlobalSceneList: 1
+  m_Scenes:
+  - m_enabled: 1
+    m_path: Assets/Scenes/LoginScene.unity
+    m_guid: 1e3398dbbf183b14baa23186620d4b53
+  - m_enabled: 1
+    m_path: Assets/Scenes/MainMenu.unity
+    m_guid: 5294432ab27fefd4b8f25cf30d53127c
+  - m_enabled: 1
+    m_path: Assets/Scenes/HostClientMenu.unity
+    m_guid: 6ab87cef54570574780af8f7dc735c59
+  - m_enabled: 1
+    m_path: Assets/Scenes/FindMatch.unity
+    m_guid: 2d7cfd8bbeb308e4c8b736dd06144885
+  - m_enabled: 1
+    m_path: Assets/Scenes/ServerBootstrap.unity
+    m_guid: 6731d00363d45be4b8cd50db41e33571
+  - m_enabled: 1
+    m_path: Assets/Scenes/GameScene.unity
+    m_guid: 82fed2aaed1696649be0d2c541d9eb6a
+  - m_enabled: 1
+    m_path: Assets/Scenes/ShopScene.unity
+    m_guid: 8a687e9fe0fc35142ae85e1f246e2681
+  - m_enabled: 1
+    m_path: Assets/Scenes/LeaderboardScene.unity
+    m_guid: 53ad49c9f5266224fbabdcb5bb6a88c3
   m_HasScriptingDefines: 0
   m_ScriptingDefines: []
   m_PlayerSettingsYaml:
