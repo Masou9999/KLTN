@@ -3,5 +3,8 @@
   <Project Path="KLTN.Game.Domain.csproj" />
   <Project Path="Assembly-CSharp-Editor.csproj" />
   <Project Path="KLTN.Game.Domain.Tests.csproj" />
+  <Project Path="KLTN.Infrastructure.Resilience.csproj" />
+  <Project Path="KLTN.Client.Tests.csproj" />
   <Project Path="Firebase.App.Internal.csproj" />
+  <Project Path="KLTN.Authentication.Validation.csproj" />
 </Solution>

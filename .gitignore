@@ -82,3 +82,5 @@ crashlytics-build.properties
 .env
 .env.*
 
+# Báo cáo/tệp tạm do Claude tạo
+Claude outputs/
