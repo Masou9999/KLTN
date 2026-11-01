@@ -236,25 +236,31 @@ namespace KLTN.Game.Networking
             SeatId opponentSeat = viewerSeat.Opponent();
             bool opponentConnected = HasSeat(opponentSeat);
 
+            MatchSnapshotDto snapshot;
+
             if (matchState == null || snapshotBuilder == null)
             {
-                return MatchSnapshotBuilder.BuildWaiting(
+                snapshot = MatchSnapshotBuilder.BuildWaiting(
                     viewerSeat,
                     opponentConnected,
                     revision
                 );
             }
+            else
+            {
+                snapshot = snapshotBuilder.Build(
+                    matchState,
+                    viewerSeat,
+                    opponentConnected,
+                    revision
+                );
 
-            MatchSnapshotDto snapshot = snapshotBuilder.Build(
-                matchState,
-                viewerSeat,
-                opponentConnected,
-                revision
-            );
+                snapshot.matchId = currentMatchId;
+                snapshot.isRanked = currentMatchRanked;
+                snapshot.matchStartedUtcMs = currentMatchStartedUtcMs;
+            }
 
-            snapshot.matchId = currentMatchId;
-            snapshot.isRanked = currentMatchRanked;
-            snapshot.matchStartedUtcMs = currentMatchStartedUtcMs;
+            ApplyConnectionState(snapshot, viewerSeat);
             return snapshot;
         }
 

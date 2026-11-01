@@ -38,16 +38,17 @@ namespace KLTN.Game.Networking
             }
 
             seatByClient.Remove(clientId);
-            loadoutBySeat.Remove(leavingSeat);
-            currentMatchId = null;
-            loadoutTimeoutElapsed = false;
             lastCommandIdByClient.Remove(clientId);
-            Debug.Log($"Removed seat assignment for client {clientId}.");
-            matchState = null;
-            rulesEngine = null;
-            snapshotBuilder = null;
-            resolutionDtoMapper = null;
-            definitionsById.Clear();
+            pendingSnapshotClients.Remove(clientId);
+            Debug.Log($"Client {clientId} left {leavingSeat}.");
+
+            // The match is kept: the seat is held for the grace period (FR-NET-06). A finished
+            // match only needs the remaining player to see the result.
+            if (matchState == null || !matchState.IsFinished)
+            {
+                HoldSeat(leavingSeat);
+            }
+
             BroadcastUpdate();
         }
 
@@ -71,13 +72,18 @@ namespace KLTN.Game.Networking
                 return;
             }
 
-            if (!HasSeat(SeatId.Host))
+            if (TryReclaimSeat(clientId))
+            {
+                return;
+            }
+
+            if (!IsSeatTaken(SeatId.Host))
             {
                 AssignClientToSeat(clientId, SeatId.Host);
                 return;
             }
 
-            if (!HasSeat(SeatId.Guest))
+            if (!IsSeatTaken(SeatId.Guest))
             {
                 AssignClientToSeat(clientId, SeatId.Guest);
                 return;
@@ -96,6 +102,7 @@ namespace KLTN.Game.Networking
             }
 
             seatByClient.Add(clientId, seat);
+            BindSeat(clientId, seat);
             Debug.Log($"Assigned client {clientId} to {seat}.");
         }
 

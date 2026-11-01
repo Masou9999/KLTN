@@ -62,6 +62,7 @@ namespace KLTN.Game.Networking
                 NetworkManager.OnClientConnectedCallback += OnClientConnected;
                 NetworkManager.OnClientDisconnectCallback += OnClientDisconnected;
 
+                BeginSeatTracking();
                 AssignConnectedClients();
                 TryInitializeMatch();
                 BroadcastUpdate();
@@ -98,6 +99,7 @@ namespace KLTN.Game.Networking
             {
                 NetworkManager.OnClientConnectedCallback -= OnClientConnected;
                 NetworkManager.OnClientDisconnectCallback -= OnClientDisconnected;
+                EndSeatTracking();
             }
 
             pendingSnapshotClients.Clear();

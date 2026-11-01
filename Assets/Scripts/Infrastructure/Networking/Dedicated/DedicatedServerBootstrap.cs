@@ -65,6 +65,7 @@ public sealed class DedicatedServerBootstrap : MonoBehaviour
     private readonly HashSet<string> verifyingPlayerIds = new(StringComparer.Ordinal);
     private CancellationTokenSource lifetimeCancellation;
     private bool gameSceneLoadStarted;
+    private bool shutdownPending;
 
     #endregion
 
@@ -174,6 +175,28 @@ public sealed class DedicatedServerBootstrap : MonoBehaviour
             return;
         }
 
+        if (gameSceneLoadStarted)
+        {
+            // FR-MM-08: after the match started only a player whose seat is held may return.
+            AdmissionRejection rejoinRejection = MatchAdmissionPolicy.PreCheckRejoin(
+                payload.playerId,
+                payload.accessToken,
+                MatchServerContext.CanRejoin(payload.playerId),
+                verifyingPlayerIds
+            );
+
+            if (rejoinRejection != AdmissionRejection.None)
+            {
+                Reject(clientId, response, rejoinRejection);
+                return;
+            }
+
+            response.Pending = true;
+            verifyingPlayerIds.Add(payload.playerId);
+            _ = AdmitAsync(clientId, payload, response);
+            return;
+        }
+
         var knownPlayerIds = new List<string>(verifyingPlayerIds);
         knownPlayerIds.AddRange(MatchServerContext.AdmittedPlayerIds());
 
@@ -239,11 +262,12 @@ public sealed class DedicatedServerBootstrap : MonoBehaviour
             return;
         }
 
-        if (admission.Admitted && gameSceneLoadStarted)
+        // The seat may have expired while AdmitPlayer was running.
+        if (admission.Admitted && gameSceneLoadStarted && !MatchServerContext.CanRejoin(payload.playerId))
         {
             admission = PlayerAdmission.Reject(
                 payload.playerId,
-                MatchAdmissionPolicy.Describe(AdmissionRejection.MatchStarted)
+                MatchAdmissionPolicy.Describe(AdmissionRejection.CannotRejoin)
             );
         }
 
@@ -300,7 +324,10 @@ public sealed class DedicatedServerBootstrap : MonoBehaviour
 
         if (gameSceneLoadStarted)
         {
-            networkManager.DisconnectClient(clientId);
+            // Approval only lets a player with a held seat in; NGO synchronizes GameScene and
+            // NetworkMatchBridge gives the seat back.
+            connectedClients.Add(clientId);
+            Debug.Log($"Client {clientId} rejoined. Players: {connectedClients.Count}/{requiredPlayerCount}");
             return;
         }
 
@@ -332,7 +359,7 @@ public sealed class DedicatedServerBootstrap : MonoBehaviour
 
         if (gameSceneLoadStarted && connectedClients.Count == 0)
         {
-            _ = QuitAfterReportAsync();
+            _ = QuitWhenSeatsReleasedAsync();
         }
     }
 
@@ -364,6 +391,45 @@ public sealed class DedicatedServerBootstrap : MonoBehaviour
     #endregion
 
     #region Server Lifetime
+
+    /// <summary>
+    /// Everyone left: keep running while a seat is still held (a player may come back,
+    /// FR-MM-08), then wait for the report and quit. Cancelled when someone returns.
+    /// </summary>
+    private async Task QuitWhenSeatsReleasedAsync()
+    {
+        if (shutdownPending)
+        {
+            return;
+        }
+
+        shutdownPending = true;
+
+        while (MatchServerContext.IsHoldingSeats())
+        {
+            Debug.Log("All clients left. Holding seats until the grace period ends.");
+            await Task.Delay(1000);
+
+            if (this == null)
+            {
+                return;
+            }
+
+            if (connectedClients.Count > 0)
+            {
+                shutdownPending = false;
+                return;
+            }
+        }
+
+        if (connectedClients.Count > 0)
+        {
+            shutdownPending = false;
+            return;
+        }
+
+        await QuitAfterReportAsync();
+    }
 
     private async Task QuitAfterReportAsync()
     {
