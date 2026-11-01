@@ -55,6 +55,15 @@ public static class AuthInputValidator
 
     #endregion
 
+    #region Password Reset Validation
+
+    public static bool TryValidatePasswordReset(string email, out string errorMessage)
+    {
+        return TryValidateEmail(email, out errorMessage);
+    }
+
+    #endregion
+
     #region Field Validation
 
     private static bool TryValidateEmail(string email, out string errorMessage)

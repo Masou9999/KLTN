@@ -253,6 +253,34 @@ public class AuthManager : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Sends a Firebase password reset email (FR-AUTH-10).
+    /// An unknown email is reported as success so the result never reveals
+    /// whether an account exists.
+    /// </summary>
+    public async Task<AuthResultData> ProcessPasswordReset(string email)
+    {
+        try
+        {
+            AuthResultData result = await authService.SendPasswordResetEmailAsync(email);
+
+            if (result.Success || result.ErrorCode == "EMAIL_NOT_FOUND")
+            {
+                return new AuthResultData { Success = true, Email = email };
+            }
+
+            Debug.LogWarning($"Firebase password reset failed: {result.ErrorCode}");
+            return result;
+        }
+        catch (Exception exception)
+        {
+            Debug.LogException(exception);
+            return AuthResultData.Failure(
+                "PASSWORD_RESET_EXCEPTION",
+                "Không thể gửi email đặt lại mật khẩu. Vui lòng thử lại.");
+        }
+    }
+
     #endregion
 
     #region Automatic Login
@@ -286,6 +314,13 @@ public class AuthManager : MonoBehaviour
         try
         {
             AuthResultData result = await authService.LoginWithRefreshTokenAsync(refreshToken);
+
+            if (result.ErrorCode == "NETWORK_ERROR")
+            {
+                // Mất mạng không có nghĩa token hết hạn: giữ phiên đã lưu để lần sau thử lại.
+                Debug.LogWarning("Auto-Login Email thất bại do mất kết nối, giữ phiên đã lưu.");
+                return;
+            }
 
             if (!result.Success || string.IsNullOrEmpty(result.IdToken))
             {

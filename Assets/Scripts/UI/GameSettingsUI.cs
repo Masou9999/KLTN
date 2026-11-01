@@ -1,3 +1,4 @@
+using KLTN.Audio;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -12,17 +13,11 @@ public class GameSettingsUI : MonoBehaviour
     [SerializeField] private AudioSource musicAudioSource;
     [SerializeField] private AudioSource sfxAudioSource;
 
-    private const string MusicVolumeKey = "MusicVolume";
-    private const string SFXVolumeKey = "SFXVolume";
-
     private void Start()
     {
         // Đọc âm lượng đã lưu
-        float savedMusicVolume =
-            PlayerPrefs.GetFloat(MusicVolumeKey, 0.7f);
-
-        float savedSFXVolume =
-            PlayerPrefs.GetFloat(SFXVolumeKey, 0.7f);
+        float savedMusicVolume = AudioVolumeSettings.MusicVolume;
+        float savedSFXVolume = AudioVolumeSettings.SfxVolume;
 
         // Cập nhật vị trí slider
         musicSlider.value = savedMusicVolume;
@@ -47,15 +42,15 @@ public class GameSettingsUI : MonoBehaviour
     {
         musicAudioSource.volume = volume;
 
-        PlayerPrefs.SetFloat(MusicVolumeKey, volume);
-        PlayerPrefs.Save();
+        // Lưu PlayerPrefs và báo cho nguồn âm sống lâu (nhạc menu) cập nhật theo.
+        AudioVolumeSettings.SetMusicVolume(volume);
     }
 
     public void SetSFXVolume(float volume)
     {
         sfxAudioSource.volume = volume;
 
-        PlayerPrefs.SetFloat(SFXVolumeKey, volume);
-        PlayerPrefs.Save();
+        // Lưu PlayerPrefs và báo cho UIClickManager cập nhật tiếng click theo slider SFX.
+        AudioVolumeSettings.SetSfxVolume(volume);
     }
 }

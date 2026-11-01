@@ -1,4 +1,5 @@
 
+using KLTN.Audio;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -13,6 +14,9 @@ public class UIClickManager : MonoBehaviour
     private float clickVolume = 0.5f;
 
     private AudioSource audioSource;
+
+    // Âm lượng gốc đặt trong scene; slider SFX nhân lên trên mức này.
+    private float baseVolume = 1f;
 
     private void Awake()
     {
@@ -29,6 +33,11 @@ public class UIClickManager : MonoBehaviour
         audioSource.playOnAwake = false;
         audioSource.loop = false;
         audioSource.spatialBlend = 0f;
+
+        // Tiếng click là SFX: đi theo slider SFX (FR-SET-02).
+        baseVolume = audioSource.volume;
+        ApplySfxVolume();
+        AudioVolumeSettings.Changed += ApplySfxVolume;
     }
 
     private void Update()
@@ -48,10 +57,19 @@ public class UIClickManager : MonoBehaviour
         }
     }
 
+    private void ApplySfxVolume()
+    {
+        if (audioSource != null)
+        {
+            audioSource.volume = baseVolume * AudioVolumeSettings.SfxVolume;
+        }
+    }
+
     private void OnDestroy()
     {
         if (Instance == this)
         {
+            AudioVolumeSettings.Changed -= ApplySfxVolume;
             Instance = null;
         }
     }

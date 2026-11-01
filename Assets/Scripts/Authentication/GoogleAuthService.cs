@@ -19,6 +19,15 @@ public class GoogleAuthService : MonoBehaviour
 
     #endregion
 
+    #region Constants
+
+    private const int RequestTimeoutSeconds = 15;
+    private const int BrowserLoginTimeoutSeconds = 180;
+    private const string NetworkErrorMessage =
+        "Không thể kết nối đến máy chủ Google. Vui lòng kiểm tra kết nối mạng.";
+
+    #endregion
+
     #region Singleton
 
     public static GoogleAuthService Instance { get; private set; }
@@ -42,6 +51,9 @@ public class GoogleAuthService : MonoBehaviour
     public bool IsSignedIn { get; private set; } = false;
     public string DisplayName { get; private set; } = "";
     public string Email { get; private set; } = "";
+
+    /// <summary>Reason for the last failed attempt, or empty when no specific reason is known.</summary>
+    public string LastErrorMessage { get; private set; } = "";
 
     #endregion
 
@@ -98,6 +110,7 @@ public class GoogleAuthService : MonoBehaviour
 
     public async Task<bool> TryAutoLogin()
     {
+        LastErrorMessage = "";
         string savedIdToken = PlayerPrefs.GetString(PREF_ID_TOKEN, "");
         if (!string.IsNullOrEmpty(savedIdToken))
         {
@@ -113,8 +126,16 @@ public class GoogleAuthService : MonoBehaviour
                 if (success) return true;
             }
 
-            Debug.Log("[GoogleAuth] Không thể auto-login, cần đăng nhập lại.");
-            ClearSavedTokens();
+            if (LastErrorMessage == NetworkErrorMessage)
+            {
+                // Mất mạng: giữ token đã lưu để lần sau thử lại thay vì bắt đăng nhập lại.
+                Debug.LogWarning("[GoogleAuth] Auto-login thất bại do mất kết nối, giữ phiên đã lưu.");
+            }
+            else
+            {
+                Debug.Log("[GoogleAuth] Không thể auto-login, cần đăng nhập lại.");
+                ClearSavedTokens();
+            }
         }
 
         OnGoogleLoginFailed?.Invoke();
@@ -123,6 +144,7 @@ public class GoogleAuthService : MonoBehaviour
 
     public async void StartGoogleLogin()
     {
+        LastErrorMessage = "";
         int port = GetRandomUnusedPort();
         string redirectUri = $"http://127.0.0.1:{port}/";
         codeVerifier = GenerateRandomString(64);
@@ -145,7 +167,21 @@ public class GoogleAuthService : MonoBehaviour
         HttpListenerContext context;
         try
         {
-            context = await listener.GetContextAsync();
+            // Không chờ vô hạn khi người chơi đóng trình duyệt mà không đăng nhập.
+            Task<HttpListenerContext> contextTask = listener.GetContextAsync();
+            Task timeout = Task.Delay(TimeSpan.FromSeconds(BrowserLoginTimeoutSeconds));
+
+            if (await Task.WhenAny(contextTask, timeout) != contextTask)
+            {
+                Debug.LogWarning("[GoogleAuth] Hết thời gian chờ đăng nhập Google trên trình duyệt.");
+                ObserveFault(contextTask);
+                listener.Stop();
+                LastErrorMessage = "Hết thời gian chờ đăng nhập Google. Vui lòng thử lại.";
+                OnGoogleLoginFailed?.Invoke();
+                return;
+            }
+
+            context = await contextTask;
         }
         catch (Exception ex)
         {
@@ -219,12 +255,19 @@ public class GoogleAuthService : MonoBehaviour
         form.AddField("grant_type", "authorization_code");
         form.AddField("redirect_uri", redirectUri);
         using UnityWebRequest request = UnityWebRequest.Post("https://oauth2.googleapis.com/token", form);
+        request.timeout = RequestTimeoutSeconds;
         var asyncOp = request.SendWebRequest();
         while (!asyncOp.isDone) await Task.Yield();
 
         if (request.result != UnityWebRequest.Result.Success)
         {
             Debug.LogError($"[GoogleAuth] Lỗi đổi token: {request.error} | {request.downloadHandler.text}");
+
+            if (request.result == UnityWebRequest.Result.ConnectionError)
+            {
+                LastErrorMessage = NetworkErrorMessage;
+            }
+
             OnGoogleLoginFailed?.Invoke();
             return;
         }
@@ -281,12 +324,19 @@ public class GoogleAuthService : MonoBehaviour
         form.AddField("refresh_token", refreshToken);
         form.AddField("grant_type", "refresh_token");
         using UnityWebRequest request = UnityWebRequest.Post("https://oauth2.googleapis.com/token", form);
+        request.timeout = RequestTimeoutSeconds;
         var asyncOp = request.SendWebRequest();
         while (!asyncOp.isDone) await Task.Yield();
 
         if (request.result != UnityWebRequest.Result.Success)
         {
             Debug.LogWarning($"[GoogleAuth] Refresh token thất bại: {request.error} | {request.downloadHandler.text}");
+
+            if (request.result == UnityWebRequest.Result.ConnectionError)
+            {
+                LastErrorMessage = NetworkErrorMessage;
+            }
+
             return false;
         }
 
@@ -393,6 +443,12 @@ public class GoogleAuthService : MonoBehaviour
         int port = ((IPEndPoint)listener.LocalEndpoint).Port;
         listener.Stop();
         return port;
+    }
+
+    private static void ObserveFault(Task task)
+    {
+        // Stopping the listener faults the pending GetContextAsync; mark it observed.
+        task.ContinueWith(t => _ = t.Exception, TaskContinuationOptions.OnlyOnFaulted);
     }
 
     [Serializable]

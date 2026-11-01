@@ -197,6 +197,7 @@ namespace KLTN.Game.Presentation
                 );
             }
 
+            PlayAbilityHitSfx();
             vfxPresenter?.PlayCardHit(targetPosition);
             yield return PlayAbilityImpact(targetPosition);
 
@@ -279,6 +280,7 @@ namespace KLTN.Game.Presentation
                 AbilityColor((EffectKind)effect.effectKind)
             );
 
+            PlayAbilityHitSfx();
             vfxPresenter?.PlayNexusHit(targetPosition, targetIsSelf);
             yield return PlayAbilityImpact(targetPosition);
 

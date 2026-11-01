@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
+using KLTN.Infrastructure.Resilience;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
@@ -79,7 +80,7 @@ namespace KLTN.Infrastructure.Firestore
 
         public Task<FirestoreResponse> GetDocumentAsync(string documentPath, string idToken)
         {
-            return SendAsync(UnityWebRequest.kHttpVerbGET, Host + DocumentName(documentPath), null, idToken);
+            return SendAsync(UnityWebRequest.kHttpVerbGET, Host + DocumentName(documentPath), null, idToken, idempotent: true);
         }
 
         /// <summary>Lists every document in a (small) collection, following page tokens.</summary>
@@ -100,7 +101,7 @@ namespace KLTN.Infrastructure.Firestore
                     url += "&pageToken=" + UnityWebRequest.EscapeURL(pageToken);
                 }
 
-                FirestoreResponse response = await SendAsync(UnityWebRequest.kHttpVerbGET, url, null, idToken);
+                FirestoreResponse response = await SendAsync(UnityWebRequest.kHttpVerbGET, url, null, idToken, idempotent: true);
 
                 if (!response.Success)
                 {
@@ -138,7 +139,8 @@ namespace KLTN.Infrastructure.Firestore
                 UnityWebRequest.kHttpVerbPOST,
                 Host + ParentName(parentPath) + ":runQuery",
                 body.ToString(Formatting.None),
-                idToken
+                idToken,
+                idempotent: true
             );
 
             if (response.Success && response.Body?[ArrayResultsKey] is JArray rows)
@@ -178,7 +180,8 @@ namespace KLTN.Infrastructure.Firestore
                 UnityWebRequest.kHttpVerbPOST,
                 Host + ParentName(parentPath) + ":runAggregationQuery",
                 body.ToString(Formatting.None),
-                idToken
+                idToken,
+                idempotent: true
             );
 
             long count = 0;
@@ -208,7 +211,13 @@ namespace KLTN.Infrastructure.Firestore
 
         #region Writes
 
-        /// <summary>Atomically applies all writes. Security Rules see the batch as one request.</summary>
+        /// <summary>
+        /// Atomically applies all writes. Security Rules see the batch as one request.
+        /// A commit is retried after a lost response only when every write carries an
+        /// updateTime precondition (a repeat then fails instead of applying twice).
+        /// Otherwise it is retried only when the server rejected it unapplied (429 / ABORTED),
+        /// so a purchase or reward commit is never charged twice.
+        /// </summary>
         public Task<FirestoreResponse> CommitAsync(IReadOnlyList<JObject> writes, string idToken)
         {
             var body = new JObject { ["writes"] = new JArray(writes) };
@@ -216,8 +225,31 @@ namespace KLTN.Infrastructure.Firestore
                 UnityWebRequest.kHttpVerbPOST,
                 Host + DatabaseRoot + ":commit",
                 body.ToString(Formatting.None),
-                idToken
+                idToken,
+                idempotent: AllWritesHaveUpdateTimePrecondition(writes)
             );
+        }
+
+        /// <summary>
+        /// exists=false is not enough: a repeated create would report ALREADY_EXISTS for a write
+        /// that actually succeeded, and exists=true does not stop a repeated increment.
+        /// </summary>
+        private static bool AllWritesHaveUpdateTimePrecondition(IReadOnlyList<JObject> writes)
+        {
+            if (writes == null || writes.Count == 0)
+            {
+                return false;
+            }
+
+            foreach (JObject write in writes)
+            {
+                if (write?["currentDocument"]?["updateTime"] == null)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         /// <summary>Create-only write; fails if the document already exists.</summary>
@@ -324,7 +356,17 @@ namespace KLTN.Infrastructure.Firestore
 
         #region HTTP
 
-        private static async Task<FirestoreResponse> SendAsync(string method, string url, string jsonBody, string idToken)
+        private const int RequestTimeoutSeconds = 15;
+        private static readonly NetworkRetryPolicy RetryPolicy = NetworkRetryPolicy.Default;
+        private static readonly System.Random RetryJitter = new();
+
+        /// <summary>Sends with bounded retry/backoff (FR-NET-08); see NetworkRetryPolicy.</summary>
+        private static async Task<FirestoreResponse> SendAsync(
+            string method,
+            string url,
+            string jsonBody,
+            string idToken,
+            bool idempotent)
         {
             if (string.IsNullOrEmpty(idToken))
             {
@@ -336,6 +378,28 @@ namespace KLTN.Infrastructure.Firestore
                 };
             }
 
+            for (int attempt = 1; ; attempt++)
+            {
+                (FirestoreResponse response, bool connectionError) = await SendOnceAsync(method, url, jsonBody, idToken);
+
+                if (response.Success
+                    || !RetryPolicy.ShouldRetry(attempt, idempotent, connectionError, response.StatusCode, response.ErrorStatus))
+                {
+                    return response;
+                }
+
+                TimeSpan delay = RetryPolicy.GetDelay(attempt - 1, RetryJitter.NextDouble());
+                Debug.LogWarning($"[Firestore] {method} {url} failed ({response.ErrorStatus}), retry {attempt}/{RetryPolicy.MaxAttempts - 1} in {delay.TotalSeconds:0.0} s.");
+                await Task.Delay(delay);
+            }
+        }
+
+        private static async Task<(FirestoreResponse response, bool connectionError)> SendOnceAsync(
+            string method,
+            string url,
+            string jsonBody,
+            string idToken)
+        {
             using (var request = new UnityWebRequest(url, method))
             {
                 if (jsonBody != null)
@@ -346,7 +410,7 @@ namespace KLTN.Infrastructure.Firestore
 
                 request.downloadHandler = new DownloadHandlerBuffer();
                 request.SetRequestHeader("Authorization", "Bearer " + idToken);
-                request.timeout = 15;
+                request.timeout = RequestTimeoutSeconds;
 
                 UnityWebRequestAsyncOperation operation = request.SendWebRequest();
 
@@ -405,7 +469,7 @@ namespace KLTN.Infrastructure.Firestore
                     }
                 }
 
-                return response;
+                return (response, request.result == UnityWebRequest.Result.ConnectionError);
             }
         }
 

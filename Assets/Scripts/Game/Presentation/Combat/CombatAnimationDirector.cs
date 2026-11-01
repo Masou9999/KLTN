@@ -58,6 +58,10 @@ namespace KLTN.Game.Presentation
         [SerializeField]
         private AudioClip attackSfx;
 
+        [Tooltip("Ability impact on a card or nexus. Falls back to Attack Sfx when empty.")]
+        [SerializeField]
+        private AudioClip abilityHitSfx;
+
         [Header("Damage Feedback")]
         [SerializeField]
         private DamageFeedbackView selfNexusFeedback;
@@ -235,6 +239,22 @@ namespace KLTN.Game.Presentation
             }
 
             sfxAudioSource.PlayOneShot(attackSfx);
+        }
+
+        /// <summary>
+        /// Plays the ability impact sound on the shared SFX source, so the SFX slider
+        /// (<c>GameSettingsUI</c>) controls it like the attack sound.
+        /// </summary>
+        private void PlayAbilityHitSfx()
+        {
+            AudioClip clip = abilityHitSfx != null ? abilityHitSfx : attackSfx;
+
+            if (sfxAudioSource == null || clip == null)
+            {
+                return;
+            }
+
+            sfxAudioSource.PlayOneShot(clip);
         }
 
         #endregion

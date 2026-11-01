@@ -56,7 +56,12 @@ public sealed class GoogleLoginUI : MonoBehaviour
     private void OnGoogleLoginFailed()
     {
         authUIManager?.EndOperation();
-        feedbackView?.ShowError("Đăng nhập Google thất bại hoặc đã bị hủy.");
+        string reason = GoogleAuthService.Instance != null
+            ? GoogleAuthService.Instance.LastErrorMessage
+            : null;
+        feedbackView?.ShowError(string.IsNullOrEmpty(reason)
+            ? "Đăng nhập Google thất bại hoặc đã bị hủy."
+            : reason);
     }
 
     #endregion

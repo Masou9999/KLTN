@@ -8,6 +8,7 @@ public interface IAuthService
     Task<AuthResultData> LoginAsync(string email, string password);
     Task<AuthResultData> LoginWithGoogleAsync(string googleIdToken);
     Task<AuthResultData> LoginWithRefreshTokenAsync(string token);
+    Task<AuthResultData> SendPasswordResetEmailAsync(string email);
     void Logout();
 
     #endregion

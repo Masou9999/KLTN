@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
+using KLTN.Infrastructure.Resilience;
 using UnityEngine;
 using UnityEngine.Networking;
 
@@ -14,6 +15,13 @@ public class FirebaseRestAuthService : IAuthService
     private const string SIGN_IN_URL = "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=";
     private const string SIGN_IN_IDP_URL = "https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdp?key=";
     private const string SECURE_TOKEN_URL = "https://securetoken.googleapis.com/v1/token?key=";
+    private const string SEND_OOB_CODE_URL = "https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=";
+    private const string PasswordResetRequestType = "PASSWORD_RESET";
+    private const string EmailLocale = "vi";
+    private const int RequestTimeoutSeconds = 15;
+
+    private static readonly NetworkRetryPolicy RetryPolicy = NetworkRetryPolicy.Default;
+    private static readonly System.Random RetryJitter = new();
 
     private readonly string apiKey;
 
@@ -62,11 +70,12 @@ public class FirebaseRestAuthService : IAuthService
             returnSecureToken = true
         };
         string json = JsonUtility.ToJson(request);
-        UnityWebRequest webRequest = CreatePostRequest(SIGN_UP_URL + apiKey, json);
+        UnityWebRequest webRequest = null;
 
         try
         {
-            await SendRequest(webRequest);
+            // Not idempotent: a repeated sign-up after a lost response would report EMAIL_EXISTS.
+            webRequest = await SendWithRetryAsync(() => CreatePostRequest(SIGN_UP_URL + apiKey, json), idempotent: false);
 
             if (webRequest.result == UnityWebRequest.Result.Success)
             {
@@ -96,7 +105,7 @@ public class FirebaseRestAuthService : IAuthService
         }
         finally
         {
-            webRequest.Dispose();
+            webRequest?.Dispose();
         }
     }
 
@@ -111,11 +120,11 @@ public class FirebaseRestAuthService : IAuthService
             returnSecureToken = true
         };
         string json = JsonUtility.ToJson(request);
-        UnityWebRequest webRequest = CreatePostRequest(SIGN_IN_URL + apiKey, json);
+        UnityWebRequest webRequest = null;
 
         try
         {
-            await SendRequest(webRequest);
+            webRequest = await SendWithRetryAsync(() => CreatePostRequest(SIGN_IN_URL + apiKey, json), idempotent: true);
 
             if (webRequest.result == UnityWebRequest.Result.Success)
             {
@@ -145,7 +154,7 @@ public class FirebaseRestAuthService : IAuthService
         }
         finally
         {
-            webRequest.Dispose();
+            webRequest?.Dispose();
         }
     }
 
@@ -161,11 +170,11 @@ public class FirebaseRestAuthService : IAuthService
             returnSecureToken = true
         };
         string json = JsonUtility.ToJson(request);
-        UnityWebRequest webRequest = CreatePostRequest(SIGN_IN_IDP_URL + apiKey, json);
+        UnityWebRequest webRequest = null;
 
         try
         {
-            await SendRequest(webRequest);
+            webRequest = await SendWithRetryAsync(() => CreatePostRequest(SIGN_IN_IDP_URL + apiKey, json), idempotent: true);
 
             if (webRequest.result == UnityWebRequest.Result.Success)
             {
@@ -196,7 +205,7 @@ public class FirebaseRestAuthService : IAuthService
         }
         finally
         {
-            webRequest.Dispose();
+            webRequest?.Dispose();
         }
     }
 
@@ -204,15 +213,11 @@ public class FirebaseRestAuthService : IAuthService
     {
         if (!IsConfigured) { return MissingConfigurationResult(); }
 
-        WWWForm form = new WWWForm();
-        form.AddField("grant_type", "refresh_token");
-        form.AddField("refresh_token", savedRefreshToken);
-        UnityWebRequest request = UnityWebRequest.Post(SECURE_TOKEN_URL + apiKey, form);
+        UnityWebRequest request = null;
 
         try
         {
-            var operation = request.SendWebRequest();
-            while (!operation.isDone) await Task.Yield();
+            request = await SendWithRetryAsync(() => CreateRefreshRequest(savedRefreshToken), idempotent: true);
 
             if (request.result == UnityWebRequest.Result.Success)
             {
@@ -234,7 +239,7 @@ public class FirebaseRestAuthService : IAuthService
                 };
             }
 
-            return new AuthResultData { Success = false, ErrorMessage = request.error };
+            return CreateErrorResult(request);
         }
         catch (Exception e)
         {
@@ -242,7 +247,53 @@ public class FirebaseRestAuthService : IAuthService
         }
         finally
         {
-            request.Dispose();
+            request?.Dispose();
+        }
+    }
+
+    public async Task<AuthResultData> SendPasswordResetEmailAsync(string email)
+    {
+        if (!IsConfigured) { return MissingConfigurationResult(); }
+
+        FirebaseOobCodeRequest request = new FirebaseOobCodeRequest
+        {
+            requestType = PasswordResetRequestType,
+            email = email
+        };
+        string json = JsonUtility.ToJson(request);
+        UnityWebRequest webRequest = null;
+
+        try
+        {
+            // Not idempotent: every accepted request sends another email.
+            webRequest = await SendWithRetryAsync(
+                () =>
+                {
+                    UnityWebRequest post = CreatePostRequest(SEND_OOB_CODE_URL + apiKey, json);
+                    post.SetRequestHeader("X-Firebase-Locale", EmailLocale);
+                    return post;
+                },
+                idempotent: false);
+
+            if (webRequest.result == UnityWebRequest.Result.Success)
+            {
+                return new AuthResultData { Success = true, Email = email };
+            }
+
+            return CreateErrorResult(webRequest);
+        }
+        catch (Exception e)
+        {
+            return new AuthResultData
+            {
+                Success = false,
+                ErrorCode = "EXCEPTION",
+                ErrorMessage = e.Message
+            };
+        }
+        finally
+        {
+            webRequest?.Dispose();
         }
     }
 
@@ -331,6 +382,17 @@ public class FirebaseRestAuthService : IAuthService
         request.uploadHandler = new UploadHandlerRaw(bodyRaw);
         request.downloadHandler = new DownloadHandlerBuffer();
         request.SetRequestHeader("Content-Type", "application/json");
+        request.timeout = RequestTimeoutSeconds;
+        return request;
+    }
+
+    private UnityWebRequest CreateRefreshRequest(string savedRefreshToken)
+    {
+        WWWForm form = new WWWForm();
+        form.AddField("grant_type", "refresh_token");
+        form.AddField("refresh_token", savedRefreshToken);
+        UnityWebRequest request = UnityWebRequest.Post(SECURE_TOKEN_URL + apiKey, form);
+        request.timeout = RequestTimeoutSeconds;
         return request;
     }
 
@@ -341,6 +403,41 @@ public class FirebaseRestAuthService : IAuthService
         while (!operation.isDone)
         {
             await Task.Yield();
+        }
+    }
+
+    /// <summary>
+    /// Sends a fresh request per attempt with bounded backoff (FR-NET-08) and returns the
+    /// last one, which the caller disposes. Only idempotent calls retry on timeouts.
+    /// </summary>
+    private async Task<UnityWebRequest> SendWithRetryAsync(Func<UnityWebRequest> createRequest, bool idempotent)
+    {
+        for (int attempt = 1; ; attempt++)
+        {
+            UnityWebRequest request = createRequest();
+
+            try
+            {
+                await SendRequest(request);
+            }
+            catch
+            {
+                request.Dispose();
+                throw;
+            }
+
+            bool connectionError = request.result == UnityWebRequest.Result.ConnectionError;
+
+            if (request.result == UnityWebRequest.Result.Success
+                || !RetryPolicy.ShouldRetry(attempt, idempotent, connectionError, request.responseCode, null))
+            {
+                return request;
+            }
+
+            TimeSpan delay = RetryPolicy.GetDelay(attempt - 1, RetryJitter.NextDouble());
+            Debug.LogWarning($"[FirebaseAuth] Request failed ({request.responseCode} {request.error}), retry {attempt}/{RetryPolicy.MaxAttempts - 1} in {delay.TotalSeconds:0.0} s.");
+            request.Dispose();
+            await Task.Delay(delay);
         }
     }
 
@@ -358,7 +455,9 @@ public class FirebaseRestAuthService : IAuthService
         }
 
         string errorCode = "UNKNOWN_ERROR";
-        string errorMessage = "Unknown error.";
+        string errorMessage = request.responseCode >= 500 || request.responseCode == 429
+            ? "Máy chủ xác thực đang bận. Vui lòng thử lại sau."
+            : "Yêu cầu xác thực thất bại. Vui lòng thử lại.";
 
         if (!string.IsNullOrEmpty(request.downloadHandler.text))
         {
@@ -422,6 +521,14 @@ public class FirebaseRestAuthService : IAuthService
             case "TOO_MANY_ATTEMPTS_TRY_LATER":
                 return "Có quá nhiều lần thử. Vui lòng thử lại sau.";
 
+            case "RESET_PASSWORD_EXCEED_LIMIT":
+                return "Bạn đã yêu cầu đặt lại mật khẩu quá nhiều lần. Vui lòng thử lại sau.";
+
+            case "TOKEN_EXPIRED":
+            case "INVALID_REFRESH_TOKEN":
+            case "USER_NOT_FOUND":
+                return "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.";
+
             default:
                 Debug.LogWarning($"Unhandled Firebase authentication error: {errorCode}");
                 return "Yêu cầu xác thực thất bại. Vui lòng thử lại.";
@@ -447,6 +554,13 @@ public class FirebaseRestAuthService : IAuthService
     private class FirebaseAuthConfigData
     {
         public string apiKey;
+    }
+
+    [Serializable]
+    private class FirebaseOobCodeRequest
+    {
+        public string requestType;
+        public string email;
     }
 
     [Serializable]

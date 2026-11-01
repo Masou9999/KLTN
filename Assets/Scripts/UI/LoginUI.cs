@@ -116,6 +116,69 @@ public sealed class LoginUI : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Sends a password reset email to the address typed in the email field (UC-21).
+    /// The confirmation is the same whether or not the account exists.
+    /// </summary>
+    public async void OnForgotPasswordButtonClicked()
+    {
+        if (authUIManager == null || authUIManager.IsBusy)
+        {
+            return;
+        }
+
+        string email = emailInput.text.Trim();
+        feedbackView?.Clear();
+
+        if (!AuthInputValidator.TryValidatePasswordReset(email, out string validationError))
+        {
+            feedbackView?.ShowError(validationError);
+            return;
+        }
+
+        if (!authUIManager.TryBeginOperation("Đang gửi email đặt lại mật khẩu..."))
+        {
+            return;
+        }
+
+        try
+        {
+            AuthResultData result = await AuthManager.Instance.ProcessPasswordReset(email);
+
+            if (this == null)
+            {
+                return;
+            }
+
+            if (result.Success)
+            {
+                feedbackView?.ShowSuccess(
+                    "Đã gửi email đặt lại mật khẩu (nếu email đã đăng ký). " +
+                    "Vui lòng kiểm tra hộp thư.");
+            }
+            else
+            {
+                feedbackView?.ShowError(GetSafeResetErrorMessage(result));
+            }
+        }
+        catch (Exception exception)
+        {
+            Debug.LogException(exception);
+
+            if (this != null)
+            {
+                feedbackView?.ShowError("Không thể gửi email đặt lại mật khẩu. Vui lòng thử lại.");
+            }
+        }
+        finally
+        {
+            if (authUIManager != null)
+            {
+                authUIManager.EndOperation();
+            }
+        }
+    }
+
     #endregion
 
     #region Registration Handoff
@@ -148,6 +211,16 @@ public sealed class LoginUI : MonoBehaviour
         }
 
         return "Đăng nhập thất bại. Vui lòng thử lại.";
+    }
+
+    private static string GetSafeResetErrorMessage(AuthResultData result)
+    {
+        if (!string.IsNullOrWhiteSpace(result.ErrorMessage))
+        {
+            return result.ErrorMessage;
+        }
+
+        return "Không thể gửi email đặt lại mật khẩu. Vui lòng thử lại.";
     }
 
     #endregion

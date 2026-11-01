@@ -1,0 +1,25 @@
+{
+    "name": "KLTN.Client.Tests",
+    "rootNamespace": "",
+    "references": [
+        "KLTN.Infrastructure.Resilience",
+        "KLTN.Authentication.Validation",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
