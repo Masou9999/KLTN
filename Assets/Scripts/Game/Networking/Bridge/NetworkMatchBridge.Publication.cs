@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using CMCMProductions;
+using KLTN.Game.ApplicationLayer;
 using KLTN.Game.Content;
 using KLTN.Game.Domain;
 using KLTN.Infrastructure.CloudCode;
@@ -14,21 +15,88 @@ namespace KLTN.Game.Networking
     {
         #region Match Initialization
 
-        private bool TryInitializeMatch()
+        private bool TryInitializeMatch(MatchSession session)
         {
-            if (matchState != null)
+            if (session == null || session.IsStarted || session.IsClosed)
             {
                 return false;
             }
 
-            if (!HasSeat(SeatId.Host) || !HasSeat(SeatId.Guest))
+            if (!session.HasConnectedSeat(SeatId.Host) || !session.HasConnectedSeat(SeatId.Guest))
             {
                 return false;
             }
 
-            if (!AreLoadoutsReady())
+            if (!AreLoadoutsReady(session))
             {
                 return false;
+            }
+
+            if (!TryLoadDefinitions())
+            {
+                return false;
+            }
+
+            try
+            {
+                IReadOnlyList<CardDefinition> hostDeck = BuildDeckForSeat(session, SeatId.Host);
+                IReadOnlyList<CardDefinition> guestDeck = BuildDeckForSeat(session, SeatId.Guest);
+
+                IRandomSource random = new SeededRandomSource(Environment.TickCount ^ session.MatchId.GetHashCode());
+
+                SeatId firstSeat = random.Next(0, 2) == 0 ? SeatId.Host : SeatId.Guest;
+
+                var factory = new MatchFactory(random);
+
+                MatchState state = factory.Create(
+                    hostDeck,
+                    guestDeck,
+                    OpeningHandSize,
+                    firstSeat
+                );
+
+                // Dedicated matches are ranked when the backend reporter is configured; they
+                // report under the allocator's match ID so the backend finds matches/{matchId}.
+                // Listen-host (Host/Join) matches are private and never scored; the
+                // RankingSettings flag only marks them as ranked in the HUD for dev testing.
+                bool ranked = MatchServerContext.IsDedicated
+                    ? MatchServerContext.Reporter.IsRanked
+                    : RankingSettings.Load().HostClientPointsEnabled;
+
+                session.Start(
+                    state,
+                    new MatchRulesEngine(definitionsById, random),
+                    ranked,
+                    DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+                );
+
+                Debug.Log(
+                    $"Match initialized. "
+                        + $"MatchId: {session.MatchId}. "
+                        + $"Ranked: {session.IsRanked}. "
+                        + $"First seat: {state.FirstSeat}. "
+                        + $"Deck size: {DeckRules.RequiredCardCount}. "
+                        + $"Host hand: {state.Host.DrawHand.Count}, "
+                        + $"Guest hand: {state.Guest.DrawHand.Count}. "
+                        + $"Matches on server: {sessions.Count}/{sessions.Capacity}."
+                );
+
+                return true;
+            }
+            catch (Exception exception)
+            {
+                Debug.LogError($"Match {session.MatchId} initialization failed: " + exception.Message);
+
+                return false;
+            }
+        }
+
+        /// <summary>Card definitions are loaded once and shared by every match of the process.</summary>
+        private bool TryLoadDefinitions()
+        {
+            if (snapshotBuilder != null)
+            {
+                return true;
             }
 
             Card[] cardAssets = Resources.LoadAll<Card>("Cards");
@@ -69,68 +137,20 @@ namespace KLTN.Game.Networking
 
                 CardContentValidator.Validate(definitions);
 
-                definitions.Sort(
-                    (left, right) => StringComparer.Ordinal.Compare(left.Id, right.Id)
-                );
-
-                IReadOnlyList<CardDefinition> hostDeck = BuildDeckForSeat(SeatId.Host);
-                IReadOnlyList<CardDefinition> guestDeck = BuildDeckForSeat(SeatId.Guest);
-
-                IRandomSource random = new SeededRandomSource(Environment.TickCount);
-
-                SeatId firstSeat = random.Next(0, 2) == 0 ? SeatId.Host : SeatId.Guest;
-
-                var factory = new MatchFactory(random);
-
-                matchState = factory.Create(
-                    hostDeck,
-                    guestDeck,
-                    OpeningHandSize,
-                    firstSeat
-                );
-
-                // A dedicated server reports under the allocator's MATCH_ID so the backend can
-                // match it to matches/{matchId}; listen-host matches get a local ID.
-                currentMatchId = MatchServerContext.IsDedicated
-                    ? MatchServerContext.MatchId
-                    : Guid.NewGuid().ToString("N");
-                currentMatchStartedUtcMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-
-                // Dedicated matches are ranked when the backend reporter is configured.
-                // Listen-host (Host/Join) matches are private and never scored; the
-                // RankingSettings flag only marks them as ranked in the HUD for dev testing.
-                currentMatchRanked = MatchServerContext.IsDedicated
-                    ? MatchServerContext.Reporter.IsRanked
-                    : RankingSettings.Load().HostClientPointsEnabled;
-
-                rulesEngine = new MatchRulesEngine(definitionsById, random);
-
                 snapshotBuilder = new MatchSnapshotBuilder(definitionsById);
 
                 resolutionDtoMapper = new RoundResolutionDtoMapper(definitionsById);
-
-                Debug.Log(
-                    $"Match initialized. "
-                        + $"MatchId: {currentMatchId}. "
-                        + $"Ranked: {currentMatchRanked}. "
-                        + $"First seat: {matchState.FirstSeat}. "
-                        + $"Deck size: {DeckRules.RequiredCardCount}. "
-                        + $"Host hand: {matchState.Host.DrawHand.Count}, "
-                        + $"Guest hand: {matchState.Guest.DrawHand.Count}."
-                );
 
                 return true;
             }
             catch (Exception exception)
             {
-                matchState = null;
-                rulesEngine = null;
                 snapshotBuilder = null;
                 resolutionDtoMapper = null;
 
                 definitionsById.Clear();
 
-                Debug.LogError("Match initialization failed: " + exception.Message);
+                Debug.LogError("Card definitions could not be loaded: " + exception.Message);
 
                 return false;
             }
@@ -140,31 +160,35 @@ namespace KLTN.Game.Networking
 
         #region Match Update Publication
 
+        /// <summary>Sends the match's new revision to its own players only (never a broadcast).</summary>
         private void BroadcastUpdate(
+            MatchSession session,
             RoundResolution resolution = null,
             RoundTransition roundTransition = null
         )
         {
-            if (!IsServer)
+            if (!IsServer || session == null)
             {
                 return;
             }
 
-            revision++;
+            session.NextRevision();
+
+            MatchState state = session.State;
 
             RoundResolutionDto resolutionDto =
-                resolution == null
+                resolution == null || resolutionDtoMapper == null
                     ? null
-                    : resolutionDtoMapper.Build(resolution, matchState);
+                    : resolutionDtoMapper.Build(resolution, state);
 
-            AbilityResolution abilityResolution = matchState?.TakeAbilityResolution();
+            AbilityResolution abilityResolution = state?.TakeAbilityResolution();
             var abilityMapper = new AbilityResolutionDtoMapper(definitionsById);
 
             RoundTransitionDto roundTransitionDto = BuildRoundTransitionDto(
                 roundTransition
             );
 
-            foreach (KeyValuePair<ulong, SeatId> pair in seatByClient)
+            foreach (KeyValuePair<ulong, SeatId> pair in new List<KeyValuePair<ulong, SeatId>>(session.Connections))
             {
                 AbilityResolutionDto abilityDto = abilityMapper.Build(
                     abilityResolution,
@@ -173,6 +197,7 @@ namespace KLTN.Game.Networking
 
                 SendUpdate(
                     pair.Key,
+                    session,
                     pair.Value,
                     resolutionDto,
                     roundTransitionDto,
@@ -183,6 +208,7 @@ namespace KLTN.Game.Networking
 
         private void SendUpdate(
             ulong targetClientId,
+            MatchSession session,
             SeatId viewerSeat,
             RoundResolutionDto resolution,
             RoundTransitionDto roundTransition = null,
@@ -192,8 +218,8 @@ namespace KLTN.Game.Networking
             bool isVisible = NetworkObject.IsNetworkVisibleTo(targetClientId);
 
             Debug.Log(
-                $"Preparing match update. Target={targetClientId}, "
-                    + $"Viewer={viewerSeat}, Visible={isVisible}, Revision={revision}."
+                $"Preparing match update. Match={session.MatchId}, Target={targetClientId}, "
+                    + $"Viewer={viewerSeat}, Visible={isVisible}, Revision={session.Revision}."
             );
 
             if (!isVisible)
@@ -204,7 +230,7 @@ namespace KLTN.Game.Networking
 
             var update = new MatchUpdateDto
             {
-                snapshot = BuildSnapshot(viewerSeat),
+                snapshot = BuildSnapshot(session, viewerSeat),
 
                 hasResolution = resolution != null,
 
@@ -231,36 +257,36 @@ namespace KLTN.Game.Networking
             );
         }
 
-        private MatchSnapshotDto BuildSnapshot(SeatId viewerSeat)
+        private MatchSnapshotDto BuildSnapshot(MatchSession session, SeatId viewerSeat)
         {
             SeatId opponentSeat = viewerSeat.Opponent();
-            bool opponentConnected = HasSeat(opponentSeat);
+            bool opponentConnected = session.HasConnectedSeat(opponentSeat);
 
             MatchSnapshotDto snapshot;
 
-            if (matchState == null || snapshotBuilder == null)
+            if (!session.IsStarted || snapshotBuilder == null)
             {
                 snapshot = MatchSnapshotBuilder.BuildWaiting(
                     viewerSeat,
                     opponentConnected,
-                    revision
+                    session.Revision
                 );
             }
             else
             {
                 snapshot = snapshotBuilder.Build(
-                    matchState,
+                    session.State,
                     viewerSeat,
                     opponentConnected,
-                    revision
+                    session.Revision
                 );
 
-                snapshot.matchId = currentMatchId;
-                snapshot.isRanked = currentMatchRanked;
-                snapshot.matchStartedUtcMs = currentMatchStartedUtcMs;
+                snapshot.matchId = session.MatchId;
+                snapshot.isRanked = session.IsRanked;
+                snapshot.matchStartedUtcMs = session.StartedUtcMs;
             }
 
-            ApplyConnectionState(snapshot, viewerSeat);
+            ApplyConnectionState(session, snapshot, viewerSeat);
             return snapshot;
         }
 

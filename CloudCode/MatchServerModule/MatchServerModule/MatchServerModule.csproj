@@ -39,6 +39,7 @@
     <Compile Include="../../Shared/FirestoreAdmin.cs" Link="Shared/FirestoreAdmin.cs" />
     <Compile Include="../../Shared/SeasonDocuments.cs" Link="Shared/SeasonDocuments.cs" />
     <Compile Include="../../Shared/MatchRecords.cs" Link="Shared/MatchRecords.cs" />
+    <Compile Include="../../Shared/ServerRecords.cs" Link="Shared/ServerRecords.cs" />
   </ItemGroup>
 
 </Project>

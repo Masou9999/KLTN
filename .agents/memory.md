@@ -84,7 +84,7 @@ Kỹ thuật không phải pattern nhưng quan trọng: `partial class` theo use
 Rủi ro đã biết:
 - ~~`modulePath` tuyệt đối~~ đã chuyển vào repo (plan 01).
 - Listen path (Session/Relay) vẫn song song → 2 bộ lifecycle/disconnect cần test riêng.
-- 1 trận = 1 deployment mới (chưa reuse server — plan 05).
+- Mặc định 1 trận = 1 deployment; plan 05 cho nhiều trận/process khi secret `MATCH_SERVER_CAPACITY` > 1 (xem §16).
 
 ## 7. Auth chain: Firebase → UGS → UGS token → Edgegap
 
@@ -300,8 +300,32 @@ Màn kết quả có **HÒA** riêng (`MatchResultBanner`).
 | 01 Server tin cậy | `feature/server-trusted-backend` | Đã merge (01/11) |
 | 02 Vào trận có xác minh | `feature/match-admission-loadout` | Đã merge (01/11) |
 | 04 Client polish | `feature/client-polish-resilience` | Đã merge (01/11) |
-| 03 Giữ ghế khi mất kết nối | `feature/reconnect-grace-period` | Đợt 2 |
-| 05 Nhiều trận / reuse server | `feature/multi-match-server` | Đợt 3 |
+| 03 Giữ ghế khi mất kết nối | `feature/reconnect-grace-period` | Đã merge (01/11) |
+| 05 Nhiều trận / reuse server | `feature/multi-match-server` | Làm xong 01/11, chưa commit (worktree `KLTN-wt-05`) |
 | 06 Integration/system tests | `feature/integration-system-tests` | Đợt 3 |
 
 Quy ước: mỗi plan một worktree + branch tách từ `main` mới nhất; agent **không commit, không merge**, người dùng tự merge.
+
+## 16. Nhiều trận trên một server (plan 05, 01/11/2026)
+
+`[Đã kiểm chứng bằng test]` EditMode (Application) + emulator Cloud Code/Rules. `[Chưa kiểm chứng]` trên Edgegap thật.
+
+- **Application layer** (`KLTN.Game.ApplicationLayer`): `MatchSession` = MatchState + MatchRulesEngine + `SeatConnectionTracker`
+  + ghế theo connection + command id + revision + loadout; `MatchSessionRegistry` (capacity, `clientId → matchId`,
+  định tuyến người mới: trận client nêu tên → trận có PlayerId trong danh sách → trận mở đầu tiên);
+  `MatchCommandService.Execute` kiểm ghế/đã bắt đầu/pause/command id rồi chạy lệnh trên đúng trận.
+- **Bridge**: một `NetworkMatchBridge` + một GameScene chung cho mọi trận; mọi state server nằm trong `MatchSession`,
+  phần NGO riêng (coroutine giữ ghế/loadout, DTO settlement) trong `MatchRuntime` theo matchId. Snapshot/settlement chỉ gửi
+  `RpcTarget.Single` tới connection của trận đó. Card definitions/mapper nạp một lần, dùng chung.
+- **Server** (`DedicatedServerBootstrap`): env `MATCH_CAPACITY` (mặc định 1), `MATCH_ID/MATCH_TOKEN` là trận đầu,
+  `MATCHMAKER_MATCH_ID` + `MATCH_PLAYERS` để định tuyến; `SERVER_ID/SERVER_TOKEN` (chỉ khi capacity > 1) để gọi
+  `GetAssignedMatches` mỗi 2 s và ngay khi trận bắt đầu/kết thúc. Trận chưa đủ cặp sau 120 s bị hủy; kết thúc + mọi người
+  rời → giải phóng slot; màn kết quả treo > 120 s bị ngắt. Capacity 1: hết trận là tắt (như cũ); capacity > 1: rảnh 120 s
+  → gửi `draining` → tắt (NFR-21). Không có Cloud Code (stub/local): tạo trận theo thứ tự đến (`local-match`, `local-match-2`...).
+- **Token**: Firestore chỉ giữ SHA-256 của `MATCH_TOKEN`/`SERVER_TOKEN`. Trận đặt vào server đang chạy: token allocator sinh bị bỏ,
+  `GetAssignedMatches` sinh token mới và trả **một lần** (trận đã có trong `knownMatchIds` không bao giờ trả lại).
+- **Allocator**: `servers/{serverId} {deploymentId, capacity, slots[], tokenHash, lastHeartbeat, draining}`; chọn server sống
+  (heartbeat ≤ 10 s), không draining, còn slot, đầy nhất trước; ghi slot với precondition `updateTime`. Server mới chỉ được
+  dùng lại sau heartbeat đầu. `AllocationData.requestId` = deploymentId của server được chọn (Poll giữ nguyên).
+- Rules: `servers/**` cấm client. Access Control: thêm Deny Player cho `GetAssignedMatches`.
+- Test tải: `Tools/LoadTest/run-loadtest.ps1` (bản build Windows Dedicated Server, `-loadTestClient host:port` biến build thành bot).

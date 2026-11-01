@@ -43,8 +43,12 @@ public sealed class FirestoreHttp(HttpClient client)
     public HttpClient Client { get; } = client;
 }
 
-/// <summary>Where a match runs: today always a new Edgegap deployment (plan 05 adds reuse by capacity).</summary>
-public sealed record ServerPlacement(string ServerId, string? Error);
+/// <summary>
+/// Where a match runs. ServerId goes to matches/{matchId}.serverId (servers/{serverId} for a
+/// multi-match server, the Edgegap request id otherwise); DeploymentId is the Edgegap request id
+/// Matchmaker_PollAllocation reads the IP and port from.
+/// </summary>
+public sealed record ServerPlacement(string ServerId, string DeploymentId, string? Error);
 
 public class EdgegapAllocator(
     IGameApiClient gameApiClient,
@@ -69,6 +73,10 @@ public class EdgegapAllocator(
     // UGS service account the match server uses to call MatchServerModule (AdmitPlayer, ReportResult).
     private const string MatchServerKeyIdSecretName = "MATCH_SERVER_SA_KEY_ID";
     private const string MatchServerSecretSecretName = "MATCH_SERVER_SA_SECRET";
+
+    // Optional: matches per server process (MATCH_CAPACITY). Missing → 1, one match per deployment.
+    private const string ServerCapacitySecretName = "MATCH_SERVER_CAPACITY";
+    private const int DefaultServerCapacity = 1;
 
     private const int PlayersPerMatch = 2;
 
@@ -143,11 +151,38 @@ public class EdgegapAllocator(
                 now
             );
 
-            ServerPlacement placement = await PlaceMatchAsync(
+            int capacity = await ServerCapacityAsync(context);
+            ServerPlacement? placement = null;
+
+            if (capacity > 1)
+            {
+                // FR-MM-10: a running server with a free slot first; it fetches the match
+                // (with a new MATCH_TOKEN) through MatchServerModule.GetAssignedMatches.
+                ServerInfo? reused = await ServerRecords.TryReserveAsync(firestore, matchId, now);
+
+                if (reused != null)
+                {
+                    logger.LogInformation(
+                        "Match {MatchId} placed on running server {ServerId} ({Used}/{Capacity}).",
+                        matchId,
+                        reused.ServerId,
+                        reused.Slots.Count,
+                        reused.Capacity
+                    );
+                    placement = new ServerPlacement(reused.ServerId, reused.DeploymentId, null);
+                }
+            }
+
+            placement ??= await PlaceMatchAsync(
                 context,
+                firestore,
                 players,
+                playerIds,
+                request.MatchId,
                 matchId,
-                matchToken
+                matchToken,
+                capacity,
+                now
             );
 
             if (placement.Error != null)
@@ -161,8 +196,9 @@ public class EdgegapAllocator(
             {
                 AllocationData = new Dictionary<string, object>
                 {
-                    { "requestId", placement.ServerId },
+                    { "requestId", placement.DeploymentId },
                     { "matchId", matchId },
+                    { "serverId", placement.ServerId },
                 },
             };
         }
@@ -174,14 +210,19 @@ public class EdgegapAllocator(
     }
 
     /// <summary>
-    /// Picks the server for a new match. Always a fresh Edgegap deployment for now; plan 05
-    /// (multi-match servers) extends this to reuse a running server with free capacity.
+    /// Starts a new Edgegap deployment for the match. With capacity > 1 the deployment also gets
+    /// SERVER_ID/SERVER_TOKEN and a servers/{serverId} record, so later matches can reuse it.
     /// </summary>
     private async Task<ServerPlacement> PlaceMatchAsync(
         IExecutionContext context,
+        FirestoreAdmin firestore,
         List<Player> players,
+        List<string> playerIds,
+        string matchmakerMatchId,
         string matchId,
-        string matchToken
+        string matchToken,
+        int capacity,
+        long now
     )
     {
         Secret edgegapApiToken = await gameApiClient.SecretManager.GetSecret(
@@ -224,21 +265,37 @@ public class EdgegapAllocator(
         }
 
         // Contract with the match server (00_TongQuan_KeHoach.md): secrets are hidden in the Edgegap dashboard.
+        var environment = new List<EnvironmentVariable>
+        {
+            Variable("MATCH_ID", matchId, false),
+            Variable("MATCH_TOKEN", matchToken, true),
+            Variable("MATCHMAKER_MATCH_ID", matchmakerMatchId, false),
+            Variable("MATCH_PLAYERS", string.Join(",", playerIds), false),
+            Variable("MATCH_CAPACITY", capacity.ToString(System.Globalization.CultureInfo.InvariantCulture), false),
+            Variable("UGS_PROJECT_ID", context.ProjectId, false),
+            Variable("UGS_ENVIRONMENT_ID", context.EnvironmentId, false),
+            Variable("UGS_SERVICE_ACCOUNT_KEY_ID", serviceKeyId.Value, true),
+            Variable("UGS_SERVICE_ACCOUNT_SECRET", serviceSecret.Value, true),
+        };
+
+        string serverId = string.Empty;
+        string serverToken = string.Empty;
+
+        if (capacity > 1)
+        {
+            serverId = MatchRecords.NewMatchId();
+            serverToken = MatchRecords.NewToken();
+            environment.Add(Variable("SERVER_ID", serverId, false));
+            environment.Add(Variable("SERVER_TOKEN", serverToken, true));
+        }
+
         var deploymentRequest = new DeploymentRequest
         {
             Application = ApplicationName,
             Version = VersionName,
             RequireCachedLocations = ForceCachedLocation,
             Users = users,
-            EnvironmentVariables =
-            [
-                Variable("MATCH_ID", matchId, false),
-                Variable("MATCH_TOKEN", matchToken, true),
-                Variable("UGS_PROJECT_ID", context.ProjectId, false),
-                Variable("UGS_ENVIRONMENT_ID", context.EnvironmentId, false),
-                Variable("UGS_SERVICE_ACCOUNT_KEY_ID", serviceKeyId.Value, true),
-                Variable("UGS_SERVICE_ACCOUNT_SECRET", serviceSecret.Value, true),
-            ],
+            EnvironmentVariables = environment,
             Tags = ["ugs-matchmaker"],
         };
 
@@ -260,11 +317,48 @@ public class EdgegapAllocator(
                 response.StatusCode,
                 responseContent
             );
-            return new ServerPlacement(string.Empty, responseContent);
+            return new ServerPlacement(string.Empty, string.Empty, responseContent);
         }
 
         var edgegapDeployment = JsonConvert.DeserializeObject<DeploymentResponse>(responseContent);
-        return new ServerPlacement(edgegapDeployment?.RequestId ?? string.Empty, null);
+        string deploymentId = edgegapDeployment?.RequestId ?? string.Empty;
+
+        if (capacity <= 1)
+        {
+            return new ServerPlacement(deploymentId, deploymentId, null);
+        }
+
+        // The first match already fills a slot; the server is reused once it sends a heartbeat.
+        await ServerRecords.CreateAsync(
+            firestore,
+            serverId,
+            deploymentId,
+            MatchRecords.HashToken(serverToken),
+            capacity,
+            matchId,
+            now
+        );
+        return new ServerPlacement(serverId, deploymentId, null);
+    }
+
+    /// <summary>MATCH_SERVER_CAPACITY secret (1..16); missing or invalid means one match per server.</summary>
+    private async Task<int> ServerCapacityAsync(IExecutionContext context)
+    {
+        try
+        {
+            Secret secret = await gameApiClient.SecretManager.GetSecret(context, ServerCapacitySecretName);
+
+            if (int.TryParse(secret.Value, out int capacity))
+            {
+                return Math.Clamp(capacity, 1, ServerRecords.MaxCapacity);
+            }
+        }
+        catch (Exception exception)
+        {
+            logger.LogDebug(exception, "No {Secret} secret; one match per server.", ServerCapacitySecretName);
+        }
+
+        return DefaultServerCapacity;
     }
 
     private static EnvironmentVariable Variable(string key, string value, bool hidden)

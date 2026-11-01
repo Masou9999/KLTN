@@ -65,6 +65,23 @@ namespace KLTN.CloudCode.MatchServer
         [JsonProperty("notScoredReason")] public string NotScoredReason { get; set; }
     }
 
+    /// <summary>GetAssignedMatches: matches newly placed on a running multi-match server.</summary>
+    public sealed class AssignedMatchesResult
+    {
+        [JsonProperty("matches")] public List<AssignedMatch> Matches { get; set; } = new List<AssignedMatch>();
+    }
+
+    public sealed class AssignedMatch
+    {
+        [JsonProperty("matchId")] public string MatchId { get; set; }
+        [JsonProperty("matchmakerMatchId")] public string MatchmakerMatchId { get; set; }
+
+        /// <summary>Fresh MATCH_TOKEN; Firestore keeps only its SHA-256.</summary>
+        [JsonProperty("matchToken")] public string MatchToken { get; set; }
+
+        [JsonProperty("players")] public string[] Players { get; set; } = Array.Empty<string>();
+    }
+
     /// <summary>
     /// The report was refused for good (bad token, unknown match, player not in the match...).
     /// Retrying the same call cannot succeed; the message starts with "rejected:".

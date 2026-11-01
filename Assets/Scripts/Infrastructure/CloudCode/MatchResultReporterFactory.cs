@@ -43,7 +43,7 @@ namespace KLTN.Infrastructure.CloudCode
             }
 
             Debug.Log($"[MatchServer] Reporting results to Cloud Code project {projectId}.");
-            return new CloudCodeMatchResultReporter(projectId, environmentId, keyId, secret, matchToken);
+            return new CloudCodeMatchResultReporter(projectId, environmentId, keyId, secret, MatchServerContext.TokenFor);
         }
 
         private static string Read(string name)

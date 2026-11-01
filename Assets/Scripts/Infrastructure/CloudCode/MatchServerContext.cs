@@ -1,13 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using KLTN.Game.ApplicationLayer;
 using UnityEngine;
 
 namespace KLTN.Infrastructure.CloudCode
 {
     /// <summary>
-    /// Server-side state shared between DedicatedServerBootstrap (admission) and
-    /// NetworkMatchBridge (loadout, result report). Empty on listen-host and clients.
+    /// Server-side state shared between DedicatedServerBootstrap (admission, allocation) and
+    /// NetworkMatchBridge (seats, loadout, result report). Empty on listen-host and clients.
     /// </summary>
     public static class MatchServerContext
     {
@@ -16,22 +17,19 @@ namespace KLTN.Infrastructure.CloudCode
         private static readonly Dictionary<ulong, PlayerAdmission> admissionByClient =
             new Dictionary<ulong, PlayerAdmission>();
 
+        // MATCH_TOKEN of every match this process hosts; only kept in memory (plan 01 contract).
+        private static readonly Dictionary<string, string> tokenByMatch =
+            new Dictionary<string, string>(StringComparer.Ordinal);
+
+        private static readonly List<Task> reports = new List<Task>();
+
         /// <summary>True only on a dedicated match server.</summary>
         public static bool IsDedicated { get; private set; }
 
-        /// <summary>MATCH_ID of this container; used as the reported matchId.</summary>
-        public static string MatchId { get; private set; }
+        /// <summary>Matches hosted by this dedicated server (MATCH_CAPACITY of them at most).</summary>
+        public static MatchSessionRegistry Sessions { get; private set; } = new MatchSessionRegistry(1);
 
         public static IMatchResultReporter Reporter { get; private set; } = new NullMatchResultReporter();
-
-        /// <summary>Report in flight; the server waits for it before quitting.</summary>
-        public static Task PendingReport { get; set; } = Task.CompletedTask;
-
-        /// <summary>Set by NetworkMatchBridge: may this player take back a held seat now?</summary>
-        public static Func<string, bool> CanRejoin { get; set; } = NoRejoin;
-
-        /// <summary>Set by NetworkMatchBridge: a seat is held for a disconnected player.</summary>
-        public static Func<bool> IsHoldingSeats { get; set; } = NotHolding;
 
         #endregion
 
@@ -41,29 +39,61 @@ namespace KLTN.Infrastructure.CloudCode
         private static void ResetStatics()
         {
             IsDedicated = false;
-            MatchId = null;
+            Sessions = new MatchSessionRegistry(1);
             Reporter = new NullMatchResultReporter();
-            PendingReport = Task.CompletedTask;
-            ClearSeatCallbacks();
             admissionByClient.Clear();
+            tokenByMatch.Clear();
+            reports.Clear();
         }
 
-        public static void ClearSeatCallbacks()
-        {
-            CanRejoin = NoRejoin;
-            IsHoldingSeats = NotHolding;
-        }
-
-        private static bool NoRejoin(string playerId) => false;
-
-        private static bool NotHolding() => false;
-
-        public static void StartDedicated(string matchId, IMatchResultReporter reporter)
+        public static void StartDedicated(IMatchResultReporter reporter, int capacity)
         {
             IsDedicated = true;
-            MatchId = matchId;
+            Sessions = new MatchSessionRegistry(capacity);
             Reporter = reporter ?? new NullMatchResultReporter();
             admissionByClient.Clear();
+            tokenByMatch.Clear();
+            reports.Clear();
+        }
+
+        #endregion
+
+        #region Match Tokens
+
+        public static void RegisterMatchToken(string matchId, string matchToken)
+        {
+            if (!string.IsNullOrEmpty(matchId) && !string.IsNullOrEmpty(matchToken))
+            {
+                tokenByMatch[matchId] = matchToken;
+            }
+        }
+
+        /// <summary>MATCH_TOKEN proving this server hosts the match; null when unknown.</summary>
+        public static string TokenFor(string matchId)
+        {
+            return matchId != null && tokenByMatch.TryGetValue(matchId, out string token) ? token : null;
+        }
+
+        #endregion
+
+        #region Reports
+
+        /// <summary>Remembers a report in flight; the server waits for all of them before quitting.</summary>
+        public static void TrackReport(Task report)
+        {
+            if (report == null)
+            {
+                return;
+            }
+
+            reports.RemoveAll(task => task.IsCompleted);
+            reports.Add(report);
+        }
+
+        public static Task AllReports()
+        {
+            reports.RemoveAll(task => task.IsCompleted);
+            return reports.Count == 0 ? Task.CompletedTask : Task.WhenAll(reports.ToArray());
         }
 
         #endregion
@@ -83,16 +113,6 @@ namespace KLTN.Infrastructure.CloudCode
         public static bool TryGetAdmission(ulong clientId, out PlayerAdmission admission)
         {
             return admissionByClient.TryGetValue(clientId, out admission);
-        }
-
-        public static int AdmittedCount => admissionByClient.Count;
-
-        public static IEnumerable<string> AdmittedPlayerIds()
-        {
-            foreach (PlayerAdmission admission in admissionByClient.Values)
-            {
-                yield return admission.PlayerId;
-            }
         }
 
         #endregion

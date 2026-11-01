@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using CMCMProductions;
+using KLTN.Game.ApplicationLayer;
 using KLTN.Game.Content;
 using KLTN.Game.Domain;
 using Unity.Netcode;
@@ -13,6 +14,9 @@ namespace KLTN.Game.Networking
     {
         #region Server Command Pipeline
 
+        // Every command is routed by MatchCommandService from the sender's connection to its own
+        // match (seat, started, not paused, growing command ID) before the rules engine runs.
+
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
         private void SubmitSummonUnitRpc(
             ulong commandId,
@@ -22,18 +26,13 @@ namespace KLTN.Game.Networking
         {
             ulong senderClientId = rpcParams.Receive.SenderClientId;
 
-            if (!TryBeginCommand(senderClientId, commandId, out SeatId actor))
-            {
-                return;
-            }
-
-            CommandResult result = rulesEngine.TrySummonUnit(
-                matchState,
-                actor,
-                cardInstanceId
+            MatchCommandOutcome outcome = commandService.Execute(
+                senderClientId,
+                commandId,
+                (session, actor) => session.Rules.TrySummonUnit(session.State, actor, cardInstanceId)
             );
 
-            FinishCommand(senderClientId, result);
+            FinishCommand(senderClientId, outcome);
         }
 
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
@@ -45,18 +44,13 @@ namespace KLTN.Game.Networking
         {
             ulong senderClientId = rpcParams.Receive.SenderClientId;
 
-            if (!TryBeginCommand(senderClientId, commandId, out SeatId actor))
-            {
-                return;
-            }
-
-            CommandResult result = rulesEngine.TryDeclareAttack(
-                matchState,
-                actor,
-                attackerIdsBySlot
+            MatchCommandOutcome outcome = commandService.Execute(
+                senderClientId,
+                commandId,
+                (session, actor) => session.Rules.TryDeclareAttack(session.State, actor, attackerIdsBySlot)
             );
 
-            FinishCommand(senderClientId, result);
+            FinishCommand(senderClientId, outcome);
         }
 
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
@@ -68,18 +62,13 @@ namespace KLTN.Game.Networking
         {
             ulong senderClientId = rpcParams.Receive.SenderClientId;
 
-            if (!TryBeginCommand(senderClientId, commandId, out SeatId actor))
-            {
-                return;
-            }
-
-            CommandResult result = rulesEngine.TryDeclareBlock(
-                matchState,
-                actor,
-                blockerIdsBySlot
+            MatchCommandOutcome outcome = commandService.Execute(
+                senderClientId,
+                commandId,
+                (session, actor) => session.Rules.TryDeclareBlock(session.State, actor, blockerIdsBySlot)
             );
 
-            FinishCommand(senderClientId, result);
+            FinishCommand(senderClientId, outcome);
         }
 
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
@@ -93,24 +82,23 @@ namespace KLTN.Game.Networking
         {
             ulong senderClientId = rpcParams.Receive.SenderClientId;
 
-            if (!TryBeginCommand(senderClientId, commandId, out SeatId actor))
-            {
-                return;
-            }
-
             var selection = new AbilityTargetSelection(
                 primaryTargetIds,
                 secondaryTargetIds
             );
 
-            CommandResult result = rulesEngine.TrySubmitAbilitySelection(
-                matchState,
-                actor,
-                requestId,
-                selection
+            MatchCommandOutcome outcome = commandService.Execute(
+                senderClientId,
+                commandId,
+                (session, actor) => session.Rules.TrySubmitAbilitySelection(
+                    session.State,
+                    actor,
+                    requestId,
+                    selection
+                )
             );
 
-            FinishCommand(senderClientId, result);
+            FinishCommand(senderClientId, outcome);
         }
 
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
@@ -122,18 +110,13 @@ namespace KLTN.Game.Networking
         {
             ulong senderClientId = rpcParams.Receive.SenderClientId;
 
-            if (!TryBeginCommand(senderClientId, commandId, out SeatId actor))
-            {
-                return;
-            }
-
-            CommandResult result = rulesEngine.TryCancelAbilitySelection(
-                matchState,
-                actor,
-                requestId
+            MatchCommandOutcome outcome = commandService.Execute(
+                senderClientId,
+                commandId,
+                (session, actor) => session.Rules.TryCancelAbilitySelection(session.State, actor, requestId)
             );
 
-            FinishCommand(senderClientId, result);
+            FinishCommand(senderClientId, outcome);
         }
 
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
@@ -141,13 +124,13 @@ namespace KLTN.Game.Networking
         {
             ulong senderClientId = rpcParams.Receive.SenderClientId;
 
-            if (!TryBeginCommand(senderClientId, commandId, out SeatId actor))
-            {
-                return;
-            }
+            MatchCommandOutcome outcome = commandService.Execute(
+                senderClientId,
+                commandId,
+                (session, actor) => session.Rules.TryPass(session.State, actor)
+            );
 
-            CommandResult result = rulesEngine.TryPass(matchState, actor);
-            FinishCommand(senderClientId, result);
+            FinishCommand(senderClientId, outcome);
         }
 
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
@@ -158,17 +141,13 @@ namespace KLTN.Game.Networking
         {
             ulong senderClientId = rpcParams.Receive.SenderClientId;
 
-            if (!TryBeginCommand(senderClientId, commandId, out SeatId actor))
-            {
-                return;
-            }
-
-            CommandResult result = rulesEngine.TrySurrender(
-                matchState,
-                actor
+            MatchCommandOutcome outcome = commandService.Execute(
+                senderClientId,
+                commandId,
+                (session, actor) => session.Rules.TrySurrender(session.State, actor)
             );
 
-            FinishCommand(senderClientId, result);
+            FinishCommand(senderClientId, outcome);
         }
 
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
@@ -180,11 +159,17 @@ namespace KLTN.Game.Networking
         {
             ulong senderClientId = rpcParams.Receive.SenderClientId;
 
-            if (!TryBeginCommand(senderClientId, commandId, out SeatId actor))
-            {
-                return;
-            }
+            MatchCommandOutcome outcome = commandService.Execute(
+                senderClientId,
+                commandId,
+                (session, actor) => ApplyMulligan(session.State, actor, cardIdsToReplace)
+            );
 
+            FinishCommand(senderClientId, outcome);
+        }
+
+        private static CommandResult ApplyMulligan(MatchState matchState, SeatId actor, ulong[] cardIdsToReplace)
+        {
             PlayerState player = matchState.Player(actor);
 
             if (cardIdsToReplace != null && cardIdsToReplace.Length > 0)
@@ -205,70 +190,32 @@ namespace KLTN.Game.Networking
                 matchState.LastEvent = "Giai đoạn đổi bài kết thúc. Trận đấu bắt đầu!";
             }
 
-            FinishCommand(senderClientId, CommandResult.Success());
+            return CommandResult.Success();
         }
 
-        private bool TryBeginCommand(
-            ulong senderClientId,
-            ulong commandId,
-            out SeatId actor
-        )
+        private void FinishCommand(ulong senderClientId, MatchCommandOutcome outcome)
         {
-            actor = default;
+            CommandResult result = outcome.Result;
 
-            if (!seatByClient.TryGetValue(senderClientId, out actor))
-            {
-                RejectCommand(senderClientId, CommandRejectionReason.InvalidSeat);
-                return false;
-            }
-
-            if (matchState == null || rulesEngine == null)
-            {
-                RejectCommand(senderClientId, CommandRejectionReason.MatchNotReady);
-                return false;
-            }
-
-            // FR-NET-06: no command from either seat is accepted while a seat is held.
-            if (seatConnections.IsPaused)
-            {
-                RejectCommand(senderClientId, CommandRejectionReason.MatchPaused);
-                return false;
-            }
-
-            if (
-                lastCommandIdByClient.TryGetValue(senderClientId, out ulong lastCommandId)
-                && commandId <= lastCommandId
-            )
-            {
-                RejectCommand(senderClientId, CommandRejectionReason.DuplicateCommand);
-                return false;
-            }
-
-            // A rejected domain command still consumes its command ID so a
-            // client cannot replay the same request.
-            lastCommandIdByClient[senderClientId] = commandId;
-            return true;
-        }
-
-        private void FinishCommand(ulong senderClientId, CommandResult result)
-        {
-            if (!result.Accepted)
+            if (!outcome.Accepted)
             {
                 RejectCommand(senderClientId, result.RejectionReason);
                 return;
             }
 
-            if (matchState != null && result.Resolution != null)
+            MatchSession session = outcome.Session;
+
+            if (result.Resolution != null)
             {
                 Debug.Log(
-                    $"[SERVER GRAVEYARD] " +
-                    $"Host={matchState.Host.Graveyard.Count}, " +
-                    $"Guest={matchState.Guest.Graveyard.Count}"
+                    $"[SERVER GRAVEYARD] Match={session.MatchId}, " +
+                    $"Host={session.State.Host.Graveyard.Count}, " +
+                    $"Guest={session.State.Guest.Graveyard.Count}"
                 );
             }
 
-            BroadcastUpdate(result.Resolution, result.RoundTransition);
-            TrySettleFinishedMatch();
+            BroadcastUpdate(session, result.Resolution, result.RoundTransition);
+            TrySettleFinishedMatch(session);
         }
 
         #endregion

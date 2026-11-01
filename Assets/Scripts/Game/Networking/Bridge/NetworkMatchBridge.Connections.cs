@@ -1,9 +1,9 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using CMCMProductions;
-using KLTN.Game.Content;
+using KLTN.Game.ApplicationLayer;
 using KLTN.Game.Domain;
+using KLTN.Infrastructure.CloudCode;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -20,9 +20,13 @@ namespace KLTN.Game.Networking
                 return;
             }
 
-            AssignClient(clientId);
-            TryInitializeMatch();
-            BroadcastUpdate();
+            if (!TryAssignClient(clientId, out MatchSession session))
+            {
+                return;
+            }
+
+            TryInitializeMatch(session);
+            BroadcastUpdate(session);
         }
 
         private void OnClientDisconnected(ulong clientId)
@@ -32,91 +36,126 @@ namespace KLTN.Game.Networking
                 return;
             }
 
-            if (!seatByClient.TryGetValue(clientId, out SeatId leavingSeat))
+            pendingSnapshotClients.Remove(clientId);
+
+            // Found by seat, not by route: the bootstrap may already have forgotten the route.
+            if (!TryFindSeatedSession(clientId, out MatchSession session)
+                || !session.RemoveConnection(clientId, out SeatId leavingSeat))
             {
+                ForgetRemovedMatches();
                 return;
             }
 
-            seatByClient.Remove(clientId);
-            lastCommandIdByClient.Remove(clientId);
-            pendingSnapshotClients.Remove(clientId);
-            Debug.Log($"Client {clientId} left {leavingSeat}.");
+            Debug.Log($"Client {clientId} left {leavingSeat} of match {session.MatchId}.");
 
             // The match is kept: the seat is held for the grace period (FR-NET-06). A finished
             // match only needs the remaining player to see the result.
-            if (matchState == null || !matchState.IsFinished)
+            if (!session.IsFinished && !session.IsClosed)
             {
-                HoldSeat(leavingSeat);
+                HoldSeat(session, leavingSeat);
             }
 
-            BroadcastUpdate();
+            BroadcastUpdate(session);
+            ForgetRemovedMatches();
         }
 
         private void AssignConnectedClients()
         {
             if (NetworkManager.IsHost)
             {
-                AssignClientToSeat(NetworkManager.LocalClientId, SeatId.Host);
+                TryAssignClient(NetworkManager.LocalClientId, out _);
             }
 
             foreach (ulong clientId in NetworkManager.ConnectedClientsIds)
             {
-                AssignClient(clientId);
+                TryAssignClient(clientId, out _);
             }
         }
 
-        private void AssignClient(ulong clientId)
+        /// <summary>
+        /// Seats the connection in its own match: the held seat of a returning player, else the
+        /// first free seat. Returns the match when the connection belongs to one.
+        /// </summary>
+        private bool TryAssignClient(ulong clientId, out MatchSession session)
         {
-            if (seatByClient.ContainsKey(clientId))
+            if (!TryResolveSession(clientId, out session))
             {
-                return;
+                Debug.LogWarning($"Client {clientId} has no match on this server.");
+                return false;
             }
 
-            if (TryReclaimSeat(clientId))
+            if (session.TryGetSeat(clientId, out _) || session.IsClosed)
             {
-                return;
+                return true;
             }
 
-            if (!IsSeatTaken(SeatId.Host))
+            if (TryReclaimSeat(session, clientId))
             {
-                AssignClientToSeat(clientId, SeatId.Host);
-                return;
+                return true;
             }
 
-            if (!IsSeatTaken(SeatId.Guest))
+            if (session.TryTakeFreeSeat(clientId, out SeatId seat))
             {
-                AssignClientToSeat(clientId, SeatId.Guest);
-                return;
+                BindSeat(session, clientId, seat);
+                Debug.Log($"Assigned client {clientId} to {seat} of match {session.MatchId}.");
+                return true;
             }
 
             Debug.LogWarning(
-                $"Client {clientId} could not be assigned. " + "Both seats are occupied."
+                $"Client {clientId} could not be assigned. Both seats of match {session.MatchId} are occupied."
             );
+            return true;
         }
 
-        private void AssignClientToSeat(ulong clientId, SeatId seat)
+        /// <summary>
+        /// Dedicated: the route set by connection approval. Listen-host: the only local match.
+        /// </summary>
+        private bool TryResolveSession(ulong clientId, out MatchSession session)
         {
-            if (seatByClient.ContainsKey(clientId) || HasSeat(seat))
+            if (sessions == null)
             {
-                return;
+                session = null;
+                return false;
             }
 
-            seatByClient.Add(clientId, seat);
-            BindSeat(clientId, seat);
-            Debug.Log($"Assigned client {clientId} to {seat}.");
+            if (sessions.TryGetByConnection(clientId, out session))
+            {
+                return true;
+            }
+
+            if (MatchServerContext.IsDedicated || sessions.IsEmpty)
+            {
+                return false;
+            }
+
+            session = sessions.Sessions[0];
+            sessions.Bind(clientId, session);
+            return true;
         }
 
-        private bool HasSeat(SeatId seat)
+        private bool TryFindSeatedSession(ulong clientId, out MatchSession session)
         {
-            foreach (SeatId assignedSeat in seatByClient.Values)
+            if (sessions != null)
             {
-                if (assignedSeat == seat)
+                foreach (MatchSession candidate in sessions.Sessions)
                 {
-                    return true;
+                    if (candidate.TryGetSeat(clientId, out _))
+                    {
+                        session = candidate;
+                        return true;
+                    }
                 }
             }
 
+            session = null;
             return false;
+        }
+
+        /// <summary>The connection's match and seat; false when it is not seated.</summary>
+        private bool TryGetSeatedClient(ulong clientId, out MatchSession session, out SeatId seat)
+        {
+            seat = default;
+            return TryResolveSession(clientId, out session) && session.TryGetSeat(clientId, out seat);
         }
 
         #endregion
@@ -130,23 +169,25 @@ namespace KLTN.Game.Networking
 
             Debug.Log($"Snapshot request received from client {senderClientId}.");
 
-            AssignClient(senderClientId);
-            bool matchCreated = TryInitializeMatch();
-
-            if (matchCreated)
+            if (!TryAssignClient(senderClientId, out MatchSession session))
             {
-                BroadcastUpdate();
                 return;
             }
 
-            if (!seatByClient.TryGetValue(senderClientId, out SeatId viewerSeat))
+            if (TryInitializeMatch(session))
+            {
+                BroadcastUpdate(session);
+                return;
+            }
+
+            if (!session.TryGetSeat(senderClientId, out SeatId viewerSeat))
             {
                 Debug.LogWarning($"No seat found for client {senderClientId}.");
                 return;
             }
 
-            SendUpdate(senderClientId, viewerSeat, null);
-            ResendSettlement(senderClientId, viewerSeat);
+            SendUpdate(senderClientId, session, viewerSeat, null);
+            ResendSettlement(session, senderClientId, viewerSeat);
         }
 
         private void QueueSnapshotWhenVisible(ulong clientId)
@@ -183,7 +224,7 @@ namespace KLTN.Game.Networking
                 yield break;
             }
 
-            if (!seatByClient.TryGetValue(clientId, out SeatId viewerSeat))
+            if (!TryGetSeatedClient(clientId, out MatchSession session, out SeatId viewerSeat))
             {
                 Debug.LogWarning($"Cannot send snapshot: client {clientId} has no seat.");
                 yield break;
@@ -191,7 +232,7 @@ namespace KLTN.Game.Networking
 
             Debug.Log($"NetworkMatchBridge is now visible to client {clientId}.");
 
-            SendUpdate(clientId, viewerSeat, null);
+            SendUpdate(clientId, session, viewerSeat, null);
         }
 
         private IEnumerator RequestInitialSnapshot()

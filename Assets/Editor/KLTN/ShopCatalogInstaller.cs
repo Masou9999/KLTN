@@ -354,6 +354,11 @@ service cloud.firestore {
     match /ugsPlayers/{playerId} {
       allow read, write: if false;
     }
+
+    // Match servers (capacity, slots, heartbeat, SERVER_TOKEN hash): allocator and MatchServerModule only.
+    match /servers/{serverId=**} {
+      allow read, write: if false;
+    }
   }
 }
 ";

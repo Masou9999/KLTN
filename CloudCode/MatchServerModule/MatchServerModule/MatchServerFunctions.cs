@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
 using KLTN.CloudCode.Shared;
@@ -27,6 +28,7 @@ namespace KLTN.CloudCode.MatchServer
     ///   GetTicketTier  player  → tier from season points, for the matchmaker ticket (FR-RANK-12)
     ///   AdmitPlayer    server  → checks MATCH_TOKEN + the player's UGS token, returns the loadout (FR-MM-09)
     ///   ReportResult   server  → rewards and season points once per match (FR-SHOP-08/09, FR-RANK-05..07/11)
+    ///   GetAssignedMatches server → heartbeat + matches placed on a multi-match server (FR-MM-10)
     /// Server calls use a UGS service account (no PlayerId); a player calling them is refused here
     /// and should also be denied by an Access Control policy (README).
     /// </summary>
@@ -151,6 +153,52 @@ namespace KLTN.CloudCode.MatchServer
             catch (MatchRejectedException exception)
             {
                 logger.LogWarning("Match {MatchId}: report refused ({Reason}).", matchId, exception.Reason);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Heartbeat of a multi-match server (FR-MM-10): records capacity and running matches,
+        /// returns matches the allocator placed on it with a fresh MATCH_TOKEN each. The server
+        /// proves itself with SERVER_TOKEN (only its SHA-256 is in servers/{serverId}).
+        /// </summary>
+        [CloudCodeFunction("GetAssignedMatches")]
+        public async Task<AssignedMatchesResult> GetAssignedMatches(
+            IExecutionContext context,
+            string serverId,
+            string serverToken,
+            int capacity,
+            List<string> knownMatchIds,
+            List<string> activeMatchIds,
+            bool draining
+        )
+        {
+            RequireServer(context, "GetAssignedMatches");
+            FirestoreAdmin firestore = await FirestoreAsync(context);
+
+            try
+            {
+                AssignedMatchesResult result = await ServerService.GetAssignedAsync(
+                    firestore,
+                    serverId,
+                    serverToken,
+                    capacity,
+                    knownMatchIds,
+                    activeMatchIds,
+                    draining,
+                    DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+                );
+
+                foreach (AssignedMatch match in result.Matches)
+                {
+                    logger.LogInformation("Server {ServerId} picked up match {MatchId}.", serverId, match.MatchId);
+                }
+
+                return result;
+            }
+            catch (MatchRejectedException exception)
+            {
+                logger.LogWarning("Server {ServerId}: heartbeat refused ({Reason}).", serverId, exception.Reason);
                 throw;
             }
         }

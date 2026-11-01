@@ -15,9 +15,10 @@ namespace KLTN.Infrastructure.CloudCode
     /// <summary>
     /// Calls MatchServerModule (AdmitPlayer, ReportResult) over the Cloud Code REST API with
     /// a stateless service-account token. Credentials come from the container environment
-    /// (UGS_PROJECT_ID, UGS_ENVIRONMENT_ID, UGS_SERVICE_ACCOUNT_KEY_ID/SECRET) and MATCH_TOKEN.
+    /// (UGS_PROJECT_ID, UGS_ENVIRONMENT_ID, UGS_SERVICE_ACCOUNT_KEY_ID/SECRET); each match is
+    /// proven with its own MATCH_TOKEN. A multi-match server also polls GetAssignedMatches.
     /// </summary>
-    public sealed class CloudCodeMatchResultReporter : IMatchResultReporter
+    public sealed class CloudCodeMatchResultReporter : IMatchResultReporter, IMatchAssignmentSource
     {
         #region Constants
 
@@ -38,7 +39,7 @@ namespace KLTN.Infrastructure.CloudCode
         private readonly string environmentId;
         private readonly string serviceAccountKeyId;
         private readonly string serviceAccountSecret;
-        private readonly string matchToken;
+        private readonly Func<string, string> tokenForMatch;
         private readonly HttpClient http;
 
         #endregion
@@ -56,14 +57,14 @@ namespace KLTN.Infrastructure.CloudCode
             string environmentId,
             string serviceAccountKeyId,
             string serviceAccountSecret,
-            string matchToken
+            Func<string, string> tokenForMatch
         )
         {
             this.projectId = projectId;
             this.environmentId = environmentId;
             this.serviceAccountKeyId = serviceAccountKeyId;
             this.serviceAccountSecret = serviceAccountSecret;
-            this.matchToken = matchToken;
+            this.tokenForMatch = tokenForMatch ?? throw new ArgumentNullException(nameof(tokenForMatch));
             http = new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
         }
 
@@ -81,7 +82,7 @@ namespace KLTN.Infrastructure.CloudCode
             var parameters = new JObject
             {
                 ["matchId"] = matchId,
-                ["matchToken"] = matchToken,
+                ["matchToken"] = tokenForMatch(matchId),
                 ["playerId"] = playerId,
                 ["playerAccessToken"] = playerAccessToken,
             };
@@ -136,7 +137,7 @@ namespace KLTN.Infrastructure.CloudCode
             var parameters = new JObject
             {
                 ["matchId"] = report.MatchId,
-                ["matchToken"] = matchToken,
+                ["matchToken"] = tokenForMatch(report.MatchId),
                 ["hostPlayerId"] = report.HostPlayerId,
                 ["guestPlayerId"] = report.GuestPlayerId,
                 ["outcome"] = MatchResultBannerPolicy.WireName(report.Outcome),
@@ -178,7 +179,78 @@ namespace KLTN.Infrastructure.CloudCode
 
         #endregion
 
+        #region IMatchAssignmentSource
+
+        public async Task<AssignmentPoll> GetAssignedMatchesAsync(
+            ServerHeartbeat heartbeat,
+            CancellationToken cancellationToken
+        )
+        {
+            var parameters = new JObject
+            {
+                ["serverId"] = heartbeat.ServerId,
+                ["serverToken"] = heartbeat.ServerToken,
+                ["capacity"] = heartbeat.Capacity,
+                ["knownMatchIds"] = new JArray(new List<string>(heartbeat.KnownMatchIds)),
+                ["activeMatchIds"] = new JArray(new List<string>(heartbeat.ActiveMatchIds)),
+                ["draining"] = heartbeat.Draining,
+            };
+
+            CallResult call = await CallAsync("GetAssignedMatches", parameters, cancellationToken);
+
+            if (!call.Success)
+            {
+                return AssignmentPoll.Fail(call.Message);
+            }
+
+            return ParseAssignments(call.Output);
+        }
+
+        #endregion
+
         #region Parsing
+
+        public static AssignmentPoll ParseAssignments(JToken output)
+        {
+            var matches = new List<MatchAssignment>();
+
+            if (output?["matches"] is JArray rows)
+            {
+                foreach (JToken row in rows)
+                {
+                    var players = new List<string>();
+
+                    if (row["players"] is JArray ids)
+                    {
+                        foreach (JToken id in ids)
+                        {
+                            if (id.Type == JTokenType.String && !string.IsNullOrWhiteSpace(id.Value<string>()))
+                            {
+                                players.Add(id.Value<string>());
+                            }
+                        }
+                    }
+
+                    string matchId = row.Value<string>("matchId");
+                    string token = row.Value<string>("matchToken");
+
+                    if (!string.IsNullOrWhiteSpace(matchId) && !string.IsNullOrWhiteSpace(token))
+                    {
+                        matches.Add(
+                            new MatchAssignment
+                            {
+                                MatchId = matchId,
+                                MatchmakerMatchId = row.Value<string>("matchmakerMatchId"),
+                                MatchToken = token,
+                                PlayerIds = players,
+                            }
+                        );
+                    }
+                }
+            }
+
+            return AssignmentPoll.Ok(matches);
+        }
 
         public static MatchSettlementResult ParseSettlement(JToken output)
         {

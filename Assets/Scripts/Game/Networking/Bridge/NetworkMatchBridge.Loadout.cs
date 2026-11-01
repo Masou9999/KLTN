@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using KLTN.Game.ApplicationLayer;
 using KLTN.Game.Content;
 using KLTN.Game.Domain;
 using KLTN.Infrastructure.CloudCode;
@@ -24,14 +25,8 @@ namespace KLTN.Game.Networking
 
         private const float LoadoutTimeoutSeconds = 10f;
 
-        // Server: owned card IDs reported by each seat. On a dedicated server they only narrow
-        // the list verified by AdmitPlayer (see ServerLoadoutPolicy).
-        private readonly Dictionary<SeatId, string[]> loadoutBySeat = new Dictionary<SeatId, string[]>();
-        private Coroutine loadoutTimeoutCoroutine;
-        private bool loadoutTimeoutElapsed;
-        private string currentMatchId;
-        private bool currentMatchRanked;
-        private long currentMatchStartedUtcMs;
+        // Owned card IDs reported by each seat live in the MatchSession. On a dedicated server
+        // they only narrow the list verified by AdmitPlayer (see ServerLoadoutPolicy).
         private ShopCatalog shopCatalog;
 
         #endregion
@@ -60,17 +55,16 @@ namespace KLTN.Game.Networking
         {
             ulong senderClientId = rpcParams.Receive.SenderClientId;
 
-            AssignClient(senderClientId);
-
-            if (!seatByClient.TryGetValue(senderClientId, out SeatId seat))
+            if (!TryAssignClient(senderClientId, out MatchSession session)
+                || !session.TryGetSeat(senderClientId, out SeatId seat))
             {
                 Debug.LogWarning($"[Loadout] Ignored loadout from unseated client {senderClientId}.");
                 return;
             }
 
-            if (matchState != null)
+            if (session.IsStarted)
             {
-                Debug.LogWarning($"[Loadout] Match already started; ignored late loadout for {seat}.");
+                Debug.LogWarning($"[Loadout] Match {session.MatchId} already started; ignored late loadout for {seat}.");
                 return;
             }
 
@@ -78,66 +72,55 @@ namespace KLTN.Game.Networking
                 ? Array.Empty<string>()
                 : ownedCardIdsCsv.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
 
-            loadoutBySeat[seat] = ids;
-            Debug.Log($"[Loadout] {seat} (client {senderClientId}) reported {ids.Length} owned cards.");
+            session.SetLoadout(seat, ids);
+            Debug.Log($"[Loadout] {seat} of {session.MatchId} (client {senderClientId}) reported {ids.Length} owned cards.");
 
-            if (TryInitializeMatch())
+            if (TryInitializeMatch(session))
             {
-                BroadcastUpdate();
+                BroadcastUpdate(session);
             }
         }
 
-        private bool AreLoadoutsReady()
+        private bool AreLoadoutsReady(MatchSession session)
         {
-            if (loadoutBySeat.ContainsKey(SeatId.Host) && loadoutBySeat.ContainsKey(SeatId.Guest))
+            if (session.HasBothLoadouts)
             {
                 return true;
             }
 
-            if (loadoutTimeoutElapsed)
+            MatchRuntime runtime = RuntimeOf(session);
+
+            if (runtime.LoadoutTimeoutElapsed)
             {
                 return true;
             }
 
-            if (loadoutTimeoutCoroutine == null)
+            if (runtime.LoadoutTimeoutCoroutine == null)
             {
-                loadoutTimeoutCoroutine = StartCoroutine(LoadoutTimeout());
+                runtime.LoadoutTimeoutCoroutine = StartCoroutine(LoadoutTimeout(session, runtime));
             }
 
             return false;
         }
 
-        private IEnumerator LoadoutTimeout()
+        private IEnumerator LoadoutTimeout(MatchSession session, MatchRuntime runtime)
         {
             yield return new WaitForSecondsRealtime(LoadoutTimeoutSeconds);
 
-            loadoutTimeoutCoroutine = null;
+            runtime.LoadoutTimeoutCoroutine = null;
 
-            if (matchState != null || !IsServer)
+            if (session.IsStarted || session.IsClosed || !IsServer)
             {
                 yield break;
             }
 
-            Debug.LogWarning("[Loadout] Timed out waiting for loadouts; missing seats use the starter set.");
-            loadoutTimeoutElapsed = true;
+            Debug.LogWarning($"[Loadout] Timed out waiting for loadouts of {session.MatchId}; missing seats use the starter set.");
+            runtime.LoadoutTimeoutElapsed = true;
 
-            if (TryInitializeMatch())
+            if (TryInitializeMatch(session))
             {
-                BroadcastUpdate();
+                BroadcastUpdate(session);
             }
-        }
-
-        private void ResetLoadouts()
-        {
-            if (loadoutTimeoutCoroutine != null)
-            {
-                StopCoroutine(loadoutTimeoutCoroutine);
-                loadoutTimeoutCoroutine = null;
-            }
-
-            loadoutBySeat.Clear();
-            loadoutTimeoutElapsed = false;
-            currentMatchId = null;
         }
 
         /// <summary>
@@ -147,13 +130,13 @@ namespace KLTN.Game.Networking
         /// missing or smaller than the starter set, then builds a weighted 25-card deck.
         /// Requires definitionsById to be populated.
         /// </summary>
-        private IReadOnlyList<CardDefinition> BuildDeckForSeat(SeatId seat)
+        private IReadOnlyList<CardDefinition> BuildDeckForSeat(MatchSession session, SeatId seat)
         {
             shopCatalog ??= ShopCatalog.Load();
 
             List<string> starterIds = shopCatalog != null ? shopCatalog.StarterCardIds() : new List<string>();
-            loadoutBySeat.TryGetValue(seat, out string[] reported);
-            IReadOnlyList<string> verified = VerifiedOwnedCardIds(seat);
+            session.TryGetLoadout(seat, out string[] reported);
+            IReadOnlyList<string> verified = VerifiedOwnedCardIds(session, seat);
             IReadOnlyList<string> allowed = ServerLoadoutPolicy.Resolve(verified, reported);
 
             if (verified != null)
@@ -190,16 +173,16 @@ namespace KLTN.Game.Networking
         }
 
         /// <summary>Owned IDs verified by the backend for the seat; null when unverified.</summary>
-        private IReadOnlyList<string> VerifiedOwnedCardIds(SeatId seat)
+        private static IReadOnlyList<string> VerifiedOwnedCardIds(MatchSession session, SeatId seat)
         {
             if (!MatchServerContext.IsDedicated)
             {
                 return null;
             }
 
-            foreach (KeyValuePair<ulong, SeatId> pair in seatByClient)
+            foreach (ulong clientId in session.ConnectionsOf(seat))
             {
-                if (pair.Value == seat && MatchServerContext.TryGetAdmission(pair.Key, out PlayerAdmission admission))
+                if (MatchServerContext.TryGetAdmission(clientId, out PlayerAdmission admission))
                 {
                     return admission.OwnedCardIds;
                 }

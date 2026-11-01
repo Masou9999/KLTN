@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using KLTN.Game.ApplicationLayer;
 using KLTN.Game.Domain;
 using KLTN.Infrastructure.CloudCode;
 using Unity.Netcode;
@@ -37,83 +38,69 @@ namespace KLTN.Game.Networking
 
     public sealed partial class NetworkMatchBridge : NetworkBehaviour
     {
-        #region Settlement State
-
-        // Server: match whose settlement already started, so it is reported exactly once.
-        private string settlementStartedForMatchId;
-        private readonly Dictionary<SeatId, MatchSettlementDto> settlementBySeat =
-            new Dictionary<SeatId, MatchSettlementDto>();
-
-        #endregion
-
         #region Server Side
 
         /// <summary>
         /// Called after every accepted command. When the match has just finished, a dedicated
         /// server reports it to the backend (FR-SHOP-09, FR-RANK-11) and forwards each player's
-        /// settlement; a listen-host match is private and settles nothing.
+        /// settlement; a listen-host match is private and settles nothing. Each match of the
+        /// process is reported exactly once, under its own match ID and MATCH_TOKEN.
         /// </summary>
-        private void TrySettleFinishedMatch()
+        private void TrySettleFinishedMatch(MatchSession session)
         {
-            if (!IsServer || matchState == null || !matchState.IsFinished)
+            if (!IsServer || session == null || !session.TryBeginSettlement())
             {
                 return;
             }
 
-            if (string.IsNullOrEmpty(currentMatchId) || currentMatchId == settlementStartedForMatchId)
-            {
-                return;
-            }
-
-            settlementStartedForMatchId = currentMatchId;
-            settlementBySeat.Clear();
+            RuntimeOf(session).SettlementBySeat.Clear();
 
             if (!MatchServerContext.IsDedicated)
             {
-                PublishSettlementToAll(MatchSettlementState.PrivateMatch, null);
+                PublishSettlementToAll(session, MatchSettlementState.PrivateMatch, null);
                 return;
             }
 
-            if (!TryBuildReport(out MatchResultReport report))
+            if (!TryBuildReport(session, out MatchResultReport report))
             {
-                PublishSettlementToAll(MatchSettlementState.Failed, "Thiếu thông tin người chơi để lưu kết quả.");
+                PublishSettlementToAll(session, MatchSettlementState.Failed, "Thiếu thông tin người chơi để lưu kết quả.");
                 return;
             }
 
-            PublishSettlementToAll(MatchSettlementState.Saving, null);
-            Task reporting = ReportAndPublishAsync(report);
-            MatchServerContext.PendingReport = reporting;
+            PublishSettlementToAll(session, MatchSettlementState.Saving, null);
+            MatchServerContext.TrackReport(ReportAndPublishAsync(session, report));
         }
 
-        private bool TryBuildReport(out MatchResultReport report)
+        private bool TryBuildReport(MatchSession session, out MatchResultReport report)
         {
             report = null;
-            string hostPlayerId = PlayerIdForSeat(SeatId.Host);
-            string guestPlayerId = PlayerIdForSeat(SeatId.Guest);
+            string hostPlayerId = PlayerIdForSeat(session, SeatId.Host);
+            string guestPlayerId = PlayerIdForSeat(session, SeatId.Guest);
 
             if (string.IsNullOrEmpty(hostPlayerId) || string.IsNullOrEmpty(guestPlayerId))
             {
-                Debug.LogError("[Settlement] Cannot report: a seat has no admitted player.");
+                Debug.LogError($"[Settlement] Cannot report {session.MatchId}: a seat has no admitted player.");
                 return false;
             }
 
-            string surrenderedPlayerId = matchState.SurrenderedSeat.HasValue
-                ? PlayerIdForSeat(matchState.SurrenderedSeat.Value)
+            MatchState state = session.State;
+            string surrenderedPlayerId = state.SurrenderedSeat.HasValue
+                ? PlayerIdForSeat(session, state.SurrenderedSeat.Value)
                 : null;
 
             report = new MatchResultReport(
-                currentMatchId,
+                session.MatchId,
                 hostPlayerId,
                 guestPlayerId,
-                matchState.Outcome,
+                state.Outcome,
                 surrenderedPlayerId,
-                matchState.RoundNumber,
-                currentMatchStartedUtcMs
+                state.RoundNumber,
+                session.StartedUtcMs
             );
             return true;
         }
 
-        private async Task ReportAndPublishAsync(MatchResultReport report)
+        private async Task ReportAndPublishAsync(MatchSession session, MatchResultReport report)
         {
             MatchSettlementResult result;
 
@@ -132,19 +119,19 @@ namespace KLTN.Game.Networking
                     + $"alreadyReported={result.AlreadyReported}, message={result.Message}."
             );
 
-            if (this == null || !IsSpawned || report.MatchId != settlementStartedForMatchId)
+            if (this == null || !IsSpawned)
             {
                 return;
             }
 
             if (!result.Success)
             {
-                PublishSettlementToAll(MatchSettlementState.Failed, result.Message);
+                PublishSettlementToAll(session, MatchSettlementState.Failed, result.Message);
                 return;
             }
 
-            PublishSeat(SeatId.Host, Build(report.MatchId, result.For(report.HostPlayerId)));
-            PublishSeat(SeatId.Guest, Build(report.MatchId, result.For(report.GuestPlayerId)));
+            PublishSeat(session, SeatId.Host, Build(report.MatchId, result.For(report.HostPlayerId)));
+            PublishSeat(session, SeatId.Guest, Build(report.MatchId, result.For(report.GuestPlayerId)));
         }
 
         private static MatchSettlementDto Build(string matchId, PlayerSettlement player)
@@ -176,15 +163,16 @@ namespace KLTN.Game.Networking
             };
         }
 
-        private void PublishSettlementToAll(MatchSettlementState state, string message)
+        private void PublishSettlementToAll(MatchSession session, MatchSettlementState state, string message)
         {
             foreach (SeatId seat in new[] { SeatId.Host, SeatId.Guest })
             {
                 PublishSeat(
+                    session,
                     seat,
                     new MatchSettlementDto
                     {
-                        matchId = currentMatchId,
+                        matchId = session.MatchId,
                         state = (int)state,
                         message = message,
                     }
@@ -192,23 +180,21 @@ namespace KLTN.Game.Networking
             }
         }
 
-        private void PublishSeat(SeatId seat, MatchSettlementDto settlement)
+        private void PublishSeat(MatchSession session, SeatId seat, MatchSettlementDto settlement)
         {
-            settlementBySeat[seat] = settlement;
+            RuntimeOf(session).SettlementBySeat[seat] = settlement;
 
-            foreach (KeyValuePair<ulong, SeatId> pair in seatByClient)
+            foreach (ulong clientId in session.ConnectionsOf(seat))
             {
-                if (pair.Value == seat)
-                {
-                    SendSettlement(pair.Key, settlement);
-                }
+                SendSettlement(clientId, settlement);
             }
         }
 
         /// <summary>Resends the known settlement, e.g. after a late snapshot request.</summary>
-        private void ResendSettlement(ulong clientId, SeatId seat)
+        private void ResendSettlement(MatchSession session, ulong clientId, SeatId seat)
         {
-            if (settlementBySeat.TryGetValue(seat, out MatchSettlementDto settlement))
+            if (runtimeByMatch.TryGetValue(session.MatchId, out MatchRuntime runtime)
+                && runtime.SettlementBySeat.TryGetValue(seat, out MatchSettlementDto settlement))
             {
                 SendSettlement(clientId, settlement);
             }
@@ -233,11 +219,11 @@ namespace KLTN.Game.Networking
             );
         }
 
-        private string PlayerIdForSeat(SeatId seat)
+        private static string PlayerIdForSeat(MatchSession session, SeatId seat)
         {
-            foreach (KeyValuePair<ulong, SeatId> pair in seatByClient)
+            foreach (ulong clientId in session.ConnectionsOf(seat))
             {
-                if (pair.Value == seat && MatchServerContext.TryGetAdmission(pair.Key, out PlayerAdmission admission))
+                if (MatchServerContext.TryGetAdmission(clientId, out PlayerAdmission admission))
                 {
                     return admission.PlayerId;
                 }
@@ -245,19 +231,24 @@ namespace KLTN.Game.Networking
 
             // The seat's player may be gone (forfeit after the grace period); on a dedicated
             // server the seat is bound to their admitted PlayerId.
-            return MatchServerContext.IsDedicated ? seatConnections.PlayerKeyOf(seat) : null;
+            return MatchServerContext.IsDedicated ? session.Seats.PlayerKeyOf(seat) : null;
         }
 
         /// <summary>
         /// Both players stayed away: the draw changes no points and pays nothing (HLD 10.1),
         /// so nothing is reported. Marked as settled so a late command cannot report it.
         /// </summary>
-        private void SkipSettlementForAbandonedDraw()
+        private void SkipSettlementForAbandonedDraw(MatchSession session)
         {
-            settlementStartedForMatchId = currentMatchId;
-            settlementBySeat.Clear();
-            Debug.Log($"[Settlement] Match {currentMatchId} ended as an abandoned draw; not reported.");
+            if (!session.TryBeginSettlement())
+            {
+                return;
+            }
+
+            RuntimeOf(session).SettlementBySeat.Clear();
+            Debug.Log($"[Settlement] Match {session.MatchId} ended as an abandoned draw; not reported.");
             PublishSettlementToAll(
+                session,
                 MatchSettlementState.PrivateMatch,
                 "Cả hai người chơi mất kết nối: không tính thưởng/điểm."
             );

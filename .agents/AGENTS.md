@@ -40,14 +40,16 @@ Assets/
 │   │   │   ├── Ranking/         # RankTier/RankPolicy, RankPointsPolicy, SeasonWindow/SeasonSchedule, SeasonStanding, UsernamePolicy
 │   │   │   ├── Combat/          # RoundResolution, RoundTransition
 │   │   │   └── Match/           # MatchState, MatchRulesEngine.*, MatchFactory, GameEvents, RoundHistory
+│   │   ├── Application/         # asmdef KLTN.Game.Application (namespace KLTN.Game.ApplicationLayer, noEngineReferences):
+│   │   │                        #   SeatConnectionTracker, MatchSession, MatchSessionRegistry (nhiều trận/process), MatchCommandService
 │   │   ├── Content/             # Authoring (ScriptableObject) / Catalogs (+ ShopCatalog, RankCatalog, RankingSettings) / Mapping (SO → Domain)
 │   │   ├── Networking/          # Bridge (NGO RPC, + .Loadout) / Contracts (DTO) / Projection (snapshot, inbox, DTO mapper)
 │   │   └── Presentation/        # Cards / Combat (animation, VFX) / Match (presenter, HUD, selection)
 │   ├── Infrastructure/
-│   │   ├── CloudCode/           # IMatchResultReporter (AdmitPlayer/ReportResult), CloudCode/Null/Stub reporter, MatchServerContext, MatchServerModuleClient (GetTicketTier)
+│   │   ├── CloudCode/           # IMatchResultReporter (AdmitPlayer/ReportResult), IMatchAssignmentSource (GetAssignedMatches), CloudCode/Null/Stub reporter, MatchServerContext (Sessions, token theo trận), MatchServerModuleClient (GetTicketTier)
 │   │   ├── Resilience/          # asmdef KLTN.Infrastructure.Resilience — NetworkRetryPolicy (1+3 lần, 1/2/4 s + jitter)
 │   │   ├── Networking/Common/   # PersistentNetworkRoot
-│   │   ├── Networking/Dedicated/# Matchmaker client, DedicatedServerBootstrap (ConnectionApproval), ConnectionPayload, PublicIpResolver (Edgegap path)
+│   │   ├── Networking/Dedicated/# Matchmaker client, DedicatedServerBootstrap (MATCH_CAPACITY, định tuyến ConnectionApproval, heartbeat), ConnectionPayload, PublicIpResolver, LoadTestClient (bot test tải)
 │   │   ├── Networking/Listen/   # ListenSessionController (Session/Relay path)
 │   │   ├── SceneFlow/           # SceneNames, MainMenuController
 │   │   ├── Firestore/           # FirestoreRestClient, FirestoreValueMapper (REST + typed values)
@@ -59,6 +61,7 @@ Assets/
 │       └── Shop/                # ShopController, ShopCardItemView, ShopTopBarView, ShopListQuery, ShopScrollRect, HoverScale, ShopConfirmDialog
 ├── Tests/EditMode/Domain/       # asmdef KLTN.Game.Domain.Tests (Abilities/Cards/Combat/Match/Ranking/Economy)
 ├── Tests/EditMode/Client/       # asmdef KLTN.Client.Tests (NetworkRetryPolicy, AuthInputValidator)
+├── Tests/EditMode/Application/  # asmdef KLTN.Game.Application.Tests (SeatConnectionTracker, MatchSessionRegistry/CommandService)
 ├── Editor/KLTN/                 # CardContentInstaller, ShopCatalogInstaller, ShopSceneBuilder, LeaderboardSceneBuilder, AbilityTargetLink*
 ├── Resources/Cards/             # 19 card asset (.asset)
 ├── Resources/ShopCatalog.asset  # starter/giá/tier — sinh bởi ShopCatalogInstaller
@@ -74,9 +77,10 @@ Firebase/firestore.rules         # (ngoài Assets) sinh bởi Tools/KLTN/Export 
 Firebase/firestore.indexes.json  # index entries (points, wins) — sinh cùng lúc với rules
 Firebase/rules.test.mjs          # test rules trên emulator: cd Firebase && npm install && npm test
 CloudCode/SeasonModule/          # (ngoài Assets) module C# reset mùa + README cài đặt
-CloudCode/MatchServerModule/     # GetTicketTier (client), AdmitPlayer + ReportResult (chỉ server) + Tests (emulator) + README Access Control
-CloudCode/EdgegapAllocator/      # allocator Matchmaker → Edgegap (đọc tier thật, sinh MATCH_ID/MATCH_TOKEN, ghi matches/{id})
-CloudCode/Shared/                # GoogleServiceAccount, FirestoreAdmin, SeasonDocuments, MatchRecords (link source vào các module)
+CloudCode/MatchServerModule/     # GetTicketTier (client), AdmitPlayer + ReportResult + GetAssignedMatches (chỉ server) + Tests (emulator) + README Access Control
+CloudCode/EdgegapAllocator/      # allocator Matchmaker → Edgegap (đọc tier thật, sinh MATCH_ID/MATCH_TOKEN, ghi matches/{id}, dùng lại server còn slot)
+CloudCode/Shared/                # GoogleServiceAccount, FirestoreAdmin, SeasonDocuments, MatchRecords, ServerRecords (link source vào các module)
+Tools/LoadTest/                  # run-loadtest.ps1 + README: N cặp bot vào 1 server, đo CPU/RAM (plan 05 D, I6)
 CloudCode/.gitignore             # re-include *.sln/*.csproj (gitignore gốc chặn), bỏ bin/obj
 Claude outputs/                  # báo cáo/tệp tạm do Claude tạo — đã nằm trong .gitignore, không commit
 ```
@@ -85,14 +89,15 @@ Dependency hợp lệ (mũi tên = "được phép phụ thuộc vào"):
 
 ```text
 Presentation → Networking, Content
-Networking   → Domain
+Networking   → Application, Domain
+Application  → Domain               (không UnityEngine)
 Content      → Domain
 Infrastructure/Auth/UI → Networking (qua facade), UGS/Firebase SDK
 Infrastructure/Economy → Domain.Economy, Content (ShopCatalog), Firestore REST; nạp loadout qua MatchLoadoutRegistry
 Infrastructure/Ranking → Domain.Ranking, Content (RankingSettings), Firestore REST
 CloudCode/SeasonModule → link Domain/Ranking/SeasonWindow.cs (không tham chiếu Unity)
 CloudCode/MatchServerModule, EdgegapAllocator → link policy Domain (MatchRewardPolicy, RankPointsPolicy, ...) + CloudCode/Shared
-Infrastructure/CloudCode → Domain (MatchAdmissionPolicy, MatchResultBanner); NetworkMatchBridge gọi qua IMatchResultReporter
+Infrastructure/CloudCode → Domain (MatchAdmissionPolicy, MatchResultBanner), Application (MatchSessionRegistry); NetworkMatchBridge gọi qua IMatchResultReporter
 Networking   ↛ Economy (chỉ đọc delegate MatchLoadoutRegistry.LocalOwnedCardIds)
 Tests        → Domain; Client.Tests → Resilience, Authentication.Validation
 Domain       → (không gì cả ngoài System.*)
@@ -104,10 +109,10 @@ Domain       → (không gì cả ngoài System.*)
 
 ```text
 Presenter/UI → NetworkMatchBridge.Request...()          (client, CommandId tăng dần)
-  → Submit...Rpc                                        (server: map clientId → SeatId, chống trùng/cũ)
-  → MatchRulesEngine.Try...(state, actor, ...)          (Domain: validate + mutate atomic)
+  → Submit...Rpc → MatchCommandService.Execute          (server: clientId → MatchSession → SeatId; ghế, đã bắt đầu, pause, chống trùng/cũ)
+  → MatchRulesEngine.Try...(session.State, actor, ...)  (Domain: validate + mutate atomic)
   → CommandResult (+ GameEvents / RoundResolution / AbilityResolution)
-  → Publication: revision++ → MatchSnapshotBuilder.Build(viewer) cho từng seat
+  → Publication: session.Revision++ → MatchSnapshotBuilder.Build(viewer) cho từng seat CỦA TRẬN ĐÓ (RpcTarget.Single, không broadcast)
   → MatchClientProjection / MatchUpdateInbox (client) → Presenter render + animation
 ```
 
@@ -142,7 +147,10 @@ Matchmaker: rank_tier lấy từ Cloud Code GetTicketTier (không còn client t�
 → UGS PlayerId/access token → **GetTicketTier** (bắt buộc trước ticket: ghi `ugsPlayers/{playerId}` → uid)
 → Matchmaker ticket → Cloud Code `EdgegapAllocator` (ghi `matches/{matchId}`, truyền `MATCH_ID`/`MATCH_TOKEN`)
 → Edgegap deployment → `IpPortAssignment` → client `StartClient` với `ConnectionPayload {playerId, accessToken, matchId}`
-→ server `ConnectionApproval` → `AdmitPlayer` (≤ 10 s) → đủ 2 người đã admit mới nạp GameScene.
+→ server `ConnectionApproval` (định tuyến vào `MatchSession` theo `matchId` payload / `MATCH_PLAYERS`) → `AdmitPlayer` (≤ 10 s, token của trận đó)
+→ đủ 2 người của trận đầu tiên mới nạp GameScene; trận sau vào GameScene đang mở (một scene chung, dữ liệu tách theo trận).
+Nhiều trận/process (plan 05): `MATCH_CAPACITY` > 1 + `SERVER_ID/SERVER_TOKEN` → server gọi `GetAssignedMatches` mỗi 2 s
+(heartbeat + nhận trận mới kèm MATCH_TOKEN riêng); allocator ghi slot vào `servers/{serverId}` trước khi tạo deployment mới.
 Chi tiết: `memory.md` §6–7, §13 (bài học vận hành khi deploy).
 
 ## 4. Quy tắc bắt buộc (tóm tắt — chi tiết trong `rules/`)
@@ -192,7 +200,7 @@ Chi tiết: `memory.md` §6–7, §13 (bài học vận hành khi deploy).
 |---|---|---|
 | 1 | Mulligan bypass rules engine, dùng `new System.Random()` thay vì `IRandomSource` | `NetworkMatchBridge.ServerCommands.cs` → `PlayerState.PerformMulligan` |
 | 2 | Zone là `List<CardInstance>` public mutable | `PlayerState.cs` |
-| 3 | Chưa có Application layer; `NetworkMatchBridge` gánh nhiều vai | `Game/Networking/Bridge` |
+| 3 | ~~Chưa có Application layer~~ Một phần (plan 03+05): `MatchSession`/`MatchSessionRegistry`/`MatchCommandService`; bridge vẫn giữ loadout/deck/settlement | `Game/Application`, `Game/Networking/Bridge` |
 | 4 | Static registry/singleton | `MatchProjectionRegistry`, `MatchUpdateInboxRegistry`, `UgsSessionService.Instance`, `AuthManager.Instance`, `GoogleAuthService.Instance`, `AppFlowManager.Instance` |
 | 5 | `CardPresentationCatalog` (Content) tham chiếu `CardArtworkView` (Presentation) | `Game/Content/Catalogs` |
 | 6 | 29 file ngoài `Game/` còn global namespace | `Authentication`, `UI`, `Infrastructure`, ... |
@@ -203,11 +211,12 @@ Chi tiết: `memory.md` §6–7, §13 (bài học vận hành khi deploy).
 | 11 | ~~Dùng API obsolete `FindFirstObjectByType` (CS0618)~~ Đã sửa 18/10 → `FindAnyObjectByType` | `UI/SurrenderUI.cs:24` |
 | 12 | ~~Client tự ghi thưởng~~ Đã sửa (plan 01+02): thưởng do `ReportResult` ghi; client vẫn tự ghi mua thẻ/tạo hồ sơ (Rules kiểm giá) | `FirestoreEconomyGateway`, `firestore.rules` |
 | 13 | ~~Server tin danh sách thẻ client~~ Đã sửa trên dedicated (thẻ từ AdmitPlayer); listen-host vẫn tin client (trận riêng, không thưởng) | `NetworkMatchBridge.Loadout.cs` |
-| 14 | Rớt mạng giữa trận → trận bị hủy, không ai nhận thưởng, không có report (plan 03 xử lý) | `NetworkMatchBridge.Connections.cs` |
+| 14 | ~~Rớt mạng giữa trận → trận bị hủy~~ Đã sửa (plan 03): giữ ghế 30 s, pause, vào lại | `NetworkMatchBridge.Reconnect.cs` |
 | 15 | ~~`firestore.rules` chưa chạy trên emulator~~ → đã có `Firebase/rules.test.mjs` (35 case) | `Firebase/` |
 | 16 | ~~Điểm rank do client ghi~~ Đã sửa (plan 01+02): `ReportResult` ghi, Rules chặn client | `CloudCode/MatchServerModule` |
 | 17 | ~~`rank_tier` do client tự khai~~ Đã sửa: `GetTicketTier` + allocator đọc lại tier thật | `DedicatedMatchmakerClient.cs`, `EdgegapAllocator.cs` |
-| 19 | Allocator luôn tạo deployment Edgegap mới (1 trận = 1 container), gói Free chỉ 1 deployment | `EdgegapAllocator.PlaceMatchAsync` → plan 05 |
+| 19 | ~~Allocator luôn tạo deployment mới~~ Plan 05: dùng lại server còn slot khi secret `MATCH_SERVER_CAPACITY` > 1 (mặc định 1 = như cũ) | `EdgegapAllocator.cs`, `ServerRecords.cs` |
+| 21 | Dùng lại server bỏ qua vị trí người chơi; capacity chưa đo trên Edgegap (xem `Tools/LoadTest`) | `ServerRecords.TryReserveAsync` |
 | 20 | Chưa có EditMode test cho `ConnectionPayload`, `CloudCodeMatchResultReporter.ParseSettlement` (nằm trong Assembly-CSharp) | `Infrastructure/CloudCode`, `Networking/Dedicated` |
 | 18 | Hòa điểm xếp theo wins rồi uid; vị trí của mình dùng COUNT(points > mine) nên có thể lệch vài hạng khi bằng điểm | `FirestoreLeaderboardGateway.GetPositionAsync` |
 

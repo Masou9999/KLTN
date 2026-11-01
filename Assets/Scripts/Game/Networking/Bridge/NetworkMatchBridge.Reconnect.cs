@@ -23,33 +23,6 @@ namespace KLTN.Game.Networking
         private const string SeatExpiredReason =
             "Đã hết thời gian giữ chỗ. Trận đấu đã kết thúc.";
 
-        // Server: seats bound to player keys, held for 30 s after a drop (FR-NET-06/07).
-        private readonly SeatConnectionTracker seatConnections = new SeatConnectionTracker();
-        private Coroutine graceCoroutine;
-
-        #endregion
-
-        #region Lifecycle
-
-        private void BeginSeatTracking()
-        {
-            seatConnections.Reset();
-            MatchServerContext.CanRejoin = playerId => seatConnections.CanReconnect(playerId, NowMs());
-            MatchServerContext.IsHoldingSeats = () =>
-                seatConnections.IsHoldingSeats && (matchState == null || !matchState.IsFinished);
-        }
-
-        private void EndSeatTracking()
-        {
-            if (graceCoroutine != null)
-            {
-                StopCoroutine(graceCoroutine);
-                graceCoroutine = null;
-            }
-
-            MatchServerContext.ClearSeatCallbacks();
-        }
-
         #endregion
 
         #region Seat Binding
@@ -70,9 +43,10 @@ namespace KLTN.Game.Networking
             return clientId == NetworkManager.LocalClientId ? ListenHostPlayerKey : ListenGuestPlayerKey;
         }
 
-        private void BindSeat(ulong clientId, SeatId seat)
+        /// <summary>Seats are bound to player keys, held for 30 s after a drop (FR-NET-06/07).</summary>
+        private void BindSeat(MatchSession session, ulong clientId, SeatId seat)
         {
-            if (seatConnections.IsBound(seat))
+            if (session.Seats.IsBound(seat))
             {
                 return;
             }
@@ -81,14 +55,8 @@ namespace KLTN.Game.Networking
 
             if (!string.IsNullOrEmpty(playerKey))
             {
-                seatConnections.Bind(seat, playerKey);
+                session.Seats.Bind(seat, playerKey);
             }
-        }
-
-        /// <summary>A bound seat stays taken while its player is away.</summary>
-        private bool IsSeatTaken(SeatId seat)
-        {
-            return HasSeat(seat) || seatConnections.IsBound(seat);
         }
 
         /// <summary>
@@ -96,34 +64,34 @@ namespace KLTN.Game.Networking
         /// full snapshot at the current revision to both players and resumes the match.
         /// Returns true when the client was handled here (reseated or refused).
         /// </summary>
-        private bool TryReclaimSeat(ulong clientId)
+        private bool TryReclaimSeat(MatchSession session, ulong clientId)
         {
             string playerKey = PlayerKeyFor(clientId);
+            SeatConnectionTracker seats = session.Seats;
 
             if (
                 string.IsNullOrEmpty(playerKey)
-                || !seatConnections.TryFindSeat(playerKey, out SeatId heldSeat)
-                || seatConnections.StateOf(heldSeat) == SeatConnectionState.Connected
+                || !seats.TryFindSeat(playerKey, out SeatId heldSeat)
+                || seats.StateOf(heldSeat) == SeatConnectionState.Connected
             )
             {
                 return false;
             }
 
-            ReconnectResult result = seatConnections.TryReconnect(playerKey, NowMs(), out SeatId seat);
+            ReconnectResult result = seats.TryReconnect(playerKey, NowMs(), out SeatId seat);
 
             if (result != ReconnectResult.Reconnected)
             {
-                Debug.LogWarning($"[Reconnect] Client {clientId} refused for {heldSeat}: {result}.");
+                Debug.LogWarning($"[Reconnect] Client {clientId} refused for {heldSeat} of {session.MatchId}: {result}.");
                 NetworkManager.DisconnectClient(clientId, SeatExpiredReason);
                 return true;
             }
 
-            seatByClient[clientId] = seat;
-            lastCommandIdByClient.Remove(clientId);
-            Debug.Log($"[Reconnect] Client {clientId} took back {seat}. Paused={seatConnections.IsPaused}.");
+            session.Reseat(clientId, seat);
+            Debug.Log($"[Reconnect] Client {clientId} took back {seat} of {session.MatchId}. Paused={seats.IsPaused}.");
 
-            BroadcastUpdate();
-            ResendSettlement(clientId, seat);
+            BroadcastUpdate(session);
+            ResendSettlement(session, clientId, seat);
             return true;
         }
 
@@ -135,99 +103,105 @@ namespace KLTN.Game.Networking
         /// Holds the seat instead of discarding the match: commands pause, the opponent is told
         /// at once through a snapshot, and the server timer decides if nobody comes back.
         /// </summary>
-        private void HoldSeat(SeatId seat)
+        private void HoldSeat(MatchSession session, SeatId seat)
         {
-            if (!seatConnections.MarkDisconnected(seat, NowMs()))
+            if (!session.Seats.MarkDisconnected(seat, NowMs()))
             {
                 return;
             }
 
             Debug.Log(
-                $"[Reconnect] {seat} disconnected; holding the seat for "
-                    + $"{seatConnections.GracePeriodMilliseconds / 1000} s."
+                $"[Reconnect] {seat} of {session.MatchId} disconnected; holding the seat for "
+                    + $"{session.Seats.GracePeriodMilliseconds / 1000} s."
             );
 
-            if (graceCoroutine == null)
+            MatchRuntime runtime = RuntimeOf(session);
+
+            if (runtime.GraceCoroutine == null)
             {
-                graceCoroutine = StartCoroutine(RunGraceTimer());
+                runtime.GraceCoroutine = StartCoroutine(RunGraceTimer(session, runtime));
             }
         }
 
-        private IEnumerator RunGraceTimer()
+        private IEnumerator RunGraceTimer(MatchSession session, MatchRuntime runtime)
         {
             var wait = new WaitForSecondsRealtime(GraceCheckIntervalSeconds);
+            SeatConnectionTracker seats = session.Seats;
 
-            while (IsSpawned && !seatConnections.IsResolved)
+            while (IsSpawned && !seats.IsResolved && !session.IsClosed)
             {
-                if (!seatConnections.IsPaused && !seatConnections.IsHoldingSeats)
+                if (!seats.IsPaused && !seats.IsHoldingSeats)
                 {
                     break;
                 }
 
                 yield return wait;
 
-                GraceExpiryDecision decision = seatConnections.Evaluate(NowMs());
+                GraceExpiryDecision decision = seats.Evaluate(NowMs());
 
                 if (decision.Kind != GraceExpiryKind.None)
                 {
-                    ApplyGraceExpiry(decision);
+                    ApplyGraceExpiry(session, decision);
                     break;
                 }
             }
 
-            graceCoroutine = null;
+            runtime.GraceCoroutine = null;
         }
 
-        private void ApplyGraceExpiry(GraceExpiryDecision decision)
+        private void ApplyGraceExpiry(MatchSession session, GraceExpiryDecision decision)
         {
-            if (matchState == null || rulesEngine == null)
+            if (!session.IsStarted)
             {
-                AbandonUnstartedMatch();
+                AbandonUnstartedMatch(session);
                 return;
             }
 
-            if (matchState.IsFinished)
+            if (session.IsFinished)
             {
                 return;
             }
 
             CommandResult result = decision.Kind == GraceExpiryKind.Forfeit
-                ? rulesEngine.TryForfeitAbandonedSeat(matchState, decision.ForfeitingSeat)
-                : rulesEngine.TryDrawAbandonedMatch(matchState);
+                ? session.Rules.TryForfeitAbandonedSeat(session.State, decision.ForfeitingSeat)
+                : session.Rules.TryDrawAbandonedMatch(session.State);
 
             if (!result.Accepted)
             {
-                Debug.LogWarning($"[Reconnect] Could not end the match: {result.RejectionReason}.");
+                Debug.LogWarning($"[Reconnect] Could not end match {session.MatchId}: {result.RejectionReason}.");
                 return;
             }
 
             Debug.Log(
-                $"[Reconnect] Grace period over: {decision.Kind}"
+                $"[Reconnect] Grace period over for {session.MatchId}: {decision.Kind}"
                     + (decision.Kind == GraceExpiryKind.Forfeit ? $" ({decision.ForfeitingSeat})." : ".")
             );
 
-            BroadcastUpdate();
+            BroadcastUpdate(session);
 
             if (decision.Kind == GraceExpiryKind.Draw)
             {
-                SkipSettlementForAbandonedDraw();
+                SkipSettlementForAbandonedDraw(session);
                 return;
             }
 
-            TrySettleFinishedMatch();
+            TrySettleFinishedMatch(session);
         }
 
         /// <summary>
         /// A player left before the match was created and did not return. Listen-host frees
-        /// the seat for a new guest; a dedicated server cannot admit anyone else, so it ends.
+        /// the seat for a new guest; a dedicated match cannot admit anyone else, so it ends
+        /// (the other matches of the server keep running).
         /// </summary>
-        private void AbandonUnstartedMatch()
+        private void AbandonUnstartedMatch(MatchSession session)
         {
-            Debug.LogWarning("[Reconnect] A player never returned before the match started.");
+            Debug.LogWarning($"[Reconnect] A player never returned before match {session.MatchId} started.");
 
             if (MatchServerContext.IsDedicated)
             {
-                foreach (ulong clientId in new List<ulong>(seatByClient.Keys))
+                session.Close();
+
+                foreach (ulong clientId in new List<ulong>(session.Connections.Keys))
                 {
                     NetworkManager.DisconnectClient(clientId, "Đối thủ không vào trận. Trận đấu bị hủy.");
                 }
@@ -235,42 +209,48 @@ namespace KLTN.Game.Networking
                 return;
             }
 
-            seatConnections.Reset();
-            loadoutBySeat.Clear();
-            loadoutTimeoutElapsed = false;
-            currentMatchId = null;
+            MatchRuntime runtime = RuntimeOf(session);
 
-            foreach (KeyValuePair<ulong, SeatId> pair in seatByClient)
+            if (runtime.LoadoutTimeoutCoroutine != null)
             {
-                BindSeat(pair.Key, pair.Value);
+                StopCoroutine(runtime.LoadoutTimeoutCoroutine);
+                runtime.LoadoutTimeoutCoroutine = null;
             }
 
-            BroadcastUpdate();
+            runtime.LoadoutTimeoutElapsed = false;
+            session.ResetUnstarted();
+
+            foreach (KeyValuePair<ulong, SeatId> pair in session.Connections)
+            {
+                BindSeat(session, pair.Key, pair.Value);
+            }
+
+            BroadcastUpdate(session);
         }
 
         #endregion
 
         #region Snapshot Connection State
 
-        private SeatConnectionState ConnectionStateOf(SeatId seat)
+        private static SeatConnectionState ConnectionStateOf(MatchSession session, SeatId seat)
         {
-            if (seatConnections.IsBound(seat))
+            if (session.Seats.IsBound(seat))
             {
-                return seatConnections.StateOf(seat);
+                return session.Seats.StateOf(seat);
             }
 
-            return HasSeat(seat) ? SeatConnectionState.Connected : SeatConnectionState.Empty;
+            return session.HasConnectedSeat(seat) ? SeatConnectionState.Connected : SeatConnectionState.Empty;
         }
 
         /// <summary>FR-NET-04: both seats' connection state and the pause countdown.</summary>
-        private void ApplyConnectionState(MatchSnapshotDto snapshot, SeatId viewerSeat)
+        private static void ApplyConnectionState(MatchSession session, MatchSnapshotDto snapshot, SeatId viewerSeat)
         {
             SeatId opponentSeat = viewerSeat.Opponent();
-            long deadline = seatConnections.DeadlineOf(opponentSeat);
+            long deadline = session.Seats.DeadlineOf(opponentSeat);
 
-            snapshot.selfConnection = (int)ConnectionStateOf(viewerSeat);
-            snapshot.opponentConnection = (int)ConnectionStateOf(opponentSeat);
-            snapshot.isPaused = seatConnections.IsPaused;
+            snapshot.selfConnection = (int)ConnectionStateOf(session, viewerSeat);
+            snapshot.opponentConnection = (int)ConnectionStateOf(session, opponentSeat);
+            snapshot.isPaused = session.Seats.IsPaused;
             snapshot.opponentReconnectDeadlineUtcMs = deadline;
             snapshot.opponentReconnectRemainingMs = deadline > 0 ? Math.Max(0, deadline - NowMs()) : 0;
         }

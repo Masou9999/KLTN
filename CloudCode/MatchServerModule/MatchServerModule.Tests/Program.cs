@@ -189,6 +189,72 @@ class P
         ReportResultResponse unranked = await MatchService.ReportAsync(fs, Rep("mu", tu, "HostWon", null, 5, T + 36 * M), now + 40 * M);
         Check(unranked.Players.All(p => !p.Ranked && p.NotScoredReason == "unranked") && unranked.Players[0].Coins == 75, "unranked match: rewarded, not scored");
 
+        // ---- Multi-match servers (FR-MM-10, plan 05) ----
+        var pick = ServerRecords.Candidates(new[]
+        {
+            new ServerInfo { ServerId = "dead", Capacity = 2, LastHeartbeatMs = T - 60_000 },
+            new ServerInfo { ServerId = "draining", Capacity = 2, LastHeartbeatMs = T, Draining = true },
+            new ServerInfo { ServerId = "full", Capacity = 2, LastHeartbeatMs = T, Slots = { "a", "b" } },
+            new ServerInfo { ServerId = "empty", Capacity = 4, LastHeartbeatMs = T },
+            new ServerInfo { ServerId = "half", Capacity = 2, LastHeartbeatMs = T, Slots = { "a" } },
+        }, T);
+        Check(string.Join(",", pick.Select(s => s.ServerId)) == "half,empty", $"candidates skip dead/draining/full servers, fullest first ({string.Join(",", pick.Select(s => s.ServerId))})");
+
+        string serverToken = MatchRecords.NewToken();
+        string firstToken = await NewMatch("sA", T);
+        await MatchRecords.SetServerAsync(fs, "sA", "srv1");
+        await ServerRecords.CreateAsync(fs, "srv1", "deploy-1", MatchRecords.HashToken(serverToken), 2, "sA", T);
+        string bToken = await NewMatch("sB", T);
+        Check(await ServerRecords.TryReserveAsync(fs, "sB", T) == null, "a booting server (no heartbeat yet) is not reused");
+
+        Task<AssignedMatchesResult> Beat(string token, string[] known, string[] active, bool draining = false, long at = 0) =>
+            ServerService.GetAssignedAsync(fs, "srv1", token, 2, known, active, draining, at == 0 ? T : at);
+        Check(await Throws(() => Beat("wrong", new[] { "sA" }, new[] { "sA" }), "bad_token"), "heartbeat with a wrong SERVER_TOKEN refused");
+        Check(await Throws(() => ServerService.GetAssignedAsync(fs, "nope", serverToken, 2, null, null, false, T), "unknown_server"), "heartbeat of an unknown server refused");
+        AssignedMatchesResult beat1 = await Beat(serverToken, new[] { "sA" }, new[] { "sA" });
+        Check(beat1.Matches.Count == 0, "first heartbeat: the env match is not handed out again");
+
+        ServerInfo reused = await ServerRecords.TryReserveAsync(fs, "sB", T);
+        Check(reused != null && reused.ServerId == "srv1" && reused.DeploymentId == "deploy-1" && reused.Slots.Count == 2, "allocator reuses the running server with a free slot");
+        await MatchRecords.SetServerAsync(fs, "sB", "srv1");
+        string cToken = await NewMatch("sC", T);
+        Check(await ServerRecords.TryReserveAsync(fs, "sC", T) == null, "a full server is not chosen (allocator starts a new deployment)");
+
+        AssignedMatchesResult beat2 = await Beat(serverToken, new[] { "sA" }, new[] { "sA" });
+        AssignedMatch handed = beat2.Matches.SingleOrDefault();
+        Check(handed != null && handed.MatchId == "sB" && handed.MatchmakerMatchId == "mm-sB" && string.Join(",", handed.Players) == "p1,p2" && handed.MatchToken.Length >= 43,
+            "heartbeat hands the placed match to its server with players and a fresh token");
+        Check((await Admit("sB", handed.MatchToken, "p1", good)).Admitted, "the handed-out MATCH_TOKEN admits players");
+        Check((await Admit("sB", bToken, "p1", good)).Reason == "bad_token", "the allocator's discarded token for a reused match is refused");
+        Check((await Admit("sA", firstToken, "p1", good)).Admitted, "the first match keeps its env MATCH_TOKEN");
+        Check((await Beat(serverToken, new[] { "sA", "sB" }, new[] { "sA", "sB" })).Matches.Count == 0, "a known match is never handed out twice");
+
+        await Beat(serverToken, new[] { "sA", "sB" }, new[] { "sB" });
+        ServerInfo afterEnd = await ServerRecords.TryReserveAsync(fs, "sC", T);
+        Check(afterEnd?.ServerId == "srv1", "a slot frees when the server reports the match ended");
+        await MatchRecords.SetServerAsync(fs, "sC", "srv1");
+
+        string dToken = await NewMatch("sD", T);
+        await Beat(serverToken, new[] { "sA", "sB", "sC" }, new[] { "sB", "sC" }, at: T - 60_000);
+        Check(await ServerRecords.TryReserveAsync(fs, "sD", T) == null, "a server whose heartbeat is stale is not chosen");
+
+        await Beat(serverToken, new[] { "sA", "sB", "sC" }, new[] { "sC" }, draining: true);
+        Check(await ServerRecords.TryReserveAsync(fs, "sD", T) == null, "a draining server is not chosen");
+        await Beat(serverToken, new[] { "sA", "sB", "sC" }, new[] { "sC" });
+        Task<ServerInfo>[] race = { ServerRecords.TryReserveAsync(fs, "sD", T), ServerRecords.TryReserveAsync(fs, "sE", T) };
+        ServerInfo[] raced = await Task.WhenAll(race);
+        (JsonObject srv, _) = await fs.GetAsync(ServerRecords.ServerPath("srv1"));
+        List<string> slotsNow = FirestoreAdmin.GetStrings(FirestoreAdmin.Fields(srv), "slots");
+        Check(raced.Count(r => r != null) == 1 && slotsNow.Count == 2, $"two allocations racing for the last slot: only one wins (slots {string.Join(",", slotsNow)})");
+
+        string winner = raced[0] != null ? "sD" : "sE";
+        await NewMatch("sE", T);
+        await MatchRecords.SetServerAsync(fs, winner, "srv1");
+        AssignedMatchesResult stale = await Beat(serverToken, new[] { "sA", "sB", "sC" }, new[] { "sC" }, at: T + ServerService.AssignmentTtlMs + 1000);
+        Check(stale.Matches.Count == 0, "a placed match older than the TTL is dropped instead of handed out");
+        _ = cToken;
+        _ = dToken;
+
         Console.WriteLine(fails == 0 ? "\nall passed" : $"\n{fails} failed");
         return fails;
     }

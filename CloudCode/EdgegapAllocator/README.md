@@ -27,7 +27,22 @@ trỏ tương đối tới `CloudCode/EdgegapAllocator/EdgegapAllocator.sln`.
 
 5. `AllocationData` có thêm `matchId`. `Matchmaker_PollAllocation` giữ nguyên.
 
-Việc chọn server tách ra `PlaceMatchAsync` (hiện luôn tạo deployment mới) để plan 05 mở rộng sang dùng lại server còn chỗ.
+## Nhiều trận trên một server (plan 05, FR-MM-10)
+
+Bật bằng secret `MATCH_SERVER_CAPACITY` (số trận/process, 1..16). Thiếu secret hoặc = 1 → hành vi cũ (mỗi trận một deployment).
+Với capacity > 1:
+
+1. Sau bước 3, `ServerRecords.TryReserveAsync` tìm trong `servers/*` server **còn sống** (heartbeat ≤ 10 s), không `draining`,
+   còn slot; ưu tiên server đầy nhất (dồn trận để server rảnh tự tắt). Ghi thêm `matchId` vào `slots` với precondition
+   `updateTime` (hai lần cấp phát đồng thời không thể vượt capacity; bên thua đọc lại và thử tiếp).
+2. Có chỗ → `matches/{matchId}.serverId` = serverId, `AllocationData.requestId` = `deploymentId` của server đó (Poll lấy IP/port
+   như cũ). Token allocator sinh bị bỏ; server lấy trận và **token mới** qua `MatchServerModule/GetAssignedMatches`.
+3. Không có chỗ → deployment mới như trước, thêm `SERVER_ID`, `SERVER_TOKEN` (ẩn) và ghi
+   `servers/{serverId} = { deploymentId, capacity, slots: [matchId], tokenHash, lastHeartbeat: 0, draining: false, createdAt }`.
+   Server chỉ được dùng lại sau heartbeat đầu tiên.
+
+Biến môi trường mới của container (mọi capacity): `MATCHMAKER_MATCH_ID`, `MATCH_PLAYERS` (2 PlayerId, dùng để định tuyến
+kết nối vào đúng trận), `MATCH_CAPACITY`; với capacity > 1 thêm `SERVER_ID`, `SERVER_TOKEN`.
 
 ## Secret cần có (Dashboard → Administration → Secrets)
 
@@ -37,6 +52,7 @@ Việc chọn server tách ra `PlaceMatchAsync` (hiện luôn tạo deployment m
 | `FIREBASE_SERVICE_ACCOUNT` | JSON service account Firebase (đã có từ SeasonModule) |
 | `MATCH_SERVER_SA_KEY_ID` | key id của UGS service account cho match server (mới) |
 | `MATCH_SERVER_SA_SECRET` | secret của key đó (mới) |
+| `MATCH_SERVER_CAPACITY` | (tuỳ chọn, plan 05) số trận mỗi server; thiếu = 1 |
 
 Không cần khai báo biến trên Dashboard Edgegap: allocator truyền theo từng deployment. Chỉ cần đảm bảo app version
 `kltn` / `VersionName` trong `Project/EdgegapAllocator.cs` không đặt sẵn biến trùng tên.
@@ -53,3 +69,5 @@ Cần .NET SDK 9+ (module target `net9.0` như mẫu). Publish profile đã sử
 - Edgegap ẩn đúng các biến `is_hidden` trên dashboard.
 - Logic tier/`matches` được test qua `CloudCode/MatchServerModule/MatchServerModule.Tests` (code dùng chung
   `CloudCode/Shared`); bản thân hàm allocator chưa có test chạy với Matchmaker thật.
+- Plan 05: dùng lại deployment bỏ qua vị trí người chơi (deployment đầu được đặt gần cặp đầu tiên); Edgegap trả IP/port của
+  deployment đang chạy cho `Matchmaker_PollAllocation` ngay (chưa thử với Matchmaker thật).

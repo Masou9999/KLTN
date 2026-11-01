@@ -23,6 +23,7 @@ Match server ──ReportResult(matchId, matchToken, host, guest, outcome, ...)�
 | `GetTicketTier` | Người chơi | không | `{ tier, seasonId }` |
 | `AdmitPlayer` | Match server (service account) | `matchId, matchToken, playerId, playerAccessToken` | `{ admitted, reason, uid, username, ownedCardIds, tier }` |
 | `ReportResult` | Match server (service account) | `matchId, matchToken, hostPlayerId, guestPlayerId, outcome ("HostWon"/"GuestWon"/"Draw"), surrenderedPlayerId (null nếu không), roundNumber, matchStartedUtcMs` | `{ alreadyReported, players: [ { playerId, result, coins, silver, ranked, rankDelta, pointsBefore, pointsAfter, tierBefore, tierAfter, notScoredReason } ] }` |
+| `GetAssignedMatches` | Match server nhiều trận (service account) | `serverId, serverToken, capacity, knownMatchIds[], activeMatchIds[], draining` | `{ matches: [ { matchId, matchmakerMatchId, matchToken, players[] } ] }` |
 
 - `AdmitPlayer` trả `admitted = false` kèm `reason`: `unknown_match`, `bad_token`, `not_in_match`,
   `match_finished`, `bad_player_token:<lý do>` (`bad_signature`, `expired`, `wrong_player`, `wrong_project`,
@@ -50,6 +51,21 @@ Báo cáo lặp lại (match server retry) trả lại `settlement` đã lưu v�
 Hai báo cáo đồng thời: precondition `updateTime` của `matches/{matchId}` chỉ cho một commit; cái còn lại đọc lại
 và trả `alreadyReported`. `matchStartedUtcMs` vô lý (trước lúc cấp phát − 120 s hoặc sau hiện tại + 120 s) được
 thay bằng `createdAt` của bản ghi cấp phát.
+
+## Server nhiều trận (plan 05, FR-MM-10)
+
+`GetAssignedMatches` là heartbeat của server có `MATCH_CAPACITY` > 1 (gọi mỗi 2 s và ngay khi một trận bắt đầu/kết thúc):
+
+- Kiểm `SERVER_TOKEN` với `servers/{serverId}.tokenHash` (SHA-256), sai → `rejected:bad_token`; không có bản ghi → `rejected:unknown_server`.
+- Với mỗi `matchId` trong `slots` mà server **chưa biết** (`knownMatchIds` = mọi trận process từng nhận): nếu `matches/{id}`
+  còn hạn (tạo < 120 s), chưa báo kết quả và `serverId` khớp → sinh MATCH_TOKEN mới, ghi `tokenHash` (thay token allocator
+  đã bỏ) và trả về kèm `players`, `matchmakerMatchId`. Trận đã biết không bao giờ được trả lại lần hai.
+- `slots` mới = trận server còn chạy (`activeMatchIds`) + trận vừa giao; ghi `capacity`, `lastHeartbeat`, `draining` trong cùng
+  commit với các token (precondition `updateTime`, xung đột với allocator → đọc lại, tối đa 4 lần).
+- Server sắp tắt gửi `draining = true`; allocator bỏ qua server đó.
+
+Access Control: thêm Deny cho Player với `.../modules/MatchServerModule/GetAssignedMatches` (như AdmitPlayer/ReportResult).
+Firestore Rules: `servers/**` cấm client đọc/ghi.
 
 ## UGS PlayerId → Firebase uid (phương án đã chọn)
 
@@ -117,11 +133,14 @@ cd Firebase && npm install && npx firebase emulators:start --only firestore --pr
 cd CloudCode/MatchServerModule && dotnet run --project MatchServerModule.Tests
 ```
 
-40 kiểm tra: tier cho ticket và bản ghi `ugsPlayers`, quy tắc lệch bậc của allocator; admission với token trận sai,
+57 kiểm tra: tier cho ticket và bản ghi `ugsPlayers`, quy tắc lệch bậc của allocator; admission với token trận sai,
 trận lạ, người chơi lạ, JWT của người khác / hết hạn / sai project / chữ ký giả, loadout đúng; báo cáo với token
 sai, người chơi lạ, outcome sai; thắng/thua (+30/−20, Vàng → Bạc), thưởng 75 xu + 1 bạc / 25 xu, báo cáo lặp lại
 không trả thưởng 2 lần, 3 báo cáo đồng thời chỉ chốt 1 lần, hòa, chặn 60 s, đầu hàng sớm/muộn, sàn điểm 0, ngoài
 cửa sổ mùa (trước mùa, sau khóa, sang mùa sau, chưa có lịch), `matchStartedUtcMs` vô lý, trận không xếp hạng.
+Plan 05 (17): chọn server (bỏ server chết/draining/đầy, ưu tiên đầy nhất), server chưa heartbeat không được dùng lại,
+SERVER_TOKEN sai/server lạ, giao trận kèm token mới (admit được, token cũ của allocator bị từ chối), không giao lại trận đã biết,
+slot trống khi trận kết thúc, 2 cấp phát tranh slot cuối chỉ 1 thắng, trận quá hạn 120 s không giao.
 UGS được giả lập: JWT ký bằng khóa RSA cục bộ, tra cứu `oidc-firebase` bằng dictionary.
 
 ## Code dùng chung

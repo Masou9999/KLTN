@@ -175,12 +175,15 @@ await t('economy: silver purchase still works', async () => {
 await seed(async a => {
   await setDoc(doc(a, 'matches/mm1'), { players: ['p1', 'p2'], tokenHash: 'ab', serverId: 's', createdAt: Timestamp.now() });
   await setDoc(doc(a, 'ugsPlayers/p1'), { uid: 'alice', updatedAt: Timestamp.now() });
+  await setDoc(doc(a, 'servers/s1'), { capacity: 2, slots: ['mm1'], tokenHash: 'ab', lastHeartbeat: Timestamp.now(), draining: false });
 });
 await t('client cannot read matches', () => assertFails(getDoc(doc(db('alice'), 'matches/mm1'))));
 await t('client cannot create matches', () => assertFails(setDoc(doc(db('alice'), 'matches/mm2'), { players: ['p1', 'p2'], tokenHash: 'x' })));
 await t('client cannot settle a match', () => assertFails(updateDoc(doc(db('alice'), 'matches/mm1'), { reportedAt: serverTimestamp() })));
 await t('client cannot read ugsPlayers', () => assertFails(getDoc(doc(db('alice'), 'ugsPlayers/p1'))));
 await t('client cannot link a player to its uid', () => assertFails(setDoc(doc(db('bob'), 'ugsPlayers/p9'), { uid: 'bob' })));
+await t('client cannot read match servers', () => assertFails(getDoc(doc(db('alice'), 'servers/s1'))));
+await t('client cannot reserve a server slot', () => assertFails(updateDoc(doc(db('alice'), 'servers/s1'), { slots: ['mm1', 'mine'] })));
 await env.cleanup();
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
