@@ -27,6 +27,12 @@ namespace KLTN.Infrastructure.CloudCode
         /// <summary>Report in flight; the server waits for it before quitting.</summary>
         public static Task PendingReport { get; set; } = Task.CompletedTask;
 
+        /// <summary>Set by NetworkMatchBridge: may this player take back a held seat now?</summary>
+        public static Func<string, bool> CanRejoin { get; set; } = NoRejoin;
+
+        /// <summary>Set by NetworkMatchBridge: a seat is held for a disconnected player.</summary>
+        public static Func<bool> IsHoldingSeats { get; set; } = NotHolding;
+
         #endregion
 
         #region Lifecycle
@@ -38,8 +44,19 @@ namespace KLTN.Infrastructure.CloudCode
             MatchId = null;
             Reporter = new NullMatchResultReporter();
             PendingReport = Task.CompletedTask;
+            ClearSeatCallbacks();
             admissionByClient.Clear();
         }
+
+        public static void ClearSeatCallbacks()
+        {
+            CanRejoin = NoRejoin;
+            IsHoldingSeats = NotHolding;
+        }
+
+        private static bool NoRejoin(string playerId) => false;
+
+        private static bool NotHolding() => false;
 
         public static void StartDedicated(string matchId, IMatchResultReporter reporter)
         {

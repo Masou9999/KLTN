@@ -228,6 +228,13 @@ namespace KLTN.Game.Networking
                 return false;
             }
 
+            // FR-NET-06: no command from either seat is accepted while a seat is held.
+            if (seatConnections.IsPaused)
+            {
+                RejectCommand(senderClientId, CommandRejectionReason.MatchPaused);
+                return false;
+            }
+
             if (
                 lastCommandIdByClient.TryGetValue(senderClientId, out ulong lastCommandId)
                 && commandId <= lastCommandId

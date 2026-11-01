@@ -40,6 +40,9 @@ namespace KLTN.Game.Presentation
         private MatchClientProjection projection;
         private int pendingManaCost;
 
+        // A started match keeps showing a disconnected opponent's values while the seat is held.
+        private bool matchStarted;
+
         #endregion
 
         #region Unity Lifecycle
@@ -79,6 +82,7 @@ namespace KLTN.Game.Presentation
 
             projection = null;
             pendingManaCost = 0;
+            matchStarted = false;
         }
 
         #endregion
@@ -110,6 +114,7 @@ namespace KLTN.Game.Presentation
                 return;
             }
 
+            matchStarted = !string.IsNullOrEmpty(snapshot.matchId);
             RenderHealth(snapshot.self, selfHealthLabel);
             RenderSelfMana(snapshot.self);
             RenderHealth(snapshot.opponent, opponentHealthLabel);
@@ -154,6 +159,7 @@ namespace KLTN.Game.Presentation
 
         private void RenderWaiting()
         {
+            matchStarted = false;
             SetText(selfHealthLabel, unavailableText);
             SetText(selfManaLabel, unavailableText);
             SetText(opponentHealthLabel, unavailableText);
@@ -164,9 +170,9 @@ namespace KLTN.Game.Presentation
 
         #region Helpers
 
-        private static bool IsAvailable(PlayerViewDto player)
+        private bool IsAvailable(PlayerViewDto player)
         {
-            return player != null && player.connected;
+            return player != null && (player.connected || matchStarted);
         }
 
         private static void SetText(TMP_Text label, string value)

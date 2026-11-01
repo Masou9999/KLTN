@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Unity.Services.Multiplayer;
 
@@ -73,12 +74,60 @@ public sealed class UgsSessionService
         await LeaveAsync();
 
         var options = new JoinSessionOptions { Type = SessionType };
-        session = await MultiplayerService.Instance.JoinSessionByCodeAsync(
-            joinCode.Trim(),
-            options
-        );
+
+        try
+        {
+            session = await MultiplayerService.Instance.JoinSessionByCodeAsync(
+                joinCode.Trim(),
+                options
+            );
+        }
+        catch (SessionException exception)
+        {
+            // A guest whose game was closed mid-match is still a member of the room, and the
+            // service refuses to join it again ("already a member"); reconnect instead so
+            // the held seat can be taken back (FR-NET-07).
+            session = await ReconnectToJoinedSessionAsync(joinCode.Trim());
+
+            if (session == null)
+            {
+                throw new InvalidOperationException(exception.Message, exception);
+            }
+        }
+
         Attach(session);
         PlayerCountChanged?.Invoke(session.PlayerCount);
+    }
+
+    /// <summary>Reconnects to a room this player still belongs to; null when there is none.</summary>
+    private static async Task<ISession> ReconnectToJoinedSessionAsync(string joinCode)
+    {
+        List<string> joinedIds = await MultiplayerService.Instance.GetJoinedSessionIdsAsync();
+
+        if (joinedIds == null)
+        {
+            return null;
+        }
+
+        foreach (string sessionId in joinedIds)
+        {
+            ISession joined = await MultiplayerService.Instance.ReconnectToSessionAsync(
+                sessionId,
+                new ReconnectSessionOptions { Type = SessionType }
+            );
+
+            if (joined != null && string.Equals(joined.Code, joinCode, StringComparison.OrdinalIgnoreCase))
+            {
+                return joined;
+            }
+
+            if (joined != null)
+            {
+                await joined.LeaveAsync();
+            }
+        }
+
+        return null;
     }
 
     public async Task LeaveAsync()

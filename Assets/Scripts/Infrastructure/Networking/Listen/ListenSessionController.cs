@@ -52,6 +52,7 @@ public sealed class ListenSessionController : MonoBehaviour
         {
             SetStatus("Đang tạo phòng...");
             string joinCode = await UgsSessionService.Instance.HostAsync();
+            MatchConnectionController.RememberListenHost();
 
             if (joinCodeLabel != null)
             {
@@ -74,6 +75,9 @@ public sealed class ListenSessionController : MonoBehaviour
             string joinCode = joinCodeInput?.text;
             SetStatus("Đang tham gia phòng...");
             await UgsSessionService.Instance.JoinByCodeAsync(joinCode);
+
+            // The guest can rejoin the same room with this code after a lost connection.
+            MatchConnectionController.RememberListenGuest(joinCode);
             SetStatus("Đã tham gia. Chờ host bắt đầu.");
         }
         catch (Exception exception)
@@ -152,6 +156,7 @@ public sealed class ListenSessionController : MonoBehaviour
         }
 
         leaving = true;
+        MatchConnectionController.Forget();
 
         try
         {

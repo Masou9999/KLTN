@@ -328,6 +328,7 @@ public class MatchResultPresenter : MonoBehaviour
     public void OnReturnButtonClicked()
     {
         Debug.Log("Ngắt kết nối mạng và quay về Main Menu...");
+        MatchConnectionController.Forget();
         if (NetworkManager.Singleton != null)
         {
             NetworkManager.Singleton.Shutdown();

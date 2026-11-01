@@ -121,6 +121,17 @@ namespace KLTN.Game.Networking
         public bool isRanked;
         public long matchStartedUtcMs;
 
+        // FR-NET-04/06: SeatConnectionState of both seats (0 empty, 1 connected,
+        // 2 disconnected and held, 3 abandoned). Commands are refused while paused.
+        public int selfConnection;
+        public int opponentConnection;
+        public bool isPaused;
+
+        // How long the opponent's seat is still held: server clock deadline (Unix ms) and the
+        // remaining time when the snapshot was built, which clients count down locally.
+        public long opponentReconnectDeadlineUtcMs;
+        public long opponentReconnectRemainingMs;
+
         public bool viewerCanAct;
         public bool viewerCanEndRound;
         public bool viewerCanDeclareAttack;

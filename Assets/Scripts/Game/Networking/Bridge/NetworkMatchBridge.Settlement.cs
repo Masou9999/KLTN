@@ -243,7 +243,24 @@ namespace KLTN.Game.Networking
                 }
             }
 
-            return null;
+            // The seat's player may be gone (forfeit after the grace period); on a dedicated
+            // server the seat is bound to their admitted PlayerId.
+            return MatchServerContext.IsDedicated ? seatConnections.PlayerKeyOf(seat) : null;
+        }
+
+        /// <summary>
+        /// Both players stayed away: the draw changes no points and pays nothing (HLD 10.1),
+        /// so nothing is reported. Marked as settled so a late command cannot report it.
+        /// </summary>
+        private void SkipSettlementForAbandonedDraw()
+        {
+            settlementStartedForMatchId = currentMatchId;
+            settlementBySeat.Clear();
+            Debug.Log($"[Settlement] Match {currentMatchId} ended as an abandoned draw; not reported.");
+            PublishSettlementToAll(
+                MatchSettlementState.PrivateMatch,
+                "Cả hai người chơi mất kết nối: không tính thưởng/điểm."
+            );
         }
 
         #endregion

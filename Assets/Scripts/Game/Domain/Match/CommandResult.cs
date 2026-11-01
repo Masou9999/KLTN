@@ -32,6 +32,9 @@ namespace KLTN.Game.Domain
         AbilitySelectionCannotBeCancelled,
         CardCannotBlock,
         FearsomeBlockerTooWeak,
+
+        // A player is disconnected and the server is holding their seat (FR-NET-06).
+        MatchPaused,
     }
 
     public sealed class CommandResult

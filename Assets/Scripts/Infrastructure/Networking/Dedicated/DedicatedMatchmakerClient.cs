@@ -140,6 +140,7 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
 
     public async void BackToMainMenu()
     {
+        MatchConnectionController.Forget();
         await CancelSearchAsync();
         NetworkManager networkManager = NetworkManager.Singleton;
 
@@ -405,6 +406,9 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
         Debug.Log($"Connecting to Edgegap endpoint {assignment.Ip}:{port}");
         transport.SetConnectionData(assignment.Ip, port);
         ConfigureConnectionApproval(networkManager, assignment.MatchId);
+
+        // Remembered so a lost connection can be retried within the 30 s grace period.
+        MatchConnectionController.RememberDedicated(assignment.Ip, port, assignment.MatchId);
         isConnecting = true;
         SetActionLabel("Đang kết nối");
         ShowResultState("Đã tìm thấy trận. Đang kết nối server...");
@@ -427,7 +431,7 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
     /// The dedicated server admits only allocated players: send who we are (FR-MM-09).
     /// ConnectionApproval must match the server's flag because NGO hashes it.
     /// </summary>
-    private static void ConfigureConnectionApproval(NetworkManager networkManager, string matchId)
+    public static void ConfigureConnectionApproval(NetworkManager networkManager, string matchId)
     {
         var payload = new ConnectionPayload
         {

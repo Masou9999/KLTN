@@ -60,14 +60,14 @@
         "*.asset": "yaml",
         "*.meta": "yaml",
         "*.prefab": "yaml",
-        "*.unity": "yaml",
+        "*.unity": "yaml"
     },
     "explorer.fileNesting.enabled": true,
     "explorer.fileNesting.patterns": {
         "*.sln": "*.csproj",
         "*.slnx": "*.csproj"
     },
-    "dotnet.defaultSolution": "KLTN.slnx",
+    "dotnet.defaultSolution": "KLTN-wt-03.slnx",
     "[csharp]": {
         "editor.defaultFormatter": "csharpier.csharpier-vscode",
         "editor.formatOnSave": true,
