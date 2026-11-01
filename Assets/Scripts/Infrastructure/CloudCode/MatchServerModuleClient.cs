@@ -9,7 +9,8 @@ namespace KLTN.Infrastructure.CloudCode
     /// <summary>Player-side calls to MatchServerModule through the Cloud Code SDK.</summary>
     public static class MatchServerModuleClient
     {
-        private const int TicketTierTimeoutMilliseconds = 5000;
+        // A cold Cloud Code module can take ~10 s on its first call.
+        private const int TicketTierTimeoutMilliseconds = 15000;
 
         [Serializable]
         private sealed class TicketTierResponse
@@ -19,33 +20,48 @@ namespace KLTN.Infrastructure.CloudCode
         }
 
         /// <summary>
-        /// Tier for the matchmaker ticket, computed by the backend (FR-RANK-12). The allocator
-        /// checks it again, so a slow or failed lookup simply searches as Bronze.
+        /// Tier for the matchmaker ticket, computed by the backend (FR-RANK-12). The call also
+        /// links the UGS player to their Firebase account, and the allocator refuses players
+        /// who skipped it, so a failure stops the search instead of queueing a doomed ticket.
         /// </summary>
+        /// <exception cref="InvalidOperationException">The backend could not be reached in time.</exception>
         public static async Task<RankTier> GetTicketTierAsync()
         {
+            Task<TicketTierResponse> call = CloudCodeService.Instance.CallModuleEndpointAsync<TicketTierResponse>(
+                CloudCodeMatchResultReporter.ModuleName,
+                "GetTicketTier"
+            );
+            Task finished = await Task.WhenAny(call, Task.Delay(TicketTierTimeoutMilliseconds));
+
+            if (finished != call)
+            {
+                ObserveLateFailure(call);
+                Debug.LogWarning("[Matchmaker] GetTicketTier timed out.");
+                throw new InvalidOperationException("Máy chủ xếp hạng phản hồi quá chậm, hãy thử lại.");
+            }
+
+            TicketTierResponse response;
+
             try
             {
-                Task<TicketTierResponse> call = CloudCodeService.Instance.CallModuleEndpointAsync<TicketTierResponse>(
-                    CloudCodeMatchResultReporter.ModuleName,
-                    "GetTicketTier"
-                );
-                Task finished = await Task.WhenAny(call, Task.Delay(TicketTierTimeoutMilliseconds));
-
-                if (finished != call)
-                {
-                    Debug.LogWarning("[Matchmaker] GetTicketTier timed out, searching as Bronze.");
-                    return RankTier.Bronze;
-                }
-
-                int tier = call.Result?.tier ?? 0;
-                return tier >= 0 && tier < RankPolicy.TierCount ? (RankTier)tier : RankTier.Bronze;
+                response = await call;
             }
             catch (Exception exception)
             {
-                Debug.LogWarning($"[Matchmaker] GetTicketTier failed, searching as Bronze: {exception.Message}");
-                return RankTier.Bronze;
+                Debug.LogWarning($"[Matchmaker] GetTicketTier failed: {exception.Message}");
+                throw new InvalidOperationException("Không lấy được hạng từ máy chủ, hãy thử lại.", exception);
             }
+
+            int tier = response?.tier ?? 0;
+            return tier >= 0 && tier < RankPolicy.TierCount ? (RankTier)tier : RankTier.Bronze;
+        }
+
+        private static void ObserveLateFailure(Task call)
+        {
+            call.ContinueWith(
+                task => Debug.LogWarning($"[Matchmaker] Late GetTicketTier failure: {task.Exception?.GetBaseException().Message}"),
+                TaskContinuationOptions.OnlyOnFaulted
+            );
         }
     }
 }

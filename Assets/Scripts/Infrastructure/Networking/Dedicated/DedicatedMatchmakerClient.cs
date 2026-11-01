@@ -20,6 +20,11 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
 
     private const int PollDelayMilliseconds = 1500;
 
+    // The matchmaker keeps retrying a failed allocation (e.g. hosting quota reached), so the
+    // client gives up on its own instead of searching forever.
+    private const float MaxSearchSeconds = 180f;
+    private const float MaxServerStartSeconds = 90f;
+
     // Matchmaker queue rule (Dashboard): Difference on Players.CustomData.rank_tier <= 1.
     private const string RankTierKey = "rank_tier";
 
@@ -217,6 +222,7 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
         catch (Exception exception)
         {
             Debug.LogException(exception);
+            await DeleteActiveTicketAsync();
             ShowResultState($"Tìm trận thất bại: {exception.Message}");
         }
         finally
@@ -239,7 +245,8 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
 
     /// <summary>
     /// Ticket rank_tier computed by Cloud Code (GetTicketTier, FR-RANK-12) instead of the
-    /// client's own leaderboard row. Falls back to Bronze; the allocator checks it again.
+    /// client's own leaderboard row. Throws when the backend is unreachable, which ends the
+    /// search with a message (the allocator would refuse the ticket anyway).
     /// </summary>
     private static Task<RankTier> ResolveRankTierAsync()
     {
@@ -250,9 +257,24 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
         CancellationToken cancellationToken
     )
     {
+        float searchStarted = Time.realtimeSinceStartup;
+        float? serverStartStarted = null;
+
         while (true)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            float now = Time.realtimeSinceStartup;
+
+            if (serverStartStarted.HasValue && now - serverStartStarted.Value > MaxServerStartSeconds)
+            {
+                throw new TimeoutException("Không khởi tạo được server trận đấu, hãy thử lại sau.");
+            }
+
+            if (now - searchStarted > MaxSearchSeconds)
+            {
+                throw new TimeoutException("Chưa tìm được trận, hãy thử lại sau.");
+            }
+
             TicketStatusResponse ticketStatus =
                 await MatchmakerService.Instance.GetTicketAsync(activeTicketId);
 
@@ -291,6 +313,7 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
                     );
 
                 case IpPortAssignment.StatusOptions.InProgress:
+                    serverStartStarted ??= Time.realtimeSinceStartup;
                     ShowSearchingState("ĐANG KHỞI TẠO SERVER:");
                     break;
 
@@ -328,23 +351,7 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
     private async Task CancelSearchAsync()
     {
         searchCancellation?.Cancel();
-        string ticketId = activeTicketId;
-        activeTicketId = null;
-
-        if (!string.IsNullOrWhiteSpace(ticketId))
-        {
-            try
-            {
-                await MatchmakerService.Instance.DeleteTicketAsync(ticketId);
-                Debug.Log($"Deleted matchmaker ticket: {ticketId}");
-            }
-            catch (Exception exception)
-            {
-                Debug.LogWarning(
-                    $"Could not delete ticket {ticketId}: " + exception.Message
-                );
-            }
-        }
+        await DeleteActiveTicketAsync();
 
         isSearching = false;
         isConnecting = false;
@@ -354,6 +361,27 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
         if (matchmakingButton != null)
         {
             matchmakingButton.interactable = true;
+        }
+    }
+
+    private async Task DeleteActiveTicketAsync()
+    {
+        string ticketId = activeTicketId;
+        activeTicketId = null;
+
+        if (string.IsNullOrWhiteSpace(ticketId))
+        {
+            return;
+        }
+
+        try
+        {
+            await MatchmakerService.Instance.DeleteTicketAsync(ticketId);
+            Debug.Log($"Deleted matchmaker ticket: {ticketId}");
+        }
+        catch (Exception exception)
+        {
+            Debug.LogWarning($"Could not delete ticket {ticketId}: " + exception.Message);
         }
     }
 
