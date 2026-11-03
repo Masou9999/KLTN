@@ -1,22 +1,28 @@
 
 using KLTN.Audio;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 [RequireComponent(typeof(AudioSource))]
 public class UIClickManager : MonoBehaviour
 {
+    #region Configuration and Runtime State
+
     public static UIClickManager Instance { get; private set; }
 
     [SerializeField] private AudioClip clickSound;
+    [SerializeField] private AudioClip hoverSound;
 
     [SerializeField, Range(0f, 1f)]
     private float clickVolume = 0.5f;
 
     private AudioSource audioSource;
 
-    // Âm lượng gốc đặt trong scene; slider SFX nhân lên trên mức này.
+    // Âm lượng gốc đặt trong scene; slider âm thanh giao diện nhân lên trên mức này.
     private float baseVolume = 1f;
+
+    #endregion
+
+    #region Unity Lifecycle and Audio Commands
 
     private void Awake()
     {
@@ -34,18 +40,17 @@ public class UIClickManager : MonoBehaviour
         audioSource.loop = false;
         audioSource.spatialBlend = 0f;
 
-        // Tiếng click là SFX: đi theo slider SFX (FR-SET-02).
+        // UI feedback has its own channel, independent of combat SFX.
         baseVolume = audioSource.volume;
-        ApplySfxVolume();
-        AudioVolumeSettings.Changed += ApplySfxVolume;
+        ApplyUiSoundVolume();
+        AudioVolumeSettings.Changed += ApplyUiSoundVolume;
     }
 
-    private void Update()
+    public void PlayHover()
     {
-        if (Mouse.current != null &&
-            Mouse.current.leftButton.wasPressedThisFrame)
+        if (hoverSound != null && audioSource != null)
         {
-            PlayClick();
+            audioSource.PlayOneShot(hoverSound, clickVolume);
         }
     }
 
@@ -57,11 +62,12 @@ public class UIClickManager : MonoBehaviour
         }
     }
 
-    private void ApplySfxVolume()
+    private void ApplyUiSoundVolume()
     {
         if (audioSource != null)
         {
-            audioSource.volume = baseVolume * AudioVolumeSettings.SfxVolume;
+            audioSource.volume = baseVolume * AudioVolumeSettings.UiSoundVolume;
+            audioSource.mute = AudioVolumeSettings.UiSoundMuted;
         }
     }
 
@@ -69,8 +75,9 @@ public class UIClickManager : MonoBehaviour
     {
         if (Instance == this)
         {
-            AudioVolumeSettings.Changed -= ApplySfxVolume;
+            AudioVolumeSettings.Changed -= ApplyUiSoundVolume;
             Instance = null;
         }
     }
+    #endregion
 }

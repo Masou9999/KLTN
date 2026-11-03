@@ -1,0 +1,287 @@
+fileFormatVersion: 2
+guid: 9f58536b87fabab41b6741bf8505bc74
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -6660656321870455946
+    second: PlayModes_0
+  - first:
+      213: -3812669685691960271
+    second: PlayModes_1
+  - first:
+      213: 801135159111124647
+    second: PlayModes_2
+  - first:
+      213: 9212835421690893403
+    second: PlayModes_3
+  - first:
+      213: 6988675530924779773
+    second: PlayModes_4
+  - first:
+      213: -7017274780721446979
+    second: PlayModes_5
+  - first:
+      213: -2109727585560163777
+    second: PlayModes_6
+  - first:
+      213: 6965857743975155200
+    second: PlayModes_7
+  - first:
+      213: 8693763232075288870
+    second: PlayModes_8
+  - first:
+      213: -6307556563616751447
+    second: PlayModes_9
+  - first:
+      213: -8564800843594363719
+    second: PlayModes_10
+  - first:
+      213: 7797927737548358625
+    second: PlayModes_11
+  - first:
+      213: -5778205281891820681
+    second: PlayModes_12
+  - first:
+      213: 3376025883872223879
+    second: PlayModes_13
+  - first:
+      213: 5047280521296116284
+    second: PlayModes_14
+  - first:
+      213: -8938404170277326121
+    second: PlayModes_15
+  - first:
+      213: 5808628865849575230
+    second: PlayModes_16
+  - first:
+      213: 5567135493844388914
+    second: PlayModes_17
+  - first:
+      213: 7495679109266078735
+    second: PlayModes_18
+  - first:
+      213: -73840787445191893
+    second: PlayModes_19
+  - first:
+      213: -6625250656387691156
+    second: PlayModes_20
+  - first:
+      213: 4877942609525851211
+    second: PlayModes_21
+  - first:
+      213: -2726654422134214997
+    second: PlayModes_22
+  - first:
+      213: 4522542596880263927
+    second: PlayModes_23
+  - first:
+      213: 727018590078353410
+    second: PlayModes_24
+  - first:
+      213: -4475022520556126640
+    second: PlayModes_25
+  - first:
+      213: 8438317504811036483
+    second: PlayModes_26
+  - first:
+      213: 1011568865117432236
+    second: PlayModes_27
+  - first:
+      213: 2175334900993111465
+    second: PlayModes_28
+  - first:
+      213: -5385674700215261851
+    second: PlayModes_29
+  - first:
+      213: 8843960754046654669
+    second: PlayModes_30
+  - first:
+      213: 7739422585123599387
+    second: PlayModes_31
+  - first:
+      213: 5361343205460411145
+    second: PlayModes_32
+  - first:
+      213: 454916337325250304
+    second: PlayModes_33
+  - first:
+      213: -2857044730164330172
+    second: PlayModes_34
+  - first:
+      213: -8636595361247714674
+    second: PlayModes_35
+  - first:
+      213: 1199845483227341529
+    second: PlayModes_36
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 0
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: WebGL
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: PrivateRoom
+      rect:
+        serializedVersion: 2
+        x: 80
+        y: 45
+        width: 735
+        height: 680
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e2ce4b2fce0ca8048bca62a0ea3c2c5f
+      internalID: -303731732
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Matchmaking
+      rect:
+        serializedVersion: 2
+        x: 935
+        y: 45
+        width: 780
+        height: 680
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1235faaa019455e4c8df2c9bf2d8b145
+      internalID: -1703963202
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 3be13490d55117b438c44d7b00814e24
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      Matchmaking: -1703963202
+      PrivateRoom: -303731732
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

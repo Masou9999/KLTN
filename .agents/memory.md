@@ -367,3 +367,55 @@ Quy ước: mỗi plan một worktree + branch tách từ `main` mới nhất; a
    > 30 s bị xử thua. Đã bật 02/11.
 3. Đẩy image server mới lên Edgegap → sửa `VersionName` trong `EdgegapAllocator.cs` rồi deploy lại `Matchmaker.ccmr`.
 4. Chạy bản server Windows tay: `.\KLTN.exe -batchmode -nographics -logFile -` (thiếu `-logFile -` thì không thấy log).
+
+## 17. Menu UI và âm thanh (03/11/2026)
+
+- `MenuPolishInstaller` → Tools/KLTN/Install Menu Polish: cập nhật LoginScene,
+  MainMenu, FindMatch; UI được lưu trong scene, chỉnh được bằng Inspector.
+  Chạy lại installer sẽ dựng lại các control do nó quản lý.
+- Login có hai `AudioMuteButton`, lưu `MusicMuted` và `UiSoundMuted` trong
+  PlayerPrefs; giữ nguyên mức volume. UI mute không tắt SFX chiến đấu.
+- `UIClickManager` không còn bắt chuột toàn màn hình. `UIButtonSound` phát hover
+  qua pointer enter và click qua persistent onClick đứng trước action chuyển scene.
+  Hiện chỉ gắn vào Button của LoginScene/MainMenu; nguồn âm sống qua chuyển scene.
+- MainMenu: Chơi mở `PlayModeModal` (70% chiều rộng/cao Canvas), Phòng Riêng dùng
+  OpenHostClientMenu, Ghép Trận dùng OpenFindMatch. Cài đặt mở modal dùng chung với GameScene.
+  Shop/Leaderboard dùng icon góc phải; overlay chặn tương tác menu phía sau.
+- FindMatch: Back bị khóa khi tìm trận, đang kết nối hoặc đang hoàn tất hủy;
+  hoạt động lại khi hủy/lỗi. Hủy đợi tác vụ tạo ticket/poll kết thúc và dọn ticket
+  trước khi cho tìm lại hoặc rời scene, tránh kết nối từ phản hồi đến muộn.
+- Tools/KLTN/Validate Menu Polish kiểm tra wiring scene, sound callback, modal,
+  và trạng thái khóa/phục hồi Back mà không gọi dịch vụ online.
+- Kiểm chứng 03/11/2026: Unity compile không có C# warning/error mới; validation
+  scene pass; EditMode 279/279 pass. Chưa chạy ghép trận với server thật.
+- Sửa nhạc Login: cấu hình cũ MusicVolume=0 nhưng MusicMuted=false được khôi phục
+  về 0.7 khi MenuMusicManager khởi tạo. Slider 0 lưu mute=true; bật nhạc từ volume 0
+  khôi phục 0.7. GameSettingsUI nạp slider bằng SetValueWithoutNotify để giữ mute.
+
+## 18. Settings dùng chung (03/11/2026)
+
+- `SharedSettingsInstaller` (Tools/KLTN/Install Shared Settings) copy SettingsPanel
+  từ GameScene sang MainMenu và gán nút Cài đặt. `MenuPolishInstaller` gọi lại bước
+  này để giữ chức năng sau khi dựng lại menu. GameScene SettingsPanel không còn
+  SurrenderButton; giữ nguyên pipeline surrender và panel xác nhận ngoài modal.
+- `GameSettingsUI` đăng ký AudioVolumeSettings.Changed, cập nhật nguồn âm và slider
+  bằng SetValueWithoutNotify; khi mở modal luôn refresh. Music muted hiển thị mức 0
+  nhưng giữ mức trước mute để bật lại. MainMenu dựa vào MenuMusicManager persistent,
+  không giữ tham chiếu đến AudioSource có thể bị hủy khi đổi scene.
+- Modal của cả MainMenu và GameScene có icon mute Nhạc / Âm thanh UI giống Login.
+  MusicVolume, SFXVolume, MusicMuted, UiSoundMuted được lưu chung bằng PlayerPrefs.
+  UI mute chỉ tắt hover/click; SFX chiến đấu vẫn theo slider SFX.
+- Validation trực tiếp trong Unity đã pass: wiring, không có SurrenderButton/missing
+  script trong hai panel, đồng bộ volume hai chiều, mute, giữ SFX chiến đấu khi mute UI,
+  khóa/khôi phục tương tác MainMenu. Đã render và kiểm tra modal MainMenu.
+
+## 19. Ba kênh âm thanh độc lập (03/11/2026)
+
+- Settings của MainMenu/GameScene có ba slider: Nhạc nền, Âm thanh giao diện,
+  Âm thanh trận đấu. UiSoundSlider dùng key mới `UiSoundVolume` (mặc định 0.7),
+  không kế thừa SFXVolume để tránh kéo theo mức tắt của âm thanh trận đấu.
+- UIClickManager chỉ đọc UiSoundVolume + UiSoundMuted; nguồn SFX trận đấu chỉ đọc
+  SFXVolume. Kéo UI về 0 đồng bộ icon mute, bật lại từ 0 khôi phục mức 0.7.
+- SharedSettingsInstaller có kiểm tra hồi quy: combat volume 0 không thay đổi UI,
+  UI volume 0 không thay đổi combat, slider UI đồng bộ giữa hai modal, mute/unmute UI
+  khôi phục được âm lượng. Kiểm tra trong Unity đã pass.

@@ -43,6 +43,8 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
     [SerializeField]
     private Button matchmakingButton;
 
+    [SerializeField] private Button backButton;
+
     [SerializeField]
     private TMP_Text actionLabel;
 
@@ -64,6 +66,9 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
     private float elapsedTime;
     private bool isSearching;
     private bool isConnecting;
+    private bool isCancelling;
+    private bool isLeaving;
+    private Task activeSearch;
 
     #endregion
 
@@ -108,6 +113,8 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
 
     private void Update()
     {
+        RefreshBackButton();
+
         if (!isSearching)
         {
             return;
@@ -129,17 +136,30 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
 
     public async void ToggleMatchmaking()
     {
+        if (isCancelling || isConnecting || isLeaving)
+        {
+            return;
+        }
+
         if (isSearching)
         {
             await CancelSearchAsync();
             return;
         }
 
-        await StartSearchAsync();
+        activeSearch = StartSearchAsync();
+        await activeSearch;
     }
 
     public async void BackToMainMenu()
     {
+        if (isSearching || isConnecting || isCancelling || isLeaving)
+        {
+            return;
+        }
+
+        isLeaving = true;
+        RefreshBackButton();
         MatchConnectionController.Forget();
         await CancelSearchAsync();
         NetworkManager networkManager = NetworkManager.Singleton;
@@ -179,6 +199,7 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
         searchCancellation = new CancellationTokenSource();
         CancellationToken cancellationToken = searchCancellation.Token;
         isSearching = true;
+        RefreshBackButton();
         isConnecting = false;
         elapsedTime = 0f;
         SetActionLabel("Hủy tìm trận");
@@ -188,7 +209,9 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
         {
             string publicIp = await PublicIpResolver.ResolveAsync(cancellationToken);
 
+            cancellationToken.ThrowIfCancellationRequested();
             RankTier rankTier = await ResolveRankTierAsync();
+            cancellationToken.ThrowIfCancellationRequested();
             var customData = new Dictionary<string, object>
             {
                 ["player_ip"] = publicIp,
@@ -208,9 +231,12 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
                     new CreateTicketOptions(queueName)
                 );
             activeTicketId = ticket.Id;
+            cancellationToken.ThrowIfCancellationRequested();
             Debug.Log($"Created matchmaker ticket: {activeTicketId}");
             ShowSearchingState("ĐANG TÌM ĐỐI THỦ:");
             IpPortAssignment assignment = await WaitForAssignmentAsync(cancellationToken);
+
+            cancellationToken.ThrowIfCancellationRequested();
 
             // A matched ticket no longer needs client-side deletion.
             activeTicketId = null;
@@ -218,6 +244,7 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
         }
         catch (OperationCanceledException)
         {
+            await DeleteActiveTicketAsync();
             ShowResultState("Đã hủy tìm trận.");
         }
         catch (Exception exception)
@@ -231,6 +258,7 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
             isSearching = false;
             searchCancellation?.Dispose();
             searchCancellation = null;
+            RefreshBackButton();
 
             if (!isConnecting)
             {
@@ -278,6 +306,7 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
 
             TicketStatusResponse ticketStatus =
                 await MatchmakerService.Instance.GetTicketAsync(activeTicketId);
+            cancellationToken.ThrowIfCancellationRequested();
 
             if (ticketStatus == null || ticketStatus.Type == typeof(NoneAssignment))
             {
@@ -349,20 +378,34 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Waits for in-flight ticket creation/polling before enabling navigation again.
+    /// The search owns ticket cleanup so a late response cannot leak a ticket.
+    /// </summary>
     private async Task CancelSearchAsync()
     {
+        isCancelling = true;
+        RefreshBackButton();
+        if (matchmakingButton != null)
+        {
+            matchmakingButton.interactable = false;
+        }
         searchCancellation?.Cancel();
+        if (activeSearch != null)
+        {
+            await activeSearch;
+        }
         await DeleteActiveTicketAsync();
-
         isSearching = false;
         isConnecting = false;
+        isCancelling = false;
         SetActionLabel("Tìm trận");
         ShowResultState("Đã hủy tìm trận.");
-
         if (matchmakingButton != null)
         {
             matchmakingButton.interactable = true;
         }
+        RefreshBackButton();
     }
 
     private async Task DeleteActiveTicketAsync()
@@ -510,8 +553,18 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
 
     #region UI Rendering
 
+    private void RefreshBackButton()
+    {
+        if (backButton != null)
+        {
+            backButton.interactable =
+                !isSearching && !isConnecting && !isCancelling && !isLeaving;
+        }
+    }
+
     private void ShowIdleState()
     {
+        RefreshBackButton();
         elapsedTime = 0f;
         SetActionLabel("Tìm trận");
         SetActive(findingMatchLabel, false);
