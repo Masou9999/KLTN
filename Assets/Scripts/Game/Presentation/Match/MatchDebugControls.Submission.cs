@@ -13,6 +13,13 @@ namespace KLTN.Game.Presentation
 
         private void CommitOrPass()
         {
+#if UNITY_EDITOR
+            if (EditorSubmitOverride != null)
+            {
+                EditorSubmitOverride();
+                return;
+            }
+#endif
             MatchSnapshotDto snapshot = projection?.Current;
 
             if (snapshot != null && snapshot.roundNumber == 0)

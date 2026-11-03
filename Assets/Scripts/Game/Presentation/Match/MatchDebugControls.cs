@@ -71,6 +71,12 @@ namespace KLTN.Game.Presentation
         public int PendingManaCost => pendingManaCost;
         public event Action<int> PendingManaCostChanged;
 
+#if UNITY_EDITOR
+        // Optional local harness; never compiled into a player build.
+        public Action EditorSubmitOverride { get; set; }
+        public Func<string, bool> EditorCancelOverride { get; set; }
+#endif
+
         #endregion
 
         #region Unity Lifecycle

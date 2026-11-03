@@ -43,6 +43,12 @@ namespace KLTN.Game.Presentation
 
         public bool CancelPendingAbilitySelection(string requestId)
         {
+#if UNITY_EDITOR
+            if (EditorCancelOverride != null)
+            {
+                return EditorCancelOverride(requestId);
+            }
+#endif
             MatchSnapshotDto snapshot = projection?.Current;
 
             bool validRequest =
