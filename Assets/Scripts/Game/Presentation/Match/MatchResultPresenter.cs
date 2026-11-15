@@ -174,7 +174,22 @@ if (!firstTime)
     
 if (!MatchConnectionController.IsDedicatedMatch)
 {
-    ShowResult(outcome, viewerSeat);
+    MatchResultBanner banner =
+        MatchResultBannerPolicy.For(outcome, viewerSeat);
+
+    if (banner == MatchResultBanner.Victory ||
+        banner == MatchResultBanner.Defeat)
+    {
+        isRankedResultUIActive = true;
+
+        ShowRankedStage1(
+            banner == MatchResultBanner.Victory
+        );
+    }
+    else
+    {
+        ShowResult(outcome, viewerSeat);
+    }
 }
 
 
@@ -207,13 +222,6 @@ if (!MatchConnectionController.IsDedicatedMatch)
         }
 
         
-if (isRankedResultUIActive &&
-    (MatchSettlementState)settlement.state == MatchSettlementState.Saved &&
-    settlement.ranked)
-{
-    return;
-}
-
 ShowSettlement(settlement);
 
     }
@@ -524,6 +532,15 @@ private void ClearNewResultUI()
 
     if (rankAfterIcon != null)
         rankAfterIcon.enabled = false;
+    // Xóa phần thưởng Rank cũ khi bắt đầu hiển thị kết quả trận mới.
+if (rankedCoinRewardText != null)
+    rankedCoinRewardText.text = "";
+
+if (rankedSilverRewardText != null)
+    rankedSilverRewardText.text = "";
+
+if (rankedPointRewardText != null)
+    rankedPointRewardText.text = "";
 }
 private void ShowNewResultMessage(string message)
 {
