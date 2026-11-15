@@ -38,13 +38,21 @@ public class MenuMusicManager : MonoBehaviour
         SceneManager.sceneLoaded += OnSceneLoaded;
     }
 
-    private void Start()
+    
+private void Start()
+{
+    if (SceneManager.GetActiveScene().name == SceneNames.Login)
     {
-        if (!musicSource.isPlaying)
-        {
-            musicSource.Play();
-        }
+        musicSource.Stop();
+        return;
     }
+
+    if (!musicSource.isPlaying)
+    {
+        musicSource.Play();
+    }
+}
+
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
@@ -52,8 +60,14 @@ public class MenuMusicManager : MonoBehaviour
         {
             musicSource.Stop();
         }
-        else if (scene.name == SceneNames.Login || scene.name == "MainMenu" ||
-                 scene.name.StartsWith("HostClient"))
+        
+else if (scene.name == SceneNames.Login)
+{
+    musicSource.Stop();
+}
+else if (scene.name == "MainMenu" ||
+         scene.name.StartsWith("HostClient"))
+
         {
             if (!musicSource.isPlaying)
             {

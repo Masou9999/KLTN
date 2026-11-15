@@ -78,6 +78,17 @@ public sealed class MatchConnectionController : MonoBehaviour
 
     #region Public API
 
+    
+public static bool IsDedicatedMatch
+{
+    get
+    {
+        return instance != null &&
+               instance.route == Route.Dedicated;
+    }
+}
+
+
     /// <summary>Called when the client connects to a dedicated match server.</summary>
     public static void RememberDedicated(string ip, ushort port, string matchId)
     {

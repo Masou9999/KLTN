@@ -117,6 +117,20 @@ namespace KLTN.Game.Presentation
         private Coroutine processingCoroutine;
         private MatchUpdateDto currentUpdate;
         private int activeDamageFeedbackCount;
+        public static bool IsCombatAnimating { get; private set; }
+
+        public static event Action<bool> CombatAnimationStateChanged;
+
+private static void SetCombatAnimating(bool isAnimating)
+{
+    if (IsCombatAnimating == isAnimating)
+    {
+        return;
+    }
+
+    IsCombatAnimating = isAnimating;
+    CombatAnimationStateChanged?.Invoke(isAnimating);
+}
 
         #endregion
 
@@ -200,9 +214,18 @@ namespace KLTN.Game.Presentation
                 try
                 {
                     if (HasCombatResolution(currentUpdate))
-                    {
-                        yield return AnimateResolution(currentUpdate);
-                    }
+{
+    SetCombatAnimating(true);
+
+    try
+    {
+        yield return AnimateResolution(currentUpdate);
+    }
+    finally
+    {
+        SetCombatAnimating(false);
+    }
+}
 
                     if (HasRoundTransition(currentUpdate))
                     {

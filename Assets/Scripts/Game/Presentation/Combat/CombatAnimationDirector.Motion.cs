@@ -64,10 +64,14 @@ namespace KLTN.Game.Presentation
             activeDeathFeedbacks.Clear();
             pendingDeathsById.Clear();
 
-            if (hasMatchEnded && matchResultPresenter != null)
-            {
-                matchResultPresenter.ShowResult(isVictoryResult);
-            }
+            
+if (hasMatchEnded &&
+    matchResultPresenter != null &&
+    !MatchConnectionController.IsDedicatedMatch)
+{
+    matchResultPresenter.ShowResult(isVictoryResult);
+}
+
         }
 
         private IEnumerator AnimateRoundTransition(MatchUpdateDto update)

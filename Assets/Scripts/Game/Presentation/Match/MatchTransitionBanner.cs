@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using TMPro;
@@ -115,6 +116,19 @@ namespace KLTN.Game.Presentation
 
         public bool IsPlaying { get; private set; }
 
+        public event Action<bool> PlayingStateChanged;
+
+private void SetPlaying(bool playing)
+{
+    if (IsPlaying == playing)
+    {
+        return;
+    }
+
+    IsPlaying = playing;
+    PlayingStateChanged?.Invoke(playing);
+}
+
         #endregion
 
         #region Unity Lifecycle
@@ -133,9 +147,9 @@ namespace KLTN.Game.Presentation
 
         private void OnDisable()
         {
-            IsPlaying = false;
             HideVisualImmediate();
             SetGameplayBlocked(false);
+            SetPlaying(false);
         }
 
         #endregion
@@ -172,7 +186,7 @@ namespace KLTN.Game.Presentation
                 yield return null;
             }
 
-            IsPlaying = true;
+            SetPlaying(true);
             SetGameplayBlocked(true);
 
             try
@@ -191,7 +205,7 @@ namespace KLTN.Game.Presentation
             {
                 HideVisualImmediate();
                 SetGameplayBlocked(false);
-                IsPlaying = false;
+                SetPlaying(false);
             }
         }
 

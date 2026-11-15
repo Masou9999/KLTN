@@ -19,6 +19,11 @@ namespace KLTN.Game.Presentation
         [SerializeField]
         private MatchBoardPresenter boardPresenter;
 
+
+        [SerializeField]
+        private SkillTargetZoneHighlightController skillTargetGlow;
+
+
         [SerializeField]
         private MatchDebugControls actionControls;
 
@@ -150,61 +155,70 @@ namespace KLTN.Game.Presentation
 
         #region Snapshot Application
 
-        private void ApplySnapshot(MatchSnapshotDto snapshot)
-        {
-            PendingAbilitySelectionDto next =
-                snapshot != null && snapshot.viewerMustSelectAbilityTargets
-                    ? snapshot.pendingAbilitySelection
-                    : null;
+        
+private void ApplySnapshot(MatchSnapshotDto snapshot)
+{
+    PendingAbilitySelectionDto next =
+        snapshot != null && snapshot.viewerMustSelectAbilityTargets
+            ? snapshot.pendingAbilitySelection
+            : null;
 
-            if (next == null)
-            {
-                ClearLocalState();
-                return;
-            }
+    if (next == null)
+    {
+        skillTargetGlow?.HideEffects();
+        ClearLocalState();
+        return;
+    }
 
-            bool changedRequest =
-                pendingSelection == null || pendingSelection.requestId != next.requestId;
+    bool changedRequest =
+        pendingSelection == null || pendingSelection.requestId != next.requestId;
 
-            pendingSelection = next;
+    pendingSelection = next;
 
-            if (changedRequest)
-            {
-                primaryTargets.Clear();
-                secondaryTargets.Clear();
-                hoveredTargetId = null;
-                linksSuspendedForResolution = false;
-                targetLinks?.SetLinks(null, null, null);
-            }
+    if (changedRequest)
+    {
+        primaryTargets.Clear();
+        secondaryTargets.Clear();
+        hoveredTargetId = null;
+        linksSuspendedForResolution = false;
+        targetLinks?.SetLinks(null, null, null);
+    }
 
-            SanitizeSelections();
-            RefreshPresentation();
-        }
+    skillTargetGlow?.ShowEffects();
 
-        private void ClearLocalState()
-        {
-            pendingSelection = null;
+    SanitizeSelections();
+    RefreshPresentation();
+}
 
-            primaryTargets.Clear();
-            secondaryTargets.Clear();
-            hoveredTargetId = null;
-            linksSuspendedForResolution = false;
-            ClearCrackPreviews();
-            targetLinks?.SetLinks(null, null, null);
 
-            if (boardPresenter != null)
-            {
-                boardPresenter.ClearAbilityTargetVisuals();
-            }
+        
+private void ClearLocalState()
+{
+    skillTargetGlow?.HideEffects();
 
-            if (actionControls != null)
-            {
-                actionControls.ClearAbilityTargetDraft();
-            }
+    pendingSelection = null;
 
-            SetPrompt(string.Empty);
-            SetCancelButtonVisible(false);
-        }
+    primaryTargets.Clear();
+    secondaryTargets.Clear();
+    hoveredTargetId = null;
+    linksSuspendedForResolution = false;
+    ClearCrackPreviews();
+    targetLinks?.SetLinks(null, null, null);
+
+    if (boardPresenter != null)
+    {
+        boardPresenter.ClearAbilityTargetVisuals();
+    }
+
+    if (actionControls != null)
+    {
+        actionControls.ClearAbilityTargetDraft();
+    }
+
+    SetPrompt(string.Empty);
+    SetCancelButtonVisible(false);
+}
+
 
         #endregion
 

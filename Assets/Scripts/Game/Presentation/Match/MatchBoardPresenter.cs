@@ -173,10 +173,15 @@ namespace KLTN.Game.Presentation
 
                 NetworkCardVisual view = CreateFaceUpCard(dto, parent, canDrag, location);
 
-                if (isSelectionSource)
-                {
-                    CenterAbilitySelectionSource(view);
-                }
+                
+if (isSelectionSource)
+{
+    CenterAbilitySelectionSource(view);
+
+    CardShadowVFX shadow = view.GetComponent<CardShadowVFX>();
+    shadow?.ShowFixedShadow();
+}
+
             }
         }
 
@@ -385,15 +390,21 @@ namespace KLTN.Game.Presentation
             {
                 // Keep a pending Play source in the centre for its entire host-confirmed
                 // ability sequence. The next snapshot moves it to Reserve afterward.
-                if (
-                    abilitySelectionSourceRoot != null
-                    && existing.transform.parent == abilitySelectionSourceRoot
-                )
-                {
-                    existing.SetPending(false);
-                    existing.SetInteractableVisual(true);
-                    return existing;
-                }
+                
+if (
+    abilitySelectionSourceRoot != null
+    && existing.transform.parent == abilitySelectionSourceRoot
+)
+{
+    existing.SetPending(false);
+    existing.SetInteractableVisual(true);
+
+    CardShadowVFX shadow = existing.GetComponent<CardShadowVFX>();
+    shadow?.ShowFixedShadow();
+
+    return existing;
+}
+
 
                 RectTransform destination = FindAbilityCardParent(
                     card,
@@ -468,11 +479,16 @@ namespace KLTN.Game.Presentation
                 ownerSeat != viewerSeat
             );
 
-            if (placeAtCenter)
-            {
-                CenterAbilitySelectionSource(prepared);
-                prepared.SetPending(false);
-            }
+            
+if (placeAtCenter)
+{
+    CenterAbilitySelectionSource(prepared);
+    prepared.SetPending(false);
+
+    CardShadowVFX shadow = prepared.GetComponent<CardShadowVFX>();
+    shadow?.ShowFixedShadow();
+}
+
 
             prepared.SetInteractableVisual(true);
             return prepared;

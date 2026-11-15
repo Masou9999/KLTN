@@ -1,0 +1,1326 @@
+fileFormatVersion: 2
+guid: 85f6b0fe172bb104e951674e2817b831
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -7835776432144668845
+    second: RankProgressFrame_0
+  - first:
+      213: -629897695914968093
+    second: RankProgressFrame_1
+  - first:
+      213: 5404017171689073190
+    second: RankProgressFrame_2
+  - first:
+      213: 6456799775970238922
+    second: RankProgressFrame_3
+  - first:
+      213: -491378857336491533
+    second: RankProgressFrame_4
+  - first:
+      213: 373533339821729624
+    second: RankProgressFrame_5
+  - first:
+      213: 3897047870183220362
+    second: RankProgressFrame_6
+  - first:
+      213: 2951383969836432669
+    second: RankProgressFrame_7
+  - first:
+      213: -253031482591489626
+    second: RankProgressFrame_8
+  - first:
+      213: 4799255926148689916
+    second: RankProgressFrame_9
+  - first:
+      213: 3808567051636979102
+    second: RankProgressFrame_10
+  - first:
+      213: -1691360130052356384
+    second: RankProgressFrame_11
+  - first:
+      213: 2105662732877705598
+    second: RankProgressFrame_12
+  - first:
+      213: 5705947646001614915
+    second: RankProgressFrame_13
+  - first:
+      213: -2984522368611179384
+    second: RankProgressFrame_14
+  - first:
+      213: -4538673596555668692
+    second: RankProgressFrame_15
+  - first:
+      213: 6914940517512455483
+    second: RankProgressFrame_16
+  - first:
+      213: -972145907776717883
+    second: RankProgressFrame_17
+  - first:
+      213: 610905017805725682
+    second: RankProgressFrame_18
+  - first:
+      213: -1915276481285690404
+    second: RankProgressFrame_19
+  - first:
+      213: 8231112128908207269
+    second: RankProgressFrame_20
+  - first:
+      213: 1189926940987163642
+    second: RankProgressFrame_21
+  - first:
+      213: 7787310500651107198
+    second: RankProgressFrame_22
+  - first:
+      213: 8440571955631878107
+    second: RankProgressFrame_23
+  - first:
+      213: 4155943023237811257
+    second: RankProgressFrame_24
+  - first:
+      213: 6740184653551161590
+    second: RankProgressFrame_25
+  - first:
+      213: 1608653305004986175
+    second: RankProgressFrame_26
+  - first:
+      213: -3487357260705179231
+    second: RankProgressFrame_27
+  - first:
+      213: -2030395321711384519
+    second: RankProgressFrame_28
+  - first:
+      213: 851177317694946447
+    second: RankProgressFrame_29
+  - first:
+      213: -9033372740013619831
+    second: RankProgressFrame_30
+  - first:
+      213: 1270150732318004305
+    second: RankProgressFrame_31
+  - first:
+      213: 3824789759234890769
+    second: RankProgressFrame_32
+  - first:
+      213: -5773082674303722656
+    second: RankProgressFrame_33
+  - first:
+      213: -1869962491641248415
+    second: RankProgressFrame_34
+  - first:
+      213: -2866147405888043669
+    second: RankProgressFrame_35
+  - first:
+      213: 7728290180083230407
+    second: RankProgressFrame_36
+  - first:
+      213: 2119370783346219461
+    second: RankProgressFrame_37
+  - first:
+      213: 8646862086736601400
+    second: RankProgressFrame_38
+  - first:
+      213: -2682640759968044651
+    second: RankProgressFrame_39
+  - first:
+      213: 1148205264705847897
+    second: RankProgressFrame_40
+  - first:
+      213: -2385584255533529561
+    second: RankProgressFrame_41
+  - first:
+      213: -7330416359319414175
+    second: RankProgressFrame_42
+  - first:
+      213: -7436086173136364283
+    second: RankProgressFrame_43
+  - first:
+      213: -3330829191061628461
+    second: RankProgressFrame_44
+  - first:
+      213: 5214862252562850432
+    second: RankProgressFrame_45
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 1
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: iOS
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: RankProgressFrame_0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 562
+        width: 180
+        height: 162
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 357a3a6c9dab14390800000000000000
+      internalID: -7835776432144668845
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RankProgressFrame_1
+      rect:
+        serializedVersion: 2
+        x: 24
+        y: 532
+        width: 21
+        height: 25
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3ebb62602672247f0800000000000000
+      internalID: -629897695914968093
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RankProgressFrame_2
+      rect:
+        serializedVersion: 2
+        x: 46
+        y: 547
+        width: 13
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 62a63a66cfceefa40800000000000000
+      internalID: 5404017171689073190
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RankProgressFrame_3
+      rect:
+        serializedVersion: 2
+        x: 56
+        y: 554
+        width: 9
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ac12788cf292b9950800000000000000
+      internalID: 6456799775970238922
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RankProgressFrame_4
+      rect:
+        serializedVersion: 2
+        x: 78
+        y: 568
+        width: 8
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3f1325e58854e29f0800000000000000
+      internalID: -491378857336491533
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RankProgressFrame_5
+      rect:
+        serializedVersion: 2
+        x: 86
+        y: 567
+        width: 6
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 857e6dfe79e0f2500800000000000000
+      internalID: 373533339821729624
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RankProgressFrame_6
+      rect:
+        serializedVersion: 2
+        x: 91
+        y: 572
+        width: 9
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a84a6f6f368151630800000000000000
+      internalID: 3897047870183220362
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RankProgressFrame_7
+      rect:
+        serializedVersion: 2
+        x: 263
+        y: 500
+        width: 114
+        height: 64
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d1df1ed551c65f820800000000000000
+      internalID: 2951383969836432669
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RankProgressFrame_8
+      rect:
+        serializedVersion: 2
+        x: 376
+        y: 516
+        width: 23
+        height: 47
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6a1d42b053d0d7cf0800000000000000
+      internalID: -253031482591489626
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RankProgressFrame_9
+      rect:
+        serializedVersion: 2
+        x: 392
+        y: 545
+        width: 9
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cffe74856d16a9240800000000000000
+      internalID: 4799255926148689916
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RankProgressFrame_10
+      rect:
+        serializedVersion: 2
+        x: 400
+        y: 546
+        width: 17
+        height: 26
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e9534180e8fbad430800000000000000
+      internalID: 3808567051636979102
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RankProgressFrame_11
+      rect:
+        serializedVersion: 2
+        x: 416
+        y: 530
+        width: 19
+        height: 44
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0e688f44ce41788e0800000000000000
+      internalID: -1691360130052356384
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RankProgressFrame_12
+      rect:
+        serializedVersion: 2
+        x: 426
+        y: 499
+        width: 70
+        height: 68
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e7134f96911d83d10800000000000000
+      internalID: 2105662732877705598
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RankProgressFrame_13
+      rect:
+        serializedVersion: 2
+        x: 523
+        y: 515
+        width: 124
+        height: 66
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 34017e217299f2f40800000000000000
+      internalID: 5705947646001614915
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RankProgressFrame_14
+      rect:
+        serializedVersion: 2
+        x: 633
+        y: 532
+        width: 49
+        height: 51
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 88429bae7b8d496d0800000000000000
+      internalID: -2984522368611179384
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RankProgressFrame_15
+      rect:
+        serializedVersion: 2
+        x: 633
+        y: 538
+        width: 6
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c23dadd29646301c0800000000000000
+      internalID: -4538673596555668692
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RankProgressFrame_16
+      rect:
+        serializedVersion: 2
+        x: 700
+        y: 516
+        width: 71
+        height: 87
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b35294583cdc6ff50800000000000000
+      internalID: 6914940517512455483
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RankProgressFrame_17
+      rect:
+        serializedVersion: 2
+        x: 768
+        y: 522
+        width: 21
+        height: 35
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5cb7e11927e3282f0800000000000000
+      internalID: -972145907776717883
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RankProgressFrame_18
+      rect:
+        serializedVersion: 2
+        x: 772
+        y: 544
+        width: 28
+        height: 27
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2ff50d180ee5a7800800000000000000
+      internalID: 610905017805725682
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RankProgressFrame_19
+      rect:
+        serializedVersion: 2
+        x: 792
+        y: 504
+        width: 38
+        height: 20
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cdb6e4610329b65e0800000000000000
+      internalID: -1915276481285690404
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RankProgressFrame_20
+      rect:
+        serializedVersion: 2
+        x: 802
+        y: 532
+        width: 20
+        height: 39
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5a4abf5fed8ca3270800000000000000
+      internalID: 8231112128908207269
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RankProgressFrame_21
+      rect:
+        serializedVersion: 2
+        x: 818
+        y: 544
+        width: 50
+        height: 37
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: af305329f38738010800000000000000
+      internalID: 1189926940987163642
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RankProgressFrame_22
+      rect:
+        serializedVersion: 2
+        x: 823
+        y: 513
+        width: 11
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e738af234a5121c60800000000000000
+      internalID: 7787310500651107198
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RankProgressFrame_23
+      rect:
+        serializedVersion: 2
+        x: 824
+        y: 536
+        width: 12
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: bdfef8c397fe22570800000000000000
+      internalID: 8440571955631878107
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RankProgressFrame_24
+      rect:
+        serializedVersion: 2
+        x: 893
+        y: 502
+        width: 168
+        height: 75
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 93c4ad61920eca930800000000000000
+      internalID: 4155943023237811257
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RankProgressFrame_25
+      rect:
+        serializedVersion: 2
+        x: 1052
+        y: 545
+        width: 45
+        height: 42
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6f0d47b3b32f98d50800000000000000
+      internalID: 6740184653551161590
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RankProgressFrame_26
+      rect:
+        serializedVersion: 2
+        x: 1092
+        y: 517
+        width: 78
+        height: 70
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f3f849b68a5135610800000000000000
+      internalID: 1608653305004986175
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RankProgressFrame_27
+      rect:
+        serializedVersion: 2
+        x: 1188
+        y: 500
+        width: 50
+        height: 71
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1a9d9c65c0b6a9fc0800000000000000
+      internalID: -3487357260705179231
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RankProgressFrame_28
+      rect:
+        serializedVersion: 2
+        x: 1215
+        y: 514
+        width: 7
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 93827cf563692d3e0800000000000000
+      internalID: -2030395321711384519
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RankProgressFrame_29
+      rect:
+        serializedVersion: 2
+        x: 1255
+        y: 546
+        width: 21
+        height: 23
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f8cb31eb24dffcb00800000000000000
+      internalID: 851177317694946447
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RankProgressFrame_30
+      rect:
+        serializedVersion: 2
+        x: 1295
+        y: 498
+        width: 166
+        height: 165
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9858ac39a5303a280800000000000000
+      internalID: -9033372740013619831
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RankProgressFrame_31
+      rect:
+        serializedVersion: 2
+        x: 1327
+        y: 514
+        width: 7
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 154540b8c5b70a110800000000000000
+      internalID: 1270150732318004305
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RankProgressFrame_32
+      rect:
+        serializedVersion: 2
+        x: 1472
+        y: 542
+        width: 130
+        height: 29
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 11c5fbb7502641530800000000000000
+      internalID: 3824789759234890769
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RankProgressFrame_33
+      rect:
+        serializedVersion: 2
+        x: 1518
+        y: 514
+        width: 14
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 06b1a2315e3e1efa0800000000000000
+      internalID: -5773082674303722656
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RankProgressFrame_34
+      rect:
+        serializedVersion: 2
+        x: 1520
+        y: 554
+        width: 10
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1654b66750f8c06e0800000000000000
+      internalID: -1869962491641248415
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RankProgressFrame_35
+      rect:
+        serializedVersion: 2
+        x: 1639
+        y: 530
+        width: 82
+        height: 38
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b65c22eae166938d0800000000000000
+      internalID: -2866147405888043669
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RankProgressFrame_36
+      rect:
+        serializedVersion: 2
+        x: 1727
+        y: 560
+        width: 14
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7c62009f8f6604b60800000000000000
+      internalID: 7728290180083230407
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RankProgressFrame_37
+      rect:
+        serializedVersion: 2
+        x: 1744
+        y: 550
+        width: 19
+        height: 23
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5c951b0af74896d10800000000000000
+      internalID: 2119370783346219461
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RankProgressFrame_38
+      rect:
+        serializedVersion: 2
+        x: 1754
+        y: 512
+        width: 115
+        height: 76
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8316abd3143dff770800000000000000
+      internalID: 8646862086736601400
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RankProgressFrame_39
+      rect:
+        serializedVersion: 2
+        x: 1886
+        y: 530
+        width: 26
+        height: 41
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 599ee1a217855cad0800000000000000
+      internalID: -2682640759968044651
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RankProgressFrame_40
+      rect:
+        serializedVersion: 2
+        x: 2053
+        y: 450
+        width: 119
+        height: 157
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9528604da9e3fef00800000000000000
+      internalID: 1148205264705847897
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RankProgressFrame_41
+      rect:
+        serializedVersion: 2
+        x: 115
+        y: 55
+        width: 2028
+        height: 416
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 726c82b42c3b4eed0800000000000000
+      internalID: -2385584255533529561
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RankProgressFrame_42
+      rect:
+        serializedVersion: 2
+        x: 2061
+        y: 449
+        width: 10
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 16add0fc821254a90800000000000000
+      internalID: -7330416359319414175
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RankProgressFrame_43
+      rect:
+        serializedVersion: 2
+        x: 483
+        y: 103
+        width: 9
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 50d530b0607bdc890800000000000000
+      internalID: -7436086173136364283
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RankProgressFrame_44
+      rect:
+        serializedVersion: 2
+        x: 633
+        y: 79
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3d9154b8f7486c1d0800000000000000
+      internalID: -3330829191061628461
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RankProgressFrame_45
+      rect:
+        serializedVersion: 2
+        x: 1158
+        y: 64
+        width: 8
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0822a94d699ee5840800000000000000
+      internalID: 5214862252562850432
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 5e97eb03825dee720800000000000000
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      RankProgressFrame_0: -7835776432144668845
+      RankProgressFrame_1: -629897695914968093
+      RankProgressFrame_10: 3808567051636979102
+      RankProgressFrame_11: -1691360130052356384
+      RankProgressFrame_12: 2105662732877705598
+      RankProgressFrame_13: 5705947646001614915
+      RankProgressFrame_14: -2984522368611179384
+      RankProgressFrame_15: -4538673596555668692
+      RankProgressFrame_16: 6914940517512455483
+      RankProgressFrame_17: -972145907776717883
+      RankProgressFrame_18: 610905017805725682
+      RankProgressFrame_19: -1915276481285690404
+      RankProgressFrame_2: 5404017171689073190
+      RankProgressFrame_20: 8231112128908207269
+      RankProgressFrame_21: 1189926940987163642
+      RankProgressFrame_22: 7787310500651107198
+      RankProgressFrame_23: 8440571955631878107
+      RankProgressFrame_24: 4155943023237811257
+      RankProgressFrame_25: 6740184653551161590
+      RankProgressFrame_26: 1608653305004986175
+      RankProgressFrame_27: -3487357260705179231
+      RankProgressFrame_28: -2030395321711384519
+      RankProgressFrame_29: 851177317694946447
+      RankProgressFrame_3: 6456799775970238922
+      RankProgressFrame_30: -9033372740013619831
+      RankProgressFrame_31: 1270150732318004305
+      RankProgressFrame_32: 3824789759234890769
+      RankProgressFrame_33: -5773082674303722656
+      RankProgressFrame_34: -1869962491641248415
+      RankProgressFrame_35: -2866147405888043669
+      RankProgressFrame_36: 7728290180083230407
+      RankProgressFrame_37: 2119370783346219461
+      RankProgressFrame_38: 8646862086736601400
+      RankProgressFrame_39: -2682640759968044651
+      RankProgressFrame_4: -491378857336491533
+      RankProgressFrame_40: 1148205264705847897
+      RankProgressFrame_41: -2385584255533529561
+      RankProgressFrame_42: -7330416359319414175
+      RankProgressFrame_43: -7436086173136364283
+      RankProgressFrame_44: -3330829191061628461
+      RankProgressFrame_45: 5214862252562850432
+      RankProgressFrame_5: 373533339821729624
+      RankProgressFrame_6: 3897047870183220362
+      RankProgressFrame_7: 2951383969836432669
+      RankProgressFrame_8: -253031482591489626
+      RankProgressFrame_9: 4799255926148689916
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
