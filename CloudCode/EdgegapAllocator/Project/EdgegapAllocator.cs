@@ -59,7 +59,6 @@ public class EdgegapAllocator(
 {
     // Configuration - users should modify these constants for their setup
     private const string ApplicationName = "kltn"; // TODO: Replace with actual application name
-    private const string VersionName = "26.11.01-21.04.19-UTC"; // TODO: Replace with actual version name
     private const string PortName = "gameport"; // TODO: Replace with actual port name
 
     // Edgegap Constants
@@ -92,6 +91,8 @@ public class EdgegapAllocator(
     {
         try
         {
+            // Gate both new deployments and reusable servers while CI replaces the sole version.
+            string versionName = await ReleasedVersionAsync(context);
             List<Player> players = ExtractPlayers(request.MatchmakingResults.MatchProperties);
             List<string> playerIds = players
                 .Select(player => player.Id)
@@ -182,7 +183,8 @@ public class EdgegapAllocator(
                 matchId,
                 matchToken,
                 capacity,
-                now
+                now,
+                versionName
             );
 
             if (placement.Error != null)
@@ -209,6 +211,13 @@ public class EdgegapAllocator(
         }
     }
 
+    private async Task<string> ReleasedVersionAsync(IExecutionContext context)
+    {
+        Secret token = await gameApiClient.SecretManager.GetSecret(context, EdgegapApiTokenSecretName);
+        using HttpClient client = httpClientFactory.Create(token.Value);
+        return await ReleasedVersion.ResolveAsync(client, EdgegapApiUrl, ApplicationName);
+    }
+
     /// <summary>
     /// Starts a new Edgegap deployment for the match. With capacity > 1 the deployment also gets
     /// SERVER_ID/SERVER_TOKEN and a servers/{serverId} record, so later matches can reuse it.
@@ -222,7 +231,8 @@ public class EdgegapAllocator(
         string matchId,
         string matchToken,
         int capacity,
-        long now
+        long now,
+        string versionName
     )
     {
         Secret edgegapApiToken = await gameApiClient.SecretManager.GetSecret(
@@ -293,10 +303,14 @@ public class EdgegapAllocator(
             environment.Add(Variable("SERVER_TOKEN", serverToken, true));
         }
 
+        // Recheck after Firestore/Secret Manager work in case a release started meanwhile.
+        if (await ReleasedVersionAsync(context) != versionName)
+            return new ServerPlacement(string.Empty, string.Empty, "Server version changed; retry matchmaking.");
+
         var deploymentRequest = new DeploymentRequest
         {
             Application = ApplicationName,
-            Version = VersionName,
+            Version = versionName,
             RequireCachedLocations = ForceCachedLocation,
             Users = users,
             EnvironmentVariables = environment,

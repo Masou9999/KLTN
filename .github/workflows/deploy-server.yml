@@ -1,0 +1,96 @@
+name: Build and deploy KLTN server
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy_existing:
+        description: 'Recovery: existing tag sha-xxxxxxxxxxxx (blank = build this commit)'
+        required: false
+        type: string
+
+# All workflows releasing this app must use this same group.
+concurrency:
+  group: edgegap-kltn-server
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, Windows, X64, kltn-server]
+    timeout-minutes: 120
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      UNITY_EDITOR_PATH: ${{ vars.UNITY_EDITOR_PATH }}
+      EDGEGAP_APP_NAME: ${{ vars.EDGEGAP_APP_NAME }}
+      EDGEGAP_IMAGE_REPOSITORY: ${{ vars.EDGEGAP_IMAGE_REPOSITORY }}
+      EDGEGAP_REGISTRY_IMAGE_NAME: ${{ vars.EDGEGAP_REGISTRY_IMAGE_NAME }}
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+          persist-credentials: false
+          # Preserve Library in this dedicated runner workspace. Build output is cleaned separately.
+          clean: false
+      - name: Validate configuration
+        id: config
+        env:
+          EXISTING_TAG: ${{ inputs.deploy_existing }}
+          ALLOCATOR_READY: ${{ vars.EDGEGAP_ALLOCATOR_READY }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:ALLOCATOR_READY -ne 'true') { throw 'Deploy the updated EdgegapAllocator first, then set EDGEGAP_ALLOCATOR_READY=true.' }
+          foreach ($key in @('EDGEGAP_APP_NAME','EDGEGAP_IMAGE_REPOSITORY','EDGEGAP_REGISTRY_IMAGE_NAME')) {
+            if (-not [Environment]::GetEnvironmentVariable($key)) { throw "Missing Actions variable: $key" }
+          }
+          if ($env:EDGEGAP_APP_NAME -ne 'kltn') { throw 'This allocator is configured for app kltn.' }
+          if ($env:EXISTING_TAG) {
+            if ($env:EXISTING_TAG -notmatch '^sha-[0-9a-f]{12}$') { throw 'Invalid recovery tag.' }
+            $version = $env:EXISTING_TAG
+          } else {
+            if (-not (Test-Path -LiteralPath $env:UNITY_EDITOR_PATH -PathType Leaf)) { throw 'Set UNITY_EDITOR_PATH to Unity.exe.' }
+            $os = docker info --format '{{.OSType}}'
+            if ($LASTEXITCODE -ne 0 -or $os -ne 'linux') { throw 'Start Docker Desktop in Linux containers mode.' }
+            $version = 'sha-' + $env:GITHUB_SHA.Substring(0, 12)
+          }
+          python --version
+          if ($LASTEXITCODE -ne 0) { throw 'Install Python 3.10+ for the runner account.' }
+          "version=$version" >> $env:GITHUB_OUTPUT
+      - name: Test release orchestration (no network)
+        run: python -m unittest discover -s ci/server/tests -v
+      - name: Test allocator release gate (no network)
+        run: ./ci/server/tests/Test-ReleasedVersion.ps1
+      - name: Build Linux Dedicated Server
+        if: inputs.deploy_existing == ''
+        run: ./ci/server/Build-Server.ps1 -UnityPath $env:UNITY_EDITOR_PATH
+      - name: Build, smoke test and push Docker image
+        if: inputs.deploy_existing == ''
+        env:
+          RELEASE_VERSION: ${{ steps.config.outputs.version }}
+          EDGEGAP_REGISTRY_USERNAME: ${{ secrets.EDGEGAP_REGISTRY_USERNAME }}
+          EDGEGAP_REGISTRY_PASSWORD: ${{ secrets.EDGEGAP_REGISTRY_PASSWORD }}
+        run: ./ci/server/Publish-Image.ps1 -Version $env:RELEASE_VERSION
+      - name: Replace the sole Edgegap version and verify deployment
+        env:
+          RELEASE_VERSION: ${{ steps.config.outputs.version }}
+          EDGEGAP_API_TOKEN: ${{ secrets.EDGEGAP_API_TOKEN }}
+          EDGEGAP_REGISTRY_USERNAME: ${{ secrets.EDGEGAP_REGISTRY_USERNAME }}
+          EDGEGAP_REGISTRY_PASSWORD: ${{ secrets.EDGEGAP_REGISTRY_PASSWORD }}
+        run: |
+          python ci/server/edgegap_release.py --version $env:RELEASE_VERSION --apply
+          if ($LASTEXITCODE -ne 0) { throw 'Edgegap release failed; see ci/server/README.md recovery instructions.' }
+          "Released kltn/$env:RELEASE_VERSION. Test deployment stopped; matchmaking starts real deployments." >> $env:GITHUB_STEP_SUMMARY
+      - name: Upload build and local container logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-logs-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            Logs/server-build.log
+            Logs/server-container.log
+          if-no-files-found: ignore
+          retention-days: 3
