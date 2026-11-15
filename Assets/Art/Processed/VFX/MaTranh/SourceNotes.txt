@@ -1,0 +1,15 @@
+User-supplied assets, copied unchanged:
+- Grayscale Biting Jaw Animation Sheet.png -> BitingJawSheet.png
+- freesound_community-monster-bite-44538.mp3 -> monster-bite.mp3
+
+Only frames numbered 1–9 are used. The original texture is preserved; the
+MaTranhBite profile selects nine label-free rectangles at runtime. The first
+eight share a common canvas height to preserve the changing jaw opening. The
+ninth is tightly bounded and centered at the same target, with a proportional
+height (it is not stretched back to the open jaw's full height).
+
+Frame durations in milliseconds: 45, 50, 60, 85, 35, 25, 25, 35, 120.
+Impact sound begins at 300 ms, starting 0.45 s into the supplied recording.
+Echo begins at 360 ms: scale 1 to 1.5, opacity 0.45 to 0, over 240 ms.
+The main jaw holds frame 9 for 120 ms, then fades over 60 ms.
+The full presentation lasts 600 ms per target before existing death feedback.

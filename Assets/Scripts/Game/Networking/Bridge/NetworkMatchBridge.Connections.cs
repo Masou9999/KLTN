@@ -188,6 +188,7 @@ namespace KLTN.Game.Networking
 
             SendUpdate(senderClientId, session, viewerSeat, null);
             ResendSettlement(session, senderClientId, viewerSeat);
+            InviteListenGuest(session);
         }
 
         private void QueueSnapshotWhenVisible(ulong clientId)
@@ -233,6 +234,7 @@ namespace KLTN.Game.Networking
             Debug.Log($"NetworkMatchBridge is now visible to client {clientId}.");
 
             SendUpdate(clientId, session, viewerSeat, null);
+            InviteListenGuest(session);
         }
 
         private IEnumerator RequestInitialSnapshot()

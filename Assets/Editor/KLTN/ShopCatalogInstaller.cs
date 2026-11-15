@@ -282,6 +282,24 @@ service cloud.firestore {
       allow update: if isOwner(uid) && (isPurchase(uid) || isUsernameClaim(uid));
       allow delete: if false;
 
+      // Settings are separate from currency/profile and owned by one Firebase UID.
+      match /settings/audio {
+        function level(v) {
+          return v is int && (v == 75 || (v >= 0 && v <= 100 && v % 10 == 0));
+        }
+        function validAudio() {
+          let d = request.resource.data;
+          return d.keys().hasOnly(['music', 'ui', 'combat', 'musicMuted', 'uiMuted'])
+            && d.keys().hasAll(['music', 'ui', 'combat', 'musicMuted', 'uiMuted'])
+            && level(d.music) && level(d.ui) && level(d.combat)
+            && d.musicMuted is bool && d.uiMuted is bool
+            && (d.music != 0 || d.musicMuted) && (d.ui != 0 || d.uiMuted);
+        }
+        allow read: if isOwner(uid);
+        allow create, update: if isOwner(uid) && validAudio();
+        allow delete: if false;
+      }
+
       match /ownedCards/{cardId} {
         allow read: if isOwner(uid);
 

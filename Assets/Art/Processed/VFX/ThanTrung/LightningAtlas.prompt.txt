@@ -1,0 +1,9 @@
+Generated with the built-in image_gen tool on 2026-11-04.
+Style reference: Sketchy Crimson Lightning Bolt.png supplied by the user.
+SFX: lightning-strike.mp3 supplied by the user; copied without modifying the source.
+Atlas rows: three active drawings followed by dissipation. Imported without mipmaps
+or compression to retain alpha and scratchy ink edges. Endpoint calibration lives
+in Assets/Resources/VFX/ThanTrungLightning.asset.
+
+Generation prompt:
+Use case: stylized-concept. Create a production game VFX sprite atlas on genuine transparent background. Reference image is style reference: retain scratchy hand-painted black ink outlines and crimson red lightning with sharp bright white inner accents. Atlas: exactly 4 equal horizontal rows on a square canvas, each row contains ONE long horizontal lightning bolt going left to right, endpoints at x=5% and x=95%, each endpoint centered vertically in its row. Entire stroke contained within its own row with generous clear padding, no crossing rows. First 3 rows are different animation drawings of the same thick angular lightning with tapered bends and small curling red branches, vivid white core, red body, rough charcoal rim, restrained glow. Fourth row is thin broken dissipating fragments along same horizontal path. Keep all rows aligned at endpoints. No text, labels, borders, background, checkerboard, objects or UI. This is a texture atlas for 4 animation frames, not a scene.

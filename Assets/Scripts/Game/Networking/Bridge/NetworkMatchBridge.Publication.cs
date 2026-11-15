@@ -57,8 +57,7 @@ namespace KLTN.Game.Networking
 
                 // Dedicated matches are ranked when the backend reporter is configured; they
                 // report under the allocator's match ID so the backend finds matches/{matchId}.
-                // Listen-host (Host/Join) matches are private and never scored; the
-                // RankingSettings flag only marks them as ranked in the HUD for dev testing.
+                // Listen-host snapshots the Inspector switch once for both points and rewards.
                 bool ranked = MatchServerContext.IsDedicated
                     ? MatchServerContext.Reporter.IsRanked
                     : RankingSettings.Load().HostClientPointsEnabled;
@@ -69,6 +68,7 @@ namespace KLTN.Game.Networking
                     ranked,
                     DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
                 );
+                BeginListenRegistration(session);
 
                 Debug.Log(
                     $"Match initialized. "
@@ -181,6 +181,7 @@ namespace KLTN.Game.Networking
                     ? null
                     : resolutionDtoMapper.Build(resolution, state);
 
+            var pendingLogs = state?.Journal.TakePending();
             AbilityResolution abilityResolution = state?.TakeAbilityResolution();
             var abilityMapper = new AbilityResolutionDtoMapper(definitionsById);
 
@@ -201,7 +202,8 @@ namespace KLTN.Game.Networking
                     pair.Value,
                     resolutionDto,
                     roundTransitionDto,
-                    abilityDto
+                    abilityDto,
+                    MatchJournalProjection.Build(pendingLogs, pair.Value)
                 );
             }
         }
@@ -212,7 +214,8 @@ namespace KLTN.Game.Networking
             SeatId viewerSeat,
             RoundResolutionDto resolution,
             RoundTransitionDto roundTransition = null,
-            AbilityResolutionDto abilityResolution = null
+            AbilityResolutionDto abilityResolution = null,
+            MatchLogDto[] logs = null
         )
         {
             bool isVisible = NetworkObject.IsNetworkVisibleTo(targetClientId);
@@ -231,6 +234,7 @@ namespace KLTN.Game.Networking
             var update = new MatchUpdateDto
             {
                 snapshot = BuildSnapshot(session, viewerSeat),
+                logs = logs ?? MatchJournalProjection.Build(session.State?.Journal.Entries, viewerSeat),
 
                 hasResolution = resolution != null,
 
@@ -287,6 +291,7 @@ namespace KLTN.Game.Networking
             }
 
             ApplyConnectionState(session, snapshot, viewerSeat);
+            snapshot.turnClock = BuildTurnClock(session, viewerSeat);
             return snapshot;
         }
 
@@ -307,6 +312,7 @@ namespace KLTN.Game.Networking
             }
 
             hasReceivedSnapshot = true;
+            MatchTurnClockRegistry.Apply(update.snapshot.turnClock, acknowledgesSubmission: true);
             MatchUpdateInboxRegistry.Current.Enqueue(update);
 
             Debug.Log(

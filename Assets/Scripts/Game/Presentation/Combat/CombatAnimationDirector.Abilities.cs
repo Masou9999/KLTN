@@ -20,6 +20,11 @@ namespace KLTN.Game.Presentation
         [SerializeField] private Color damageProjectileColor = new Color(1f, 0.47f, 0.08f, 1f);
         [SerializeField] private Color killProjectileColor = new Color(0.65f, 0.21f, 0.96f, 1f);
         [SerializeField] private Color reviveFlashColor = new Color(0.38f, 0.94f, 1f, 1f);
+        [Header("Signature Ability VFX")]
+        [SerializeField] private LightningEffectProfile thanTrungLightning;
+        [SerializeField] private BiteEffectProfile maTranhBite;
+        [SerializeField] private BonkEffectProfile ongKeBonk;
+        [SerializeField] private FeastEffectProfile maDoiFeast;
         [Header("Ability Nexus HUD Targets")]
         [SerializeField] private RectTransform selfAbilityNexusTarget;
         [SerializeField] private RectTransform opponentAbilityNexusTarget;
@@ -31,6 +36,18 @@ namespace KLTN.Game.Presentation
         private RectTransform abilityInputBlocker;
         private Sprite abilityGlowSprite;
         private Texture2D abilityGlowTexture;
+        private LightningEffectView lightningView;
+        private bool lightningProfileLoaded;
+        private BiteEffectView biteView;
+        private bool biteProfileLoaded;
+        private BonkEffectView bonkView;
+        private bool bonkProfileLoaded;
+        private FeastEffectView feastView;
+        private bool feastProfileLoaded;
+        private BatSwarmProfile batProfile;
+        private BatSwarmView batView;
+        private SpiritSpellProfile spiritProfile;
+        private SpiritSpellView spiritView;
 
         /// <summary>
         /// Replays only host-confirmed effects in their original execution order. The
@@ -63,7 +80,17 @@ namespace KLTN.Game.Presentation
                     PrepareAbilityLethalPreviews(events, i, viewerSeat);
                 }
 
-                yield return AnimateAbilityEffect(effect, viewerSeat, reserveCanDrag);
+                if (batProfile == null) batProfile = Resources.Load<BatSwarmProfile>("VFX/MaCangSungBats");
+                if (batProfile != null && batProfile.IsUsable && effect.abilityId == batProfile.abilityId
+                    && effect.hasNexusTarget && (EffectKind)effect.effectKind == EffectKind.Damage)
+                {
+                    AbilityResolutionEventDto heal = i + 1 < events.Length ? events[i+1] : null;
+                    bool paired = BelongsToSameAbility(effect, heal) && heal.hasNexusTarget
+                        && (EffectKind)heal.effectKind == EffectKind.Heal && heal.nexusOwner == effect.sourceOwner;
+                    yield return AnimateBatSwarm(effect, paired ? heal : null, viewerSeat);
+                    if (paired) i++;
+                }
+                else yield return AnimateAbilityEffect(effect, viewerSeat, reserveCanDrag);
             }
 
             foreach (CardReviveFeedback feedback in activeReviveFeedbacks)
@@ -102,6 +129,8 @@ namespace KLTN.Game.Presentation
                 {
                     continue;
                 }
+
+                if (ResolveFeastProfile(effect) != null) continue;
 
                 NetworkCardVisual target = boardPresenter.PrepareAbilitySource(
                     effect.targetBefore,
@@ -186,20 +215,85 @@ namespace KLTN.Game.Presentation
                 ? targetPosition + Vector3.down * 100f
                 : CardCenter(source);
 
-            yield return PlayAbilityCastPulse(source);
-
-            if (source == null || source.InstanceId != target.InstanceId)
+            FeastEffectProfile feast = ResolveFeastProfile(effect);
+            if (feast != null && source != null)
             {
-                yield return PlayAbilityProjectile(
-                    sourcePosition,
-                    targetPosition,
-                    AbilityColor((EffectKind)effect.effectKind)
-                );
+                target.GetComponent<CardDeathFeedback>()?.ClearTargetPreviewCrack();
+                if (feastView == null)
+                {
+                    var viewObject = new GameObject("MaDoiFeast", typeof(RectTransform), typeof(FeastEffectView));
+                    viewObject.transform.SetParent(animationLayer, false);
+                    feastView = viewObject.GetComponent<FeastEffectView>();
+                }
+                yield return feastView.Play(feast, animationLayer, source.CardRect, target.CardRect, sfxAudioSource);
+                // Transformation replaces the generic kill/shatter presentation only.
+                // Subsequent death-trigger events still replay in authoritative order.
+                yield break;
             }
 
-            PlayAbilityHitSfx();
-            vfxPresenter?.PlayCardHit(targetPosition);
-            yield return PlayAbilityImpact(targetPosition);
+            LightningEffectProfile lightning = ResolveLightningProfile(effect);
+            BiteEffectProfile bite = ResolveBiteProfile(effect);
+            BonkEffectProfile bonk = ResolveBonkProfile(effect);
+            SpiritSpellProfile spirit = ResolveSpiritProfile(effect);
+            if (spirit != null && source != null)
+            {
+                target.GetComponent<CardDeathFeedback>()?.ClearTargetPreviewCrack();
+                yield return GetSpiritView().PlayKill(spirit, animationLayer, source.CardRect,
+                    target.CardRect, sfxAudioSource);
+            }
+            else if (bonk != null)
+            {
+                if (bonkView == null)
+                {
+                    var viewObject = new GameObject("OngKeBonk", typeof(RectTransform),
+                        typeof(BonkEffectView));
+                    viewObject.transform.SetParent(animationLayer, false);
+                    bonkView = viewObject.GetComponent<BonkEffectView>();
+                }
+                yield return bonkView.Play(bonk, animationLayer, target.CardRect, sfxAudioSource);
+            }
+            else if (bite != null)
+            {
+                if (biteView == null)
+                {
+                    var viewObject = new GameObject("MaTranhBite", typeof(RectTransform),
+                        typeof(BiteEffectView));
+                    viewObject.transform.SetParent(animationLayer, false);
+                    biteView = viewObject.GetComponent<BiteEffectView>();
+                }
+                yield return biteView.Play(bite, animationLayer, target.CardRect, sfxAudioSource);
+            }
+            else if (lightning != null)
+            {
+                if (lightningView == null)
+                {
+                    var viewObject = new GameObject("ThanTrungLightning", typeof(RectTransform),
+                        typeof(LightningEffectView));
+                    viewObject.transform.SetParent(animationLayer, false);
+                    lightningView = viewObject.GetComponent<LightningEffectView>();
+                }
+                yield return lightningView.Play(
+                    lightning, animationLayer, source != null ? source.CardRect : null,
+                    target.CardRect, GetAbilityGlowSprite(), sfxAudioSource
+                );
+            }
+            else
+            {
+                yield return PlayAbilityCastPulse(source);
+
+                if (source == null || source.InstanceId != target.InstanceId)
+                {
+                    yield return PlayAbilityProjectile(
+                        sourcePosition,
+                        targetPosition,
+                        AbilityColor((EffectKind)effect.effectKind)
+                    );
+                }
+
+                PlayAbilityHitSfx();
+                vfxPresenter?.PlayCardHit(targetPosition);
+                yield return PlayAbilityImpact(targetPosition);
+            }
 
             bool killed = effect.targetAfter != null
                 && effect.targetAfter.health <= 0;
@@ -236,6 +330,112 @@ namespace KLTN.Game.Presentation
             }
         }
 
+        private SpiritSpellProfile ResolveSpiritProfile(AbilityResolutionEventDto effect)
+        {
+            if (spiritProfile == null) spiritProfile = Resources.Load<SpiritSpellProfile>("VFX/ThienLinhCaiSpirit");
+            return spiritProfile != null && spiritProfile.IsUsable && effect.abilityId == spiritProfile.abilityId
+                && ((EffectKind)effect.effectKind == EffectKind.Kill || (EffectKind)effect.effectKind == EffectKind.Revive)
+                ? spiritProfile : null;
+        }
+        private SpiritSpellView GetSpiritView()
+        {
+            if (spiritView == null)
+            {
+                var go = new GameObject("ThienLinhCaiSpirit", typeof(RectTransform), typeof(SpiritSpellView));
+                go.transform.SetParent(animationLayer, false);
+                spiritView = go.GetComponent<SpiritSpellView>();
+            }
+            return spiritView;
+        }
+
+        private FeastEffectProfile ResolveFeastProfile(AbilityResolutionEventDto effect)
+        {
+            if (!feastProfileLoaded)
+            {
+                if (maDoiFeast == null) maDoiFeast = Resources.Load<FeastEffectProfile>("VFX/MaDoiFeast");
+                feastProfileLoaded = true;
+            }
+            return maDoiFeast != null && maDoiFeast.IsUsable && effect != null
+                && effect.abilityId == maDoiFeast.abilityId
+                && (EffectKind)effect.effectKind == EffectKind.Kill ? maDoiFeast : null;
+        }
+
+        private BonkEffectProfile ResolveBonkProfile(AbilityResolutionEventDto effect)
+        {
+            if (!bonkProfileLoaded)
+            {
+                if (ongKeBonk == null)
+                    ongKeBonk = Resources.Load<BonkEffectProfile>("VFX/OngKeBonk");
+                bonkProfileLoaded = true;
+            }
+            return ongKeBonk != null && ongKeBonk.IsUsable
+                && effect.abilityId == ongKeBonk.abilityId
+                && (EffectKind)effect.effectKind == EffectKind.Kill ? ongKeBonk : null;
+        }
+
+        private BiteEffectProfile ResolveBiteProfile(AbilityResolutionEventDto effect)
+        {
+            if (!biteProfileLoaded)
+            {
+                if (maTranhBite == null)
+                    maTranhBite = Resources.Load<BiteEffectProfile>("VFX/MaTranhBite");
+                biteProfileLoaded = true;
+            }
+            return maTranhBite != null && maTranhBite.IsUsable
+                && effect.abilityId == maTranhBite.abilityId
+                && (EffectKind)effect.effectKind == EffectKind.Kill ? maTranhBite : null;
+        }
+
+        private LightningEffectProfile ResolveLightningProfile(AbilityResolutionEventDto effect)
+        {
+            if (!lightningProfileLoaded)
+            {
+                if (thanTrungLightning == null)
+                    thanTrungLightning = Resources.Load<LightningEffectProfile>("VFX/ThanTrungLightning");
+                lightningProfileLoaded = true;
+            }
+            return thanTrungLightning != null && thanTrungLightning.IsUsable
+                && effect.abilityId == thanTrungLightning.abilityId
+                && (EffectKind)effect.effectKind == EffectKind.Kill
+                    ? thanTrungLightning : null;
+        }
+
+        private RectTransform SwarmNexus(int owner, int viewer)
+        {
+            bool self = owner == viewer;
+            RectTransform target = self ? selfAbilityNexusTarget : opponentAbilityNexusTarget;
+            if (target != null) return target;
+            DamageFeedbackView feedback = self ? selfNexusFeedback : opponentNexusFeedback;
+            return feedback != null ? feedback.transform as RectTransform : (self ? selfNexusTarget : opponentNexusTarget);
+        }
+
+        private IEnumerator AnimateBatSwarm(AbilityResolutionEventDto damage, AbilityResolutionEventDto heal, int viewer)
+        {
+            var source = boardPresenter.PrepareAbilitySource(damage.source, damage.sourceOwner, viewer, damage.sourceZone);
+            RectTransform enemy = SwarmNexus(damage.nexusOwner, viewer);
+            RectTransform ally = SwarmNexus(damage.sourceOwner, viewer);
+            if (source == null || enemy == null || ally == null)
+            {
+                yield return AnimateAbilityNexusEffect(damage, source, viewer);
+                if (heal != null) yield return AnimateAbilityNexusEffect(heal, source, viewer);
+                yield break;
+            }
+            if (batView == null)
+            {
+                var go = new GameObject("MaCangSungBats", typeof(RectTransform), typeof(BatSwarmView));
+                go.transform.SetParent(animationLayer, false);
+                batView = go.GetComponent<BatSwarmView>();
+            }
+            Canvas.ForceUpdateCanvases();
+            var enemyFeedback = damage.nexusOwner == viewer ? selfNexusFeedback : opponentNexusFeedback;
+            var allyFeedback = damage.sourceOwner == viewer ? selfNexusFeedback : opponentNexusFeedback;
+            yield return batView.Play(batProfile, animationLayer, source.CardRect, enemy, ally,
+                Mathf.Max(0, damage.nexusHealthBefore-damage.nexusHealthAfter),
+                heal == null ? 0 : Mathf.Max(0, heal.nexusHealthAfter-heal.nexusHealthBefore),
+                () => enemyFeedback?.PresentHealth(damage.nexusHealthAfter),
+                () => { if (heal != null) allyFeedback?.PresentHealth(heal.nexusHealthAfter); }, sfxAudioSource);
+        }
+
         private IEnumerator AnimateAbilityNexusEffect(
             AbilityResolutionEventDto effect,
             NetworkCardVisual source,
@@ -246,6 +446,12 @@ namespace KLTN.Game.Presentation
             DamageFeedbackView feedback = targetIsSelf
                 ? selfNexusFeedback
                 : opponentNexusFeedback;
+
+            if ((EffectKind)effect.effectKind == EffectKind.Heal)
+            {
+                feedback?.PresentHealth(effect.nexusHealthAfter);
+                yield break;
+            }
 
             RectTransform nexus = targetIsSelf
                 ? selfAbilityNexusTarget
@@ -345,6 +551,25 @@ else
             if (group != null)
             {
                 group.alpha = 0f;
+            }
+
+            SpiritSpellProfile spirit = ResolveSpiritProfile(effect);
+            if (spirit != null && source != null)
+            {
+                CardReviveFeedback spiritFeedback = revived.GetComponent<CardReviveFeedback>();
+                if (spiritFeedback == null) spiritFeedback = revived.gameObject.AddComponent<CardReviveFeedback>();
+                activeReviveFeedbacks.Add(spiritFeedback);
+                try
+                {
+                    yield return GetSpiritView().PlayRevive(spirit, animationLayer, source.CardRect, revived,
+                        spiritFeedback, effect.reviveDamageBonus, effect.reviveHealthBonus, restingAlpha, sfxAudioSource);
+                }
+                finally
+                {
+                    spiritFeedback.ResetImmediately();
+                    activeReviveFeedbacks.Remove(spiritFeedback);
+                }
+                yield break;
             }
 
             if (source != null)
@@ -698,6 +923,12 @@ else
 
         private void ClearAbilityGraphics()
         {
+            if (spiritView != null) spiritView.ClearVisuals(stopAudio: false);
+            if (batView != null) batView.ClearVisuals();
+            if (feastView != null) feastView.ClearVisuals();
+            if (bonkView != null) bonkView.ClearVisuals();
+            if (biteView != null) biteView.ClearVisuals();
+            if (lightningView != null) lightningView.ClearVisuals();
             foreach (GameObject graphic in activeAbilityGraphics)
             {
                 if (graphic != null)
@@ -772,6 +1003,42 @@ else
 
         private void CleanupAbilityPresentation()
         {
+            if (spiritView != null)
+            {
+                spiritView.gameObject.SetActive(false);
+                Destroy(spiritView.gameObject);
+                spiritView = null;
+            }
+            if (batView != null)
+            {
+                batView.gameObject.SetActive(false);
+                Destroy(batView.gameObject);
+                batView = null;
+            }
+            if (feastView != null)
+            {
+                feastView.gameObject.SetActive(false);
+                Destroy(feastView.gameObject);
+                feastView = null;
+            }
+            if (bonkView != null)
+            {
+                bonkView.gameObject.SetActive(false);
+                Destroy(bonkView.gameObject);
+                bonkView = null;
+            }
+            if (biteView != null)
+            {
+                biteView.gameObject.SetActive(false);
+                Destroy(biteView.gameObject);
+                biteView = null;
+            }
+            if (lightningView != null)
+            {
+                lightningView.gameObject.SetActive(false);
+                Destroy(lightningView.gameObject);
+                lightningView = null;
+            }
             SetAbilityInputBlocked(false);
 
             if (abilityInputBlocker != null)

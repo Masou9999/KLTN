@@ -47,6 +47,8 @@ namespace KLTN.Game.Domain
                     break;
                 }
 
+                RecordJournalCard(state, triggeredAbility, EffectKind.Summon, null, CaptureCard(created));
+
                 emittedEvents.Add(
                     GameEvent.FromCard(
                         GameEventType.UnitSummoned,
@@ -70,7 +72,7 @@ namespace KLTN.Game.Domain
             {
                 for (int i = 0; i < effect.Count; i++)
                 {
-                    TryCreateCopyInDrawHand(state, owner, effect.CardDefinitionId);
+                    TryCreateCopyInDrawHand(state, triggeredAbility, owner, effect.CardDefinitionId);
                 }
 
                 return;
@@ -99,7 +101,7 @@ namespace KLTN.Game.Domain
 
                     candidates.RemoveAt(index);
 
-                    TryCreateCopyInDrawHand(state, owner, selected.DefinitionId);
+                    TryCreateCopyInDrawHand(state, triggeredAbility, owner, selected.DefinitionId);
                 }
 
                 return;
@@ -116,12 +118,13 @@ namespace KLTN.Game.Domain
 
             for (int i = 0; i < copyCount; i++)
             {
-                TryCreateCopyInDrawHand(state, owner, targets[i].DefinitionId);
+                TryCreateCopyInDrawHand(state, triggeredAbility, owner, targets[i].DefinitionId);
             }
         }
 
         private bool TryCreateCopyInDrawHand(
             MatchState state,
+            TriggeredAbility triggeredAbility,
             PlayerState owner,
             string definitionId
         )
@@ -139,7 +142,9 @@ namespace KLTN.Game.Domain
                 definition.BaseHealth
             );
 
-            return owner.TryAddCreatedCardToDrawHand(copy);
+            if (!owner.TryAddCreatedCardToDrawHand(copy)) return false;
+            RecordJournalCard(state, triggeredAbility, EffectKind.Copy, null, CaptureCard(copy));
+            return true;
         }
 
         private void ExecuteRevive(

@@ -8,6 +8,7 @@ namespace KLTN.Game.Networking
         #region Events
 
         public event Action UpdateAvailable;
+        public MatchJournalClient Journal { get; } = new MatchJournalClient();
 
         #endregion
 
@@ -29,6 +30,7 @@ namespace KLTN.Game.Networking
                 return;
             }
 
+            Journal.Accept(update);
             ulong revision = update.snapshot.revision;
 
             if (hasAcceptedRevision && revision <= latestAcceptedRevision)
@@ -58,6 +60,7 @@ namespace KLTN.Game.Networking
         public void Reset()
         {
             updates.Clear();
+            Journal.Reset();
             latestAcceptedRevision = 0;
             hasAcceptedRevision = false;
         }

@@ -95,7 +95,7 @@ namespace KLTN.Game.Domain
                     return;
 
                 case EffectKind.Draw:
-                    ExecuteDraw(state, triggeredAbility.ListenerOwner, effect.Amount);
+                    ExecuteDraw(state, triggeredAbility, effect.Amount);
                     return;
 
                 case EffectKind.Buff:

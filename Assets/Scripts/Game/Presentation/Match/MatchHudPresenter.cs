@@ -49,6 +49,8 @@ namespace KLTN.Game.Presentation
 
         private void OnEnable()
         {
+            if (GetComponent<MatchTurnTimerPresenter>() == null)
+                gameObject.AddComponent<MatchTurnTimerPresenter>();
             projection = MatchProjectionRegistry.Current;
             projection.SnapshotChanged += OnSnapshotChanged;
 

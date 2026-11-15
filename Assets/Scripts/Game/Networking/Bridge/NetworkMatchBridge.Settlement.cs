@@ -43,7 +43,8 @@ namespace KLTN.Game.Networking
         /// <summary>
         /// Called after every accepted command. When the match has just finished, a dedicated
         /// server reports it to the backend (FR-SHOP-09, FR-RANK-11) and forwards each player's
-        /// settlement; a listen-host match is private and settles nothing. Each match of the
+        /// settlement; listen-host matches settle when their Inspector switch was enabled.
+        /// Each match of the
         /// process is reported exactly once, under its own match ID and MATCH_TOKEN.
         /// </summary>
         private void TrySettleFinishedMatch(MatchSession session)
@@ -57,7 +58,13 @@ namespace KLTN.Game.Networking
 
             if (!MatchServerContext.IsDedicated)
             {
-                PublishSettlementToAll(session, MatchSettlementState.PrivateMatch, null);
+                if (!session.IsRanked)
+                {
+                    PublishSettlementToAll(session, MatchSettlementState.PrivateMatch, null);
+                    return;
+                }
+                PublishSettlementToAll(session, MatchSettlementState.Saving, null);
+                _ = SettleListenAsync(session);
                 return;
             }
 

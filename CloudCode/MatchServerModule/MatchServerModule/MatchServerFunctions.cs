@@ -203,6 +203,33 @@ namespace KLTN.CloudCode.MatchServer
             }
         }
 
+        /// <summary>Each participant registers using their own authenticated UGS session.</summary>
+        [CloudCodeFunction("RegisterListenMatch")]
+        public async Task<string> RegisterListenMatch(
+            IExecutionContext context, string matchId, string hostPlayerId)
+        {
+            if (string.IsNullOrEmpty(context.PlayerId))
+                throw new InvalidOperationException("A signed-in player is required.");
+            return await ListenMatchService.RegisterAsync(
+                await FirestoreAsync(context), lookup, context.ProjectId,
+                context.PlayerId, context.AccessToken, matchId, hostPlayerId,
+                DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+        }
+
+        /// <summary>Settles a registered listen match; caller must be its host.</summary>
+        [CloudCodeFunction("ReportListenResult")]
+        public async Task<ReportResultResponse> ReportListenResult(
+            IExecutionContext context, string matchId, string outcome,
+            bool hostSurrendered, bool guestSurrendered, int roundNumber)
+        {
+            if (string.IsNullOrEmpty(context.PlayerId))
+                throw new InvalidOperationException("A signed-in player is required.");
+            return await ListenMatchService.ReportAsync(
+                await FirestoreAsync(context), context.PlayerId, matchId,
+                outcome, hostSurrendered, guestSurrendered, roundNumber,
+                DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+        }
+
         #region Helpers
 
         private static void RequireServer(IExecutionContext context, string function)

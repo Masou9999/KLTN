@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
+using Unity.Netcode;
 using Unity.Services.Multiplayer;
 
 public sealed class UgsSessionService
@@ -14,6 +16,7 @@ public sealed class UgsSessionService
     #region Fields and Singleton
 
     private ISession session;
+    private readonly SemaphoreSlim lifecycleGate = new SemaphoreSlim(1, 1);
     public static UgsSessionService Instance { get; } = new UgsSessionService();
 
     #endregion
@@ -28,6 +31,7 @@ public sealed class UgsSessionService
     #region Properties
 
     public bool HasSession => session != null;
+    public bool IsBusy => lifecycleGate.CurrentCount == 0;
     public bool IsHost => session != null && session.IsHost;
     public int PlayerCount => session?.PlayerCount ?? 0;
     public string SessionId => session?.Id ?? string.Empty;
@@ -45,20 +49,25 @@ public sealed class UgsSessionService
 
     public async Task<string> HostAsync()
     {
-        await LeaveAsync();
-
-        var options = new SessionOptions
+        if (!lifecycleGate.Wait(0)) throw new InvalidOperationException("Đang xử lý phòng, vui lòng chờ.");
+        try
         {
-            Type = SessionType,
-            Name = "KLTN Game",
-            MaxPlayers = 2,
-            IsPrivate = true,
-            IsLocked = false,
-        }.WithRelayNetwork();
-        session = await MultiplayerService.Instance.CreateSessionAsync(options);
-        Attach(session);
-        PlayerCountChanged?.Invoke(session.PlayerCount);
-        return session.Code;
+            await LeaveCoreAsync();
+
+            var options = new SessionOptions
+            {
+                Type = SessionType,
+                Name = "KLTN Game",
+                MaxPlayers = 2,
+                IsPrivate = true,
+                IsLocked = false,
+            }.WithRelayNetwork();
+            session = await MultiplayerService.Instance.CreateSessionAsync(options);
+            Attach(session);
+            PlayerCountChanged?.Invoke(session.PlayerCount);
+            return session.Code;
+        }
+        finally { lifecycleGate.Release(); }
     }
 
     public async Task JoinByCodeAsync(string joinCode)
@@ -71,32 +80,37 @@ public sealed class UgsSessionService
             );
         }
 
-        await LeaveAsync();
-
-        var options = new JoinSessionOptions { Type = SessionType };
-
+        if (!lifecycleGate.Wait(0)) throw new InvalidOperationException("Đang xử lý phòng, vui lòng chờ.");
         try
         {
-            session = await MultiplayerService.Instance.JoinSessionByCodeAsync(
-                joinCode.Trim(),
-                options
-            );
-        }
-        catch (SessionException exception)
-        {
-            // A guest whose game was closed mid-match is still a member of the room, and the
-            // service refuses to join it again ("already a member"); reconnect instead so
-            // the held seat can be taken back (FR-NET-07).
-            session = await ReconnectToJoinedSessionAsync(joinCode.Trim());
+            await LeaveCoreAsync();
 
-            if (session == null)
+            var options = new JoinSessionOptions { Type = SessionType };
+
+            try
             {
-                throw new InvalidOperationException(exception.Message, exception);
+                session = await MultiplayerService.Instance.JoinSessionByCodeAsync(
+                    joinCode.Trim(),
+                    options
+                );
             }
-        }
+            catch (SessionException exception)
+            {
+                // A guest whose game was closed mid-match is still a member of the room, and the
+                // service refuses to join it again ("already a member"); reconnect instead so
+                // the held seat can be taken back (FR-NET-07).
+                session = await ReconnectToJoinedSessionAsync(joinCode.Trim());
 
-        Attach(session);
-        PlayerCountChanged?.Invoke(session.PlayerCount);
+                if (session == null)
+                {
+                    throw new InvalidOperationException(exception.Message, exception);
+                }
+            }
+
+            Attach(session);
+            PlayerCountChanged?.Invoke(session.PlayerCount);
+        }
+        finally { lifecycleGate.Release(); }
     }
 
     /// <summary>Reconnects to a room this player still belongs to; null when there is none.</summary>
@@ -132,25 +146,53 @@ public sealed class UgsSessionService
 
     public async Task LeaveAsync()
     {
-        var leavingSession = session;
-        if (leavingSession == null)
+        // A leave requested during Create/Join must also close the session returned later.
+        await lifecycleGate.WaitAsync();
+        try { await LeaveCoreAsync(); }
+        finally { lifecycleGate.Release(); }
+    }
+
+    private async Task LeaveCoreAsync()
+    {
+        ISession leavingSession = session;
+        if (leavingSession != null)
         {
-            return;
+            Detach(leavingSession);
+            try
+            {
+                if (leavingSession.IsHost)
+                    await leavingSession.AsHost().DeleteAsync();
+                else
+                    await leavingSession.LeaveAsync();
+            }
+            catch
+            {
+                // Keep the handle for retry; never silently lose ownership of a live room.
+                Attach(leavingSession);
+                throw;
+            }
+
+            session = null;
+            PlayerCountChanged?.Invoke(0);
         }
 
-        Detach(leavingSession);
-        session = null;
+        // Session SDK owns normal shutdown. Also handle an orphan/dedicated connection,
+        // and do not let the next Create/Join race NGO's deferred shutdown.
+        await StopNetworkAsync();
+    }
 
-        if (leavingSession.IsHost)
+    public static async Task StopNetworkAsync()
+    {
+        NetworkManager manager = NetworkManager.Singleton;
+        if (manager == null) return;
+        if (manager.IsListening && !manager.ShutdownInProgress) manager.Shutdown();
+        DateTime deadline = DateTime.UtcNow.AddSeconds(15);
+        while (manager != null && (manager.IsListening || manager.ShutdownInProgress))
         {
-            await leavingSession.AsHost().DeleteAsync();
+            if (DateTime.UtcNow >= deadline)
+                throw new TimeoutException("Chưa thể dừng kết nối mạng. Vui lòng thử rời phòng lại.");
+            await Task.Yield();
         }
-        else
-        {
-            await leavingSession.LeaveAsync();
-        }
-
-        PlayerCountChanged?.Invoke(0);
     }
 
     #endregion

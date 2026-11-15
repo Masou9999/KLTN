@@ -160,16 +160,12 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
 
         isLeaving = true;
         RefreshBackButton();
-        MatchConnectionController.Forget();
         await CancelSearchAsync();
-        NetworkManager networkManager = NetworkManager.Singleton;
-
-        if (networkManager != null && networkManager.IsListening)
+        if (!await MatchConnectionController.ReturnToMainMenuAsync() && this != null)
         {
-            networkManager.Shutdown();
+            isLeaving = false;
+            RefreshBackButton();
         }
-
-        SceneManager.LoadScene(SceneNames.MainMenu);
     }
 
     #endregion

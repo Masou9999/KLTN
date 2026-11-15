@@ -1,0 +1,4 @@
+Source: C:/Users/kkira/Downloads/Effects/Ma Đói
+Chicken.png: imagegen transparent adaptation of crispy-fried-chicken-drumstick.webp; cream bone preserved.
+SmokeSheet.png: unchanged Cartoon Smoke Ring Explosion Sprite Sheet.png, 6 columns x 4 rows, row-major.
+pop.mp3, swish.mp3, chew.mp3: unchanged supplied recordings. Runtime offsets/end times skip silence; chew pitch 1.5.

@@ -18,11 +18,11 @@ namespace KLTN.Sandbox
         public const int HandLimit = 10;
         public static readonly string[] ReserveIds =
         {
-            "MaLon", "VongNhi", "ThanTrung", "ThienLinhCai", "OngKe", "MaTranh", "MaDoi"
+            "MaLon", "VongNhi", "ThanTrung", "ThienLinhCai", "OngKe", "MaTranh", "MaDoi", "MaCangSung"
         };
         public static readonly string[] HandIds =
         {
-            "ThanTrung", "ThienLinhCai", "OngKe", "MaTranh", "MaDoi"
+            "ThanTrung", "ThienLinhCai", "OngKe", "MaTranh", "MaDoi", "MaCangSung"
         };
 
         #endregion
@@ -80,12 +80,33 @@ namespace KLTN.Sandbox
             return Zone(reserve).Count(card => card.DefinitionId == id);
         }
 
+        /// <summary>Explicit preview fixture, not a change to summon conditions.</summary>
+        public void PrepareMaTranhPreview()
+        {
+            Reset();
+            CardInstance ally = State.Host.Reserve[0];
+            CardDefinition definition = definitions[ally.DefinitionId];
+            ally.Kill();
+            State.RoundHistory.RecordDeath(ally, ally.GetDamage(definition),
+                ally.GetMaximumHealth(definition));
+            State.Host.Reserve.Remove(ally);
+            ally.MoveTo(CardZone.Graveyard);
+            State.Host.Graveyard.Add(ally);
+            Add(SeatId.Host, "MaTranh", CardZone.DrawHand);
+            State.LastEvent = "Test Ma Trành • Đã có đồng minh chết • Kéo Ma Trành để triệu hồi";
+        }
+
         /// <summary>
         /// Applies a validated modal draft atomically. Removing a fixture card is not
         /// a death, and unchanged cards keep their identity, damage and trigger history.
         /// </summary>
         public bool ApplyCounts(int[] reserveCounts, int[] handCounts)
         {
+            // Older validation fixtures predate the extra card; preserve its count.
+            if (reserveCounts?.Length == ReserveIds.Length - 1)
+                reserveCounts = reserveCounts.Concat(new[] { Count("MaCangSung", true) }).ToArray();
+            if (handCounts?.Length == HandIds.Length - 1)
+                handCounts = handCounts.Concat(new[] { Count("MaCangSung", false) }).ToArray();
             if (State.PendingSelection != null
                 || !ValidCounts(reserveCounts, ReserveIds.Length)
                 || !ValidCounts(handCounts, HandIds.Length)

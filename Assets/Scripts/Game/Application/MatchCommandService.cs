@@ -37,6 +37,33 @@ namespace KLTN.Game.ApplicationLayer
             this.registry = registry ?? throw new ArgumentNullException(nameof(registry));
         }
 
+        /// <summary>
+        /// Routes a timed intent with a server-observed receive time and decision ID.
+        /// Opening/cancelling an optional selection neither refreshes time nor clears strikes.
+        /// </summary>
+        public MatchCommandOutcome ExecuteTimed(ulong connectionId, ulong commandId,
+            ulong decisionId, double receivedAt, Func<MatchSession, SeatId, CommandResult> command,
+            bool completesDecision = true)
+        {
+            return Execute(connectionId, commandId, (session, seat) =>
+            {
+                if (session.IsFinished) return CommandResult.Reject(CommandRejectionReason.MatchFinished);
+                session.TurnTimer.Reconcile(session, receivedAt);
+                CommandRejectionReason rejection = session.TurnTimer.Validate(seat, decisionId, receivedAt);
+                if (rejection != CommandRejectionReason.None) return CommandResult.Reject(rejection);
+                CommandResult result = command(session, seat);
+                if (result == null || !result.Accepted) return result;
+                bool openedDraft = session.State.PendingSelection?.CanCancel == true;
+                if (completesDecision && !openedDraft)
+                {
+                    session.Rules.RecordTimelyDecision(session.State, seat);
+                    session.TurnTimer.Remove(seat);
+                }
+                session.TurnTimer.Reconcile(session, receivedAt);
+                return result;
+            });
+        }
+
         /// <param name="command">Runs against the caller's own match and seat.</param>
         public MatchCommandOutcome Execute(
             ulong connectionId,

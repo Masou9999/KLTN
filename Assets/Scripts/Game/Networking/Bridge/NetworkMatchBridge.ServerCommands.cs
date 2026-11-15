@@ -19,16 +19,17 @@ namespace KLTN.Game.Networking
 
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
         private void SubmitSummonUnitRpc(
-            ulong commandId,
+            ulong commandId, ulong decisionId,
             ulong cardInstanceId,
             RpcParams rpcParams = default
         )
         {
             ulong senderClientId = rpcParams.Receive.SenderClientId;
 
-            MatchCommandOutcome outcome = commandService.Execute(
+            MatchCommandOutcome outcome = ExecuteTimedCommand(
                 senderClientId,
                 commandId,
+                decisionId,
                 (session, actor) => session.Rules.TrySummonUnit(session.State, actor, cardInstanceId)
             );
 
@@ -37,16 +38,17 @@ namespace KLTN.Game.Networking
 
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
         private void SubmitDeclareAttackRpc(
-            ulong commandId,
+            ulong commandId, ulong decisionId,
             ulong[] attackerIdsBySlot,
             RpcParams rpcParams = default
         )
         {
             ulong senderClientId = rpcParams.Receive.SenderClientId;
 
-            MatchCommandOutcome outcome = commandService.Execute(
+            MatchCommandOutcome outcome = ExecuteTimedCommand(
                 senderClientId,
                 commandId,
+                decisionId,
                 (session, actor) => session.Rules.TryDeclareAttack(session.State, actor, attackerIdsBySlot)
             );
 
@@ -55,16 +57,17 @@ namespace KLTN.Game.Networking
 
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
         private void SubmitDeclareBlockRpc(
-            ulong commandId,
+            ulong commandId, ulong decisionId,
             ulong[] blockerIdsBySlot,
             RpcParams rpcParams = default
         )
         {
             ulong senderClientId = rpcParams.Receive.SenderClientId;
 
-            MatchCommandOutcome outcome = commandService.Execute(
+            MatchCommandOutcome outcome = ExecuteTimedCommand(
                 senderClientId,
                 commandId,
+                decisionId,
                 (session, actor) => session.Rules.TryDeclareBlock(session.State, actor, blockerIdsBySlot)
             );
 
@@ -73,7 +76,7 @@ namespace KLTN.Game.Networking
 
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
         private void SubmitAbilitySelectionRpc(
-            ulong commandId,
+            ulong commandId, ulong decisionId,
             ulong requestId,
             ulong[] primaryTargetIds,
             ulong[] secondaryTargetIds,
@@ -87,9 +90,10 @@ namespace KLTN.Game.Networking
                 secondaryTargetIds
             );
 
-            MatchCommandOutcome outcome = commandService.Execute(
+            MatchCommandOutcome outcome = ExecuteTimedCommand(
                 senderClientId,
                 commandId,
+                decisionId,
                 (session, actor) => session.Rules.TrySubmitAbilitySelection(
                     session.State,
                     actor,
@@ -103,30 +107,33 @@ namespace KLTN.Game.Networking
 
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
         private void SubmitCancelAbilitySelectionRpc(
-            ulong commandId,
+            ulong commandId, ulong decisionId,
             ulong requestId,
             RpcParams rpcParams = default
         )
         {
             ulong senderClientId = rpcParams.Receive.SenderClientId;
 
-            MatchCommandOutcome outcome = commandService.Execute(
+            MatchCommandOutcome outcome = ExecuteTimedCommand(
                 senderClientId,
                 commandId,
-                (session, actor) => session.Rules.TryCancelAbilitySelection(session.State, actor, requestId)
+                decisionId,
+                (session, actor) => session.Rules.TryCancelAbilitySelection(session.State, actor, requestId),
+                completesDecision: false
             );
 
             FinishCommand(senderClientId, outcome);
         }
 
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
-        private void SubmitPassRpc(ulong commandId, RpcParams rpcParams = default)
+        private void SubmitPassRpc(ulong commandId, ulong decisionId, RpcParams rpcParams = default)
         {
             ulong senderClientId = rpcParams.Receive.SenderClientId;
 
-            MatchCommandOutcome outcome = commandService.Execute(
+            MatchCommandOutcome outcome = ExecuteTimedCommand(
                 senderClientId,
                 commandId,
+                decisionId,
                 (session, actor) => session.Rules.TryPass(session.State, actor)
             );
 
@@ -152,45 +159,21 @@ namespace KLTN.Game.Networking
 
         [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
         private void SubmitMulliganRpc(
-            ulong commandId,
+            ulong commandId, ulong decisionId,
             ulong[] cardIdsToReplace,
             RpcParams rpcParams = default
         )
         {
             ulong senderClientId = rpcParams.Receive.SenderClientId;
 
-            MatchCommandOutcome outcome = commandService.Execute(
+            MatchCommandOutcome outcome = ExecuteTimedCommand(
                 senderClientId,
                 commandId,
-                (session, actor) => ApplyMulligan(session.State, actor, cardIdsToReplace)
+                decisionId,
+                (session, actor) => session.Rules.TryMulligan(session.State, actor, cardIdsToReplace)
             );
 
             FinishCommand(senderClientId, outcome);
-        }
-
-        private static CommandResult ApplyMulligan(MatchState matchState, SeatId actor, ulong[] cardIdsToReplace)
-        {
-            PlayerState player = matchState.Player(actor);
-
-            if (cardIdsToReplace != null && cardIdsToReplace.Length > 0)
-            {
-                System.Random rng = new System.Random();
-                player.PerformMulligan(cardIdsToReplace, rng);
-            }
-
-            if (actor == SeatId.Host)
-                matchState.HostMulliganDone = true;
-            else
-                matchState.GuestMulliganDone = true;
-
-            if (matchState.IsMulliganPhaseComplete && matchState.RoundNumber == 0)
-            {
-                matchState.BeginFirstRound();
-
-                matchState.LastEvent = "Giai đoạn đổi bài kết thúc. Trận đấu bắt đầu!";
-            }
-
-            return CommandResult.Success();
         }
 
         private void FinishCommand(ulong senderClientId, MatchCommandOutcome outcome)
@@ -237,6 +220,8 @@ namespace KLTN.Game.Networking
         )
         {
             var reason = (CommandRejectionReason)reasonValue;
+
+            MatchTurnClockRegistry.ClearSubmission();
 
             MatchProjectionRegistry.Current.Reject(reason);
             Debug.LogWarning($"Match command rejected: {reason}.");

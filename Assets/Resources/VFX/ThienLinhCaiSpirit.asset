@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7214ae6d067445daa600e2c83b19a369, type: 3}
+  m_Name: ThienLinhCaiSpirit
+  m_EditorClassIdentifier: 
+  abilityId: thien_linh_cai_play
+  reviveSheet: {fileID: 2800000, guid: cc3f1f1a6890480ca7347139565680e5, type: 3}
+  whoosh: {fileID: 8300000, guid: 025a748bcbfb471ea1847425ba9d661d, type: 3}
+  explosion: {fileID: 8300000, guid: 47d0a1ac5917413b89eec1f7c28da422, type: 3}
+  healing: {fileID: 8300000, guid: 7cc62290fd2f46a3a351db867a175e0e, type: 3}
+  charge: 0.8
+  flight: 0.36
+  reaction: 0.12
+  explosionDuration: 0.28
+  streamTravel: 0.35
+  reconstruction: 0.68
+  fade: 0.12
+  chargeWidth: 0.95
+  fireballWidth: 1.52
+  explosionWidth: 2.64
+  ringWidth: 1.35
+  volume: 0.8
+  chargeSheet: {fileID: 2800000, guid: 658812103df14f9f994a69803aabe8b4, type: 3}
+  projectileSheet: {fileID: 2800000, guid: 17382ea016e146f7b9a29952f60fd884, type: 3}
+  explosionSheet: {fileID: 2800000, guid: ada35522f39f417aaab0d3edab2235c2, type: 3}

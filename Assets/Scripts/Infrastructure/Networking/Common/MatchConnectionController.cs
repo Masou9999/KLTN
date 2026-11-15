@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Threading.Tasks;
 using KLTN.Game.ApplicationLayer;
 using KLTN.Game.Domain;
 using KLTN.Game.Networking;
@@ -49,6 +50,8 @@ public sealed class MatchConnectionController : MonoBehaviour
     #region Singleton
 
     private static MatchConnectionController instance;
+    private static Task<bool> returnToMenuTask;
+    public static bool IsLeaving => returnToMenuTask != null && !returnToMenuTask.IsCompleted;
 
     #endregion
 
@@ -63,6 +66,7 @@ public sealed class MatchConnectionController : MonoBehaviour
     private string listenJoinCode;
 
     private bool matchRunning;
+    private bool matchFinished;
     private bool leavingOnPurpose;
     private bool reconnecting;
     private bool attemptActive;
@@ -92,6 +96,7 @@ public static bool IsDedicatedMatch
     /// <summary>Called when the client connects to a dedicated match server.</summary>
     public static void RememberDedicated(string ip, ushort port, string matchId)
     {
+        if (IsLeaving) return;
         MatchConnectionController controller = Ensure();
         controller.route = Route.Dedicated;
         controller.dedicatedIp = ip;
@@ -103,6 +108,7 @@ public static bool IsDedicatedMatch
     /// <summary>Called when this player hosts a listen-host room.</summary>
     public static void RememberListenHost()
     {
+        if (IsLeaving) return;
         MatchConnectionController controller = Ensure();
         controller.route = Route.ListenHost;
         controller.listenJoinCode = null;
@@ -112,6 +118,7 @@ public static bool IsDedicatedMatch
     /// <summary>Called when this player joins a listen-host room; the code is reused to rejoin.</summary>
     public static void RememberListenGuest(string joinCode)
     {
+        if (IsLeaving) return;
         MatchConnectionController controller = Ensure();
         controller.route = Route.ListenGuest;
         controller.listenJoinCode = joinCode?.Trim();
@@ -158,11 +165,13 @@ public static bool IsDedicatedMatch
     private void OnEnable()
     {
         UgsSessionService.Instance.HostSessionEnded += OnHostSessionEnded;
+        MatchProjectionRegistry.Current.SnapshotChanged += OnMatchSnapshotChanged;
     }
 
     private void OnDisable()
     {
         UgsSessionService.Instance.HostSessionEnded -= OnHostSessionEnded;
+        MatchProjectionRegistry.Current.SnapshotChanged -= OnMatchSnapshotChanged;
 
         if (hookedManager != null)
         {
@@ -193,6 +202,7 @@ public static bool IsDedicatedMatch
         if (inGame && snapshot != null && !string.IsNullOrEmpty(snapshot.matchId))
         {
             matchRunning = snapshot.outcome == (int)MatchOutcome.Running;
+            matchFinished = !matchRunning;
         }
 
         if (inGame && snapshot != null && !overlay.IsDialogVisible)
@@ -277,6 +287,8 @@ public static bool IsDedicatedMatch
 
     private void OnClientStopped(bool wasHost)
     {
+        // A final snapshot can arrive in the same frame as shutdown, before Update runs.
+        RememberFinishedSnapshot();
         if (attemptActive)
         {
             attemptStopped = true;
@@ -325,9 +337,16 @@ public static bool IsDedicatedMatch
 
     private void OnHostSessionEnded()
     {
-        if (route != Route.ListenGuest)
+        if (leavingOnPurpose || IsLeaving || route != Route.ListenGuest)
         {
             return;
+        }
+
+        RememberFinishedSnapshot();
+        if (matchFinished)
+        {
+            overlay.HideAll();
+            return; // Keep the result screen when the host leaves a completed match first.
         }
 
         bool inGame = SceneManager.GetActiveScene().name == SceneNames.GameScene;
@@ -489,7 +508,7 @@ public static bool IsDedicatedMatch
             SceneManager.LoadScene(SceneNames.HostClientMenu);
             await UgsSessionService.Instance.JoinByCodeAsync(listenJoinCode);
 
-            if (this == null)
+            if (this == null || IsLeaving || route == Route.None)
             {
                 return;
             }
@@ -502,7 +521,7 @@ public static bool IsDedicatedMatch
         {
             Debug.LogWarning($"[Reconnect] Rejoin failed: {exception.Message}");
 
-            if (this == null)
+            if (this == null || IsLeaving || route == Route.None)
             {
                 return;
             }
@@ -549,48 +568,67 @@ public static bool IsDedicatedMatch
         overlay.ShowDialog(message, BackToMenuText, GoToMainMenu);
     }
 
-    private void GoToMainMenu()
+    private async void GoToMainMenu()
     {
-        Route leftRoute = route;
-        Forget();
-
-        NetworkManager networkManager = NetworkManager.Singleton;
-
-        if (networkManager != null && networkManager.IsListening)
-        {
-            networkManager.Shutdown();
-        }
-        else
-        {
-            leavingOnPurpose = false;
-        }
-
-        if (leftRoute == Route.ListenGuest || leftRoute == Route.ListenHost)
-        {
-            _ = LeaveSessionQuietlyAsync();
-        }
-
-        SceneManager.LoadScene(SceneNames.MainMenu);
+        await ReturnToMainMenuAsync();
     }
 
-    private static async System.Threading.Tasks.Task LeaveSessionQuietlyAsync()
+    /// <summary>All intentional exits share one awaited teardown, including repeated clicks.</summary>
+    public static Task<bool> ReturnToMainMenuAsync()
     {
+        if (IsLeaving) return returnToMenuTask;
+        returnToMenuTask = ReturnToMainMenuCoreAsync();
+        return returnToMenuTask;
+    }
+
+    private static async Task<bool> ReturnToMainMenuCoreAsync()
+    {
+        // Publish the in-flight task before callbacks or a synchronous SDK completion can reenter.
+        await Task.Yield();
+        Forget();
         try
         {
             await UgsSessionService.Instance.LeaveAsync();
+            MatchProjectionRegistry.Current.Reset();
+            MatchUpdateInboxRegistry.Current.Reset();
+            MatchSettlementRegistry.Reset();
+            Debug.Log("[SessionLifecycle] Room left and network stopped. Returning to MainMenu.");
+            SceneManager.LoadScene(SceneNames.MainMenu);
+            return true;
         }
         catch (Exception exception)
         {
-            Debug.LogWarning(exception.Message);
+            Debug.LogWarning($"[SessionLifecycle] Leave failed: {exception.Message}");
+            MatchConnectionController controller = Ensure();
+            controller.overlay.ShowDialog(
+                "Chưa thể dọn phòng. Kiểm tra kết nối rồi thử lại.",
+                "Thử rời phòng lại", controller.GoToMainMenu);
+            return false;
         }
     }
 
     private void ResetMatchTracking()
     {
         matchRunning = false;
+        matchFinished = false;
         bannerRevision = ulong.MaxValue;
         opponentWasAway = false;
         reconnectedNoticeUntil = 0f;
+    }
+
+    private void RememberFinishedSnapshot()
+    {
+        OnMatchSnapshotChanged(MatchProjectionRegistry.Current.Current);
+    }
+
+    private void OnMatchSnapshotChanged(MatchSnapshotDto snapshot)
+    {
+        // Despawn clears the projection before OnClientStopped; retain the final result now.
+        if (snapshot != null && snapshot.outcome != (int)MatchOutcome.Running)
+        {
+            matchFinished = true;
+            matchRunning = false;
+        }
     }
 
     #endregion

@@ -5,6 +5,32 @@ namespace KLTN.Game.Domain.Tests
 {
     public sealed class AbilityRuntimeTests
     {
+        [TestCase(EffectTarget.AlliedNexus, 4)]
+        [TestCase(EffectTarget.EnemyNexus, 4)]
+        [TestCase(EffectTarget.AlliedNexus, 0)]
+        public void NexusHeal_RecordsActualHealthChange(EffectTarget target, int missingHealth)
+        {
+            MatchState state = CreateReadyState();
+            PlayerState healed = target == EffectTarget.AlliedNexus ? state.Host : state.Guest;
+            healed.ApplyNexusDamage(missingHealth);
+            var definition = Definition("healer", Ability("heal_test", AbilityTrigger.Play,
+                new EffectDefinition(EffectKind.Heal, target, amount: 1)));
+            var card = AddHandCard(state.Host, 1, definition.Id, 3);
+            var engine = new MatchRulesEngine(new Dictionary<string, CardDefinition> { { definition.Id, definition } });
+            Assert.IsTrue(engine.TrySummonUnit(state, SeatId.Host, card.InstanceId).Accepted);
+            AbilityResolution resolution = state.TakeAbilityResolution();
+            if (missingHealth == 0)
+            {
+                Assert.IsTrue(resolution == null || resolution.Events.Count == 0);
+                return;
+            }
+            Assert.AreEqual(1, resolution.Events.Count);
+            Assert.AreEqual(EffectKind.Heal, resolution.Events[0].Kind);
+            Assert.AreEqual(healed.Seat, resolution.Events[0].NexusOwner);
+            Assert.AreEqual(16, resolution.Events[0].NexusHealthBefore);
+            Assert.AreEqual(17, resolution.Events[0].NexusHealthAfter);
+        }
+
         [Test]
         public void PlayDrawEffect_ExecutesAfterSummon()
         {

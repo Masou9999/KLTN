@@ -105,10 +105,13 @@ namespace KLTN.Game.Networking
         /// </summary>
         private void HoldSeat(MatchSession session, SeatId seat)
         {
+            CheckTurnExpiry(session, TurnNow);
             if (!session.Seats.MarkDisconnected(seat, NowMs()))
             {
                 return;
             }
+
+            session.TurnTimer.SetPaused(true, TurnNow);
 
             Debug.Log(
                 $"[Reconnect] {seat} of {session.MatchId} disconnected; holding the seat for "

@@ -25,6 +25,7 @@ public sealed class ListenSessionController : MonoBehaviour
 
     private bool loadingGameScene;
     private bool leaving;
+    private bool connecting;
 
     #endregion
 
@@ -48,11 +49,15 @@ public sealed class ListenSessionController : MonoBehaviour
 
     public async void Host()
     {
+        if (connecting || leaving || loadingGameScene || MatchConnectionController.IsLeaving) return;
+        connecting = true;
         try
         {
             SetStatus("Đang tạo phòng...");
             string joinCode = await UgsSessionService.Instance.HostAsync();
+            if (leaving || MatchConnectionController.IsLeaving) return;
             MatchConnectionController.RememberListenHost();
+            if (this == null) return;
 
             if (joinCodeLabel != null)
             {
@@ -66,18 +71,23 @@ public sealed class ListenSessionController : MonoBehaviour
             Debug.LogException(exception);
             SetStatus($"Không thể tạo phòng: {exception.Message}");
         }
+        finally { connecting = false; }
     }
 
     public async void Join()
     {
+        if (connecting || leaving || loadingGameScene || MatchConnectionController.IsLeaving) return;
+        connecting = true;
         try
         {
             string joinCode = joinCodeInput?.text;
             SetStatus("Đang tham gia phòng...");
             await UgsSessionService.Instance.JoinByCodeAsync(joinCode);
 
+            if (leaving || MatchConnectionController.IsLeaving) return;
             // The guest can rejoin the same room with this code after a lost connection.
             MatchConnectionController.RememberListenGuest(joinCode);
+            if (this == null) return;
             SetStatus("Đã tham gia. Chờ host bắt đầu.");
         }
         catch (Exception exception)
@@ -85,6 +95,7 @@ public sealed class ListenSessionController : MonoBehaviour
             Debug.LogException(exception);
             SetStatus($"Không thể tham gia: {exception.Message}");
         }
+        finally { connecting = false; }
     }
 
     public async void Leave()
@@ -100,7 +111,7 @@ public sealed class ListenSessionController : MonoBehaviour
     {
         SetStatus($"Người chơi: {playerCount}/2");
 
-        if (playerCount != 2 || !UgsSessionService.Instance.IsHost || loadingGameScene)
+        if (leaving || MatchConnectionController.IsLeaving || playerCount != 2 || !UgsSessionService.Instance.IsHost || loadingGameScene)
         {
             return;
         }
@@ -109,12 +120,14 @@ public sealed class ListenSessionController : MonoBehaviour
         NetworkManager networkManager = NetworkManager.Singleton;
 
         // Wait briefly for the Relay-backed host to start.
-        for (int frame = 0; frame < 120 && !networkManager.IsHost; frame++)
+        for (int frame = 0; frame < 120 && networkManager != null && !networkManager.IsHost && !leaving && !MatchConnectionController.IsLeaving; frame++)
         {
             await Task.Yield();
         }
 
-        if (!networkManager.IsHost)
+        if (this == null || !isActiveAndEnabled || leaving || MatchConnectionController.IsLeaving) return;
+
+        if (networkManager == null || !networkManager.IsHost || UgsSessionService.Instance.PlayerCount != 2)
         {
             loadingGameScene = false;
             SetStatus("Host network chưa sẵn sàng.");
@@ -141,7 +154,7 @@ public sealed class ListenSessionController : MonoBehaviour
         }
 
         SetStatus("Host đã đóng phòng.");
-        _ = ReturnToMainMenuAsync();
+        _ = LeaveAndReturnAsync();
     }
 
     #endregion
@@ -156,31 +169,29 @@ public sealed class ListenSessionController : MonoBehaviour
         }
 
         leaving = true;
-        MatchConnectionController.Forget();
-
-        try
-        {
-            await UgsSessionService.Instance.LeaveAsync();
-        }
-        catch (Exception exception)
-        {
-            Debug.LogWarning(exception.Message);
-        }
-
-        await ReturnToMainMenuAsync();
-    }
-
-    private static Task ReturnToMainMenuAsync()
-    {
         NetworkManager networkManager = NetworkManager.Singleton;
+        bool needsCleanup = connecting
+            || loadingGameScene
+            || UgsSessionService.Instance.HasSession
+            || UgsSessionService.Instance.IsBusy
+            || MatchConnectionController.IsLeaving
+            || (networkManager != null && (networkManager.IsListening || networkManager.ShutdownInProgress));
 
-        if (networkManager != null && networkManager.IsListening)
+        // Back from an idle menu is navigation, not leaving a room.
+        if (!needsCleanup)
         {
-            networkManager.Shutdown();
+            MatchConnectionController.Forget();
+            SceneManager.LoadScene(SceneNames.MainMenu);
+            return;
         }
 
-        SceneManager.LoadScene(SceneNames.MainMenu);
-        return Task.CompletedTask;
+        SetStatus("Đang rời phòng...");
+        bool completed = await MatchConnectionController.ReturnToMainMenuAsync();
+        if (this != null && !completed)
+        {
+            leaving = false;
+            SetStatus("Chưa thể rời phòng. Vui lòng thử lại.");
+        }
     }
 
     #endregion

@@ -238,6 +238,10 @@ namespace KLTN.Game.Domain
                         definition
                     );
 
+                    var joined = AbilityCardState.Capture(candidate, definition);
+                    state.Journal.Add(state.RoundNumber, MatchLogCategory.Ability, v =>
+                        $"{MatchJournal.Card(joined, v)} hồi sinh từ nghĩa địa để cùng tấn công" +
+                        (rules.RequiresEphemeralAttacker ? " với đồng minh có hiệu ứng Phù Du." : "."));
                     attackersBySlot[slotIndex] = candidate;
 
                     events.Add(
@@ -319,7 +323,9 @@ namespace KLTN.Game.Domain
                         null,
                         before,
                         AbilityCardState.Capture(card, definition),
-                        isRoundStartPassive: true
+                        isRoundStartPassive: true,
+                        journalContext: $"Đã chết {state.RoundHistory.CountDeathsThisGame(card.InstanceId)} lần, " +
+                            $"nhận +{state.RoundHistory.CountDeathsThisGame(card.InstanceId) * rules.PowerAndHealthPerDeath}|+{state.RoundHistory.CountDeathsThisGame(card.InstanceId) * rules.PowerAndHealthPerDeath}."
                     )
                 );
 

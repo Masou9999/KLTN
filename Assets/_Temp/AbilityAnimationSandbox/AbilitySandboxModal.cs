@@ -41,11 +41,43 @@ namespace KLTN.Sandbox
 
         private void Awake()
         {
+            // Upgrade existing sandbox scenes in memory, without rebuilding/saving them.
+            foreach (bool reserve in new[] { true, false })
+            {
+                if (rows.Any(r => r.id == "MaCangSung" && r.reserve == reserve)) continue;
+                Row template = rows.Last(r => r.reserve == reserve);
+                var rect = Instantiate((RectTransform)template.count.transform.parent,
+                    template.count.transform.parent.parent);
+                rect.name = (reserve ? "Reserve_" : "Hand_") + "MaCangSung";
+                rect.Find("Name").GetComponent<TMP_Text>().text = "Ma Càng Sùng";
+                var row = new Row { id = "MaCangSung", reserve = reserve,
+                    minus = rect.Find("Minus").GetComponent<Button>(),
+                    plus = rect.Find("Plus").GetComponent<Button>(), count = rect.Find("Count").GetComponent<TMP_Text>() };
+                row.minus.onClick = new Button.ButtonClickedEvent();
+                row.plus.onClick = new Button.ButtonClickedEvent();
+                rows = rows.Concat(new[] { row }).ToArray();
+            }
+            foreach (bool reserve in new[] { true, false })
+            {
+                int index = 0;
+                foreach (Row row in rows.Where(r => r.reserve == reserve))
+                {
+                    var rect = (RectTransform)row.count.transform.parent;
+                    rect.anchoredPosition = new Vector2(reserve ? -330 : 330, 170 - index++ * 58);
+                    rect.sizeDelta = new Vector2(600, 54);
+                }
+            }
             foreach (Row row in rows)
             {
                 Row captured = row;
                 row.minus.onClick.AddListener(() => Change(captured, -1));
                 row.plus.onClick.AddListener(() => Change(captured, 1));
+            }
+            var hint = handTitle.transform.parent.Find("ReserveHint") as RectTransform;
+            if (hint != null)
+            {
+                hint.anchoredPosition = new Vector2(330, -215);
+                hint.sizeDelta = new Vector2(590, 80);
             }
             confirmButton.onClick.AddListener(Confirm);
             cancelButton.onClick.AddListener(Cancel);

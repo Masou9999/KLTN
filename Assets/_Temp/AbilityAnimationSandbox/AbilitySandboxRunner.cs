@@ -8,6 +8,7 @@ using KLTN.Game.Networking;
 using KLTN.Game.Presentation;
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 namespace KLTN.Sandbox
 {
@@ -34,6 +35,7 @@ namespace KLTN.Sandbox
         public AbilitySandboxModel Model { get; private set; }
         private ulong publishedRevision;
         private CombatVfxPresenter particles;
+        private Button maTranhTestButton;
         public bool IsBusy => Model == null
             || MatchProjectionRegistry.Current.Current?.revision != publishedRevision;
 
@@ -51,6 +53,21 @@ namespace KLTN.Sandbox
             controls.BindAnimationSandbox(this);
             addButton.onClick.AddListener(OpenModal);
             resetButton.onClick.AddListener(ResetScene);
+            // Created at runtime so existing and regenerated sandbox scenes both
+            // receive this shortcut without overwriting scene customizations.
+            maTranhTestButton = Instantiate(resetButton, resetButton.transform.parent);
+            maTranhTestButton.name = "SandboxTestMaTranh";
+            maTranhTestButton.onClick = new Button.ButtonClickedEvent();
+            maTranhTestButton.onClick.AddListener(PrepareMaTranhPreview);
+            var testRect = (RectTransform)maTranhTestButton.transform;
+            var resetRect = (RectTransform)resetButton.transform;
+            testRect.sizeDelta = new Vector2(310f, resetRect.sizeDelta.y);
+            testRect.anchoredPosition = resetRect.anchoredPosition
+                + Vector2.left * (resetRect.sizeDelta.x * 0.5f + 175f);
+            TMP_Text label = maTranhTestButton.GetComponentInChildren<TMP_Text>();
+            label.text = "TEST MA TRÀNH";
+            label.enableAutoSizing = true;
+            label.fontSizeMin = 18f;
         }
 
         private void Start()
@@ -66,11 +83,13 @@ namespace KLTN.Sandbox
                 && (settingsPanel == null || !settingsPanel.activeSelf);
             resetButton.interactable = !modalOpen
                 && (settingsPanel == null || !settingsPanel.activeSelf);
+            maTranhTestButton.interactable = resetButton.interactable && !IsBusy;
             controls.RefreshAnimationSandbox(IsBusy);
         }
 
         private void OnDestroy()
         {
+            if (maTranhTestButton != null) Destroy(maTranhTestButton.gameObject);
             if (controls != null)
             {
                 controls.EditorSubmitOverride = null;
@@ -168,6 +187,16 @@ namespace KLTN.Sandbox
         /// </summary>
         public void ResetScene()
         {
+            ResetFixture(false);
+        }
+
+        public void PrepareMaTranhPreview()
+        {
+            ResetFixture(true);
+        }
+
+        private void ResetFixture(bool prepareMaTranh)
+        {
             modal.gameObject.SetActive(false);
             director.enabled = false;
             if (particles != null && particles.enabled)
@@ -180,7 +209,8 @@ namespace KLTN.Sandbox
             board.enabled = false;
             MatchUpdateInboxRegistry.Current.Reset();
             MatchProjectionRegistry.Current.Reset();
-            Model.Reset();
+            if (prepareMaTranh) Model.PrepareMaTranhPreview();
+            else Model.Reset();
             board.enabled = true;
             director.enabled = true;
             Publish();

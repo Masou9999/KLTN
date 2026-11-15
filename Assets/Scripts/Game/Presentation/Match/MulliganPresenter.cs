@@ -57,6 +57,21 @@ public class MulliganPresenter : MonoBehaviour
             return;
         }
 
+        // The server can keep this hand automatically when its own mulligan clock
+        // expires, while the opponent still has time left. Do not offer a second commit.
+        if (snapshot.roundNumber == 0 && !string.IsNullOrEmpty(snapshot.matchId)
+            && snapshot.turnClock != null && snapshot.turnClock.self == null)
+        {
+            hasConfirmed = true;
+            if (actionButtonText != null) actionButtonText.text = "ĐANG CHỜ...";
+            if (actionButton != null)
+            {
+                actionButton.onClick.RemoveListener(OnConfirmClicked);
+                actionButton.interactable = false;
+            }
+            return;
+        }
+
         if (snapshot.roundNumber == 0 && !hasConfirmed)
         {
             gameObject.SetActive(true);

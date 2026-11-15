@@ -159,7 +159,19 @@ namespace KLTN.CloudCode.MatchServer
         /// Rewards (Appendix C) and season points for both players in one Firestore commit, once per
         /// match: a repeated report returns the stored settlement with alreadyReported = true.
         /// </summary>
-        public static async Task<ReportResultResponse> ReportAsync(FirestoreAdmin firestore, Report report, long nowUtcMs)
+        public static Task<ReportResultResponse> ReportAsync(FirestoreAdmin firestore, Report report, long nowUtcMs)
+        {
+            return ReportCoreAsync(firestore, report, nowUtcMs, null);
+        }
+
+        internal static Task<ReportResultResponse> ReportListenAsync(
+            FirestoreAdmin firestore, Report report, string hostPlayerId, long nowUtcMs)
+        {
+            return ReportCoreAsync(firestore, report, nowUtcMs, hostPlayerId);
+        }
+
+        private static async Task<ReportResultResponse> ReportCoreAsync(
+            FirestoreAdmin firestore, Report report, long nowUtcMs, string listenHostPlayerId)
         {
             MatchOutcome outcome = ParseOutcome(report.Outcome);
 
@@ -179,7 +191,7 @@ namespace KLTN.CloudCode.MatchServer
             {
                 try
                 {
-                    return await TryReportAsync(firestore, report, outcome, surrenderedSeat, nowUtcMs);
+                    return await TryReportAsync(firestore, report, outcome, surrenderedSeat, nowUtcMs, listenHostPlayerId);
                 }
                 catch (FirestoreConflictException) when (attempt < MaxCommitAttempts)
                 {
@@ -193,12 +205,24 @@ namespace KLTN.CloudCode.MatchServer
             Report report,
             MatchOutcome outcome,
             SeatId? surrenderedSeat,
-            long nowUtcMs
+            long nowUtcMs,
+            string listenHostPlayerId
         )
         {
             string matchPath = MatchRecords.MatchPath(report.MatchId);
             (JsonObject match, string matchVersion) = await firestore.GetAsync(matchPath);
-            string refusal = CheckMatch(match, report.MatchToken, new[] { report.HostPlayerId, report.GuestPlayerId });
+            string refusal = null;
+            if (listenHostPlayerId == null)
+            {
+                refusal = CheckMatch(match, report.MatchToken, new[] { report.HostPlayerId, report.GuestPlayerId });
+            }
+            else
+            {
+                ListenMatchService.CheckHost(FirestoreAdmin.Fields(match), listenHostPlayerId);
+                var players = FirestoreAdmin.GetStrings(FirestoreAdmin.Fields(match), "players");
+                if (players.Count != 2 || players[0] != report.HostPlayerId || players[1] != report.GuestPlayerId)
+                    refusal = "not_in_match";
+            }
 
             if (refusal != null)
             {

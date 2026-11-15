@@ -74,6 +74,7 @@ namespace KLTN.Game.ApplicationLayer
         public long CreatedAtMs { get; }
 
         public SeatConnectionTracker Seats { get; }
+        public MatchTurnTimer TurnTimer { get; } = new MatchTurnTimer();
 
         /// <summary>Null until both players are seated and their decks are built.</summary>
         public MatchState State { get; private set; }

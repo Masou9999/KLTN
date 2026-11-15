@@ -209,7 +209,10 @@ public class AuthManager : MonoBehaviour
             Debug.Log($"Authentication completed for user {result.UserId}.");
             int listenerCount = OnLoginSuccess?.GetInvocationList().Length ?? 0;
             Debug.Log($"OnLoginSuccess listener count: {listenerCount}");
-            OnLoginSuccess?.Invoke();
+            if (await KLTN.Audio.AudioVolumeSettings.LoadAccountAsync(CurrentUserId))
+            {
+                OnLoginSuccess?.Invoke();
+            }
             return result;
         }
         catch (Exception exception)
@@ -243,7 +246,10 @@ public class AuthManager : MonoBehaviour
             Debug.Log("Xác thực Google -> Firebase -> UGS thành công!");
             PlayerPrefs.SetString(PREF_LOGIN_METHOD, "google");
             PlayerPrefs.Save();
-            OnLoginSuccess?.Invoke();
+            if (await KLTN.Audio.AudioVolumeSettings.LoadAccountAsync(CurrentUserId))
+            {
+                OnLoginSuccess?.Invoke();
+            }
             return true;
         }
         catch (Exception ex)
@@ -332,7 +338,10 @@ public class AuthManager : MonoBehaviour
             bool ugsSuccess = await LoginFirebaseToUGS(result.IdToken);
             if (!ugsSuccess) return;
             Debug.Log("Auto-Login Email & UGS thành công!");
-            OnLoginSuccess?.Invoke();
+            if (await KLTN.Audio.AudioVolumeSettings.LoadAccountAsync(CurrentUserId))
+            {
+                OnLoginSuccess?.Invoke();
+            }
         }
         catch (Exception ex)
         {
@@ -392,6 +401,7 @@ public class AuthManager : MonoBehaviour
         if (GoogleAuthService.Instance != null) { GoogleAuthService.Instance.ClearSession(); }
 
         Debug.Log("Đã đăng xuất toàn bộ hệ thống thành công.");
+        KLTN.Audio.AudioVolumeSettings.UseGuest();
         OnLogoutSuccess?.Invoke();
     }
 

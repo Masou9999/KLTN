@@ -28,8 +28,9 @@ namespace KLTN.Game.Content
         [SerializeField]
         private string scheduleCron = "0 * * * *";
 
-        [Header("Testing")]
-        [Tooltip("Score Host/Client (listen) matches too. Read on the host. Find Random is always scored.")]
+        [Header("Host / Client Matches")]
+        [InspectorName("Host Client Points And Rewards Enabled")]
+        [Tooltip("Save rank points, coins and silver for Host/Client matches. Read once on the host when the match starts; changes apply to the next match. Find Random uses its server configuration.")]
         [SerializeField]
         private bool hostClientPointsEnabled = true;
 

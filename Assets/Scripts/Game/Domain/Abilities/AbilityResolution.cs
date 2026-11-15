@@ -11,6 +11,8 @@ namespace KLTN.Game.Domain
     {
         public ulong InstanceId { get; }
         public string DefinitionId { get; }
+        public string DisplayName { get; }
+        public int Cost { get; }
         public SeatId Owner { get; }
         public CardZone Zone { get; }
         public int BoardSlotIndex { get; }
@@ -18,10 +20,12 @@ namespace KLTN.Game.Domain
         public int Health { get; }
         public int MaximumHealth { get; }
 
-        private AbilityCardState(CardInstance card, CardDefinition definition)
+        private AbilityCardState(CardInstance card, CardDefinition definition, int? effectiveCost)
         {
             InstanceId = card.InstanceId;
             DefinitionId = card.DefinitionId;
+            DisplayName = definition?.DisplayName ?? card.DefinitionId;
+            Cost = effectiveCost ?? card.GetCost(definition);
             Owner = card.Owner;
             Zone = card.Zone;
             BoardSlotIndex = card.BoardSlotIndex;
@@ -30,9 +34,9 @@ namespace KLTN.Game.Domain
             MaximumHealth = card.GetMaximumHealth(definition);
         }
 
-        public static AbilityCardState Capture(CardInstance card, CardDefinition definition)
+        public static AbilityCardState Capture(CardInstance card, CardDefinition definition, int? effectiveCost = null)
         {
-            return card == null ? null : new AbilityCardState(card, definition);
+            return card == null ? null : new AbilityCardState(card, definition, effectiveCost);
         }
     }
 
@@ -41,6 +45,8 @@ namespace KLTN.Game.Domain
     /// </summary>
     public sealed class AbilityResolutionEvent
     {
+        public string JournalContext { get; }
+        public EffectDuration Duration { get; }
         public long Sequence { get; }
         public string AbilityId { get; }
         public EffectKind Kind { get; }
@@ -62,9 +68,13 @@ namespace KLTN.Game.Domain
             SeatId? nexusOwner = null,
             int nexusHealthBefore = 0,
             int nexusHealthAfter = 0,
-            bool isRoundStartPassive = false
+            bool isRoundStartPassive = false,
+            string journalContext = "",
+            EffectDuration duration = EffectDuration.Permanent
         )
         {
+            JournalContext = journalContext;
+            Duration = duration;
             Sequence = sequence;
             AbilityId = abilityId;
             Kind = kind;

@@ -13,6 +13,9 @@ namespace KLTN.Game.Domain
 
         public SeatId Seat { get; }
 
+        /// <summary>Timeouts on this player's successive decisions, preserved across rounds.</summary>
+        public int ConsecutiveTimeouts { get; internal set; }
+
         public int NexusHealth { get; private set; } = 20;
         public int MaxMana { get; private set; }
         public int Mana { get; private set; }

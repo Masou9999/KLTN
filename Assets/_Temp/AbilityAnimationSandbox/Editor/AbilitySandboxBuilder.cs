@@ -145,7 +145,7 @@ namespace KLTN.Sandbox.Editor
             Text("ReserveHint", panel,
                 "Lá kỹ năng vào Reserve qua triệu hồi.\n"
                     + "Nút − chỉ xóa, không kích hoạt chết.",
-                new Vector2(330, -180), new Vector2(590, 100), 23);
+                new Vector2(330, -215), new Vector2(590, 80), 23);
             modal.errorLabel = Text("Error", panel, string.Empty,
                 new Vector2(0, -300), new Vector2(1240, 45), 24);
             modal.cancelButton = Button("Cancel", panel, "HỦY",
@@ -164,7 +164,7 @@ namespace KLTN.Sandbox.Editor
                 var asset = AssetDatabase.LoadAssetAtPath<CMCMProductions.Card>(
                     "Assets/Resources/Cards/" + id + ".asset");
                 RectTransform row = Rect((reserve ? "Reserve_" : "Hand_") + id,
-                    parent, new Vector2(x, 170 - i * 64), new Vector2(600, 58));
+                    parent, new Vector2(x, 170 - i * 58), new Vector2(600, 54));
                 row.gameObject.AddComponent<Image>().color =
                     new Color(0.18f, 0.135f, 0.15f);
                 TMP_Text label = Text("Name", row, asset.cardName,

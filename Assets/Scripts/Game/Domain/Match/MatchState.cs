@@ -18,6 +18,8 @@ namespace KLTN.Game.Domain
 
         #region Match State
 
+        public MatchJournal Journal { get; } = new MatchJournal();
+
         public PlayerState Host { get; } = new PlayerState(SeatId.Host);
         public PlayerState Guest { get; } = new PlayerState(SeatId.Guest);
 
@@ -45,6 +47,7 @@ namespace KLTN.Game.Domain
 
         /// <summary>Seat that surrendered, or null when the match did not end by surrender.</summary>
         public SeatId? SurrenderedSeat { get; set; }
+        public SeatId? TimedOutSeat { get; internal set; }
         private ulong nextAbilitySelectionRequestId = 1;
         private ulong nextGeneratedCardInstanceId = 1;
         private long nextAbilityResolutionSequence = 1;
@@ -69,6 +72,7 @@ namespace KLTN.Game.Domain
             }
 
             pendingAbilityResolutionEvents.Add(resolutionEvent);
+            Journal.Ability(RoundNumber, resolutionEvent, resolutionEvent.JournalContext, resolutionEvent.Duration);
         }
 
         /// <summary>Returns and clears the effects applied since the last publication.</summary>

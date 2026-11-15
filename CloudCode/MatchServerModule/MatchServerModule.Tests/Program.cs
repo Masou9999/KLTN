@@ -255,11 +255,75 @@ class P
         _ = cToken;
         _ = dToken;
 
+        await CheckListenMatches(lookup, T + 10 * H);
+
         Console.WriteLine(fails == 0 ? "\nall passed" : $"\n{fails} failed");
         return fails;
     }
 
     #region Helpers
+
+    static async Task CheckListenMatches(FakeLookup lookup, long at)
+    {
+        await Put("config/season", new JsonObject
+        {
+            ["anchorSeasonId"] = FirestoreAdmin.Integer(50),
+            ["anchorStartMs"] = FirestoreAdmin.Integer(at - 60000),
+            ["durationMs"] = FirestoreAdmin.Integer(3600000),
+            ["lockMs"] = FirestoreAdmin.Integer(300000),
+        });
+        Task<string> Join(string id, string player, long time) => ListenMatchService.RegisterAsync(
+            fs, lookup, Project, player, "tok", id, "p1", time);
+        Task<ReportResultResponse> Report(string id, string caller, long time,
+            string outcome = "HostWon", bool hostSurrendered = false, int round = 5) =>
+            ListenMatchService.ReportAsync(fs, caller, id, outcome, hostSurrendered, false, round, time);
+
+        string id = MatchRecords.NewMatchId();
+        Check(await Throws(() => Join("../bad", "p1", at), "bad_match_id"), "listen rejects malformed IDs");
+        Check(await Throws(() => Join(id, "p2", at), "host_not_registered"), "listen guest cannot create host's match");
+        Check(await Join(id, "p1", at) == "p1", "listen host registers own identity");
+        var beforeHost = await Coins("u1");
+        var beforeGuest = await Coins("u2");
+        Check(await Throws(() => Report(id, "p1", at), "players_not_registered"), "listen requires both participants");
+        Check(await Join(id, "p1", at + 1000) == "p1", "listen registration retry is idempotent");
+        lookup.Links["p1-alias"] = "u1";
+        Check(await Throws(() => Join(id, "p1-alias", at), "same_account"), "listen rejects two identities for same account");
+        Check(await Join(id, "p2", at + 2000) == "p2", "listen guest registers own identity");
+        Check(await Join(id, "p2", at + 3000) == "p2", "listen guest can reconnect without changing roster");
+        Check(await Throws(() => Join(id, "p3", at + 3000), "match_full_or_finished"), "listen third player cannot replace guest");
+        Check(await Throws(() => Report(id, "p2", at + 5000), "not_listen_host"), "listen guest cannot report");
+        Check(await Throws(() => Report(id, "p3", at + 5000), "not_listen_host"), "listen outsider cannot report");
+        Check(await Throws(() => Report(id, "p1", at + 5000, "Running"), "bad_outcome"), "listen rejects unfinished outcome");
+        var results = await Task.WhenAll(Report(id, "p1", at + 10000), Report(id, "p1", at + 10000));
+        Check(results.Count(r => !r.AlreadyReported) == 1, "listen concurrent reports commit once");
+        var result = results[0];
+        Check(result.Players[0].RankDelta == 30 && result.Players[0].Coins == 75
+            && result.Players[0].Silver == 1 && result.Players[1].Coins == 25,
+            "listen settles rank, coins and silver together");
+        Check(await Coins("u1") == (beforeHost.coins + 75, beforeHost.silver + 1)
+            && await Coins("u2") == (beforeGuest.coins + 25, beforeGuest.silver), "listen duplicate report never pays twice");
+        var replay = await Report(id, "p1", at + 20000, "GuestWon");
+        Check(replay.AlreadyReported && replay.Players[0].Result == "win", "listen replay returns original result");
+
+        string expired = MatchRecords.NewMatchId();
+        await Join(expired, "p1", at);
+        Check(await Throws(() => Join(expired, "p2", at + 120001), "registration_expired"), "listen rejects late first registration");
+        string crash = MatchRecords.NewMatchId();
+        var wallet = await Coins("u1");
+        await Join(crash, "p1", at);
+        await Join(crash, "p2", at);
+        Check(await Coins("u1") == wallet, "listen registration alone never grants rewards (host crash)");
+        var (crashed, _) = await fs.GetAsync(MatchRecords.MatchPath(crash));
+        Check(!FirestoreAdmin.Has(FirestoreAdmin.Fields(crashed), "reportedAt"), "listen unfinished match has no settlement");
+        var surrender = await Report(crash, "p1", at + 90000, "GuestWon", true, 2);
+        Check(surrender.Players[0].Coins == 0 && surrender.Players[0].RankDelta == -20
+            && surrender.Players[1].Coins == 75, "listen early surrender retains existing points and rewards policy");
+
+        string dedicated = MatchRecords.NewMatchId();
+        await NewMatch(dedicated, at);
+        Check(await Throws(() => Join(dedicated, "p1", at), "not_listen_host"), "listen cannot register over dedicated allocation");
+        Check(await Throws(() => Report(dedicated, "p1", at), "not_listen_host"), "listen endpoint cannot settle dedicated match");
+    }
 
     static async Task<string> NewMatch(string id, long createdAt)
     {

@@ -88,3 +88,6 @@ Claude outputs/
 
 # Kết quả test tải (plan 05)
 Tools/LoadTest/results-*/
+
+# Local MatchServerModule guide
+/CloudCode/MatchServerModule/README.md

@@ -35,6 +35,8 @@ namespace KLTN.Game.Domain
 
         // A player is disconnected and the server is holding their seat (FR-NET-06).
         MatchPaused,
+        StaleDecision,
+        DecisionTimedOut,
     }
 
     public sealed class CommandResult

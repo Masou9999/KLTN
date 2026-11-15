@@ -33,7 +33,8 @@ namespace KLTN.Game.Networking
                 return false;
             }
 
-            SubmitSummonUnitRpc(nextLocalCommandId++, parsedId);
+            MatchTurnClockRegistry.MarkSubmitted(CurrentDecisionId);
+            SubmitSummonUnitRpc(nextLocalCommandId++, CurrentDecisionId, parsedId);
 
             return true;
         }
@@ -82,7 +83,8 @@ namespace KLTN.Game.Networking
                 }
             }
 
-            SubmitDeclareAttackRpc(nextLocalCommandId++, parsedIds);
+            MatchTurnClockRegistry.MarkSubmitted(CurrentDecisionId);
+            SubmitDeclareAttackRpc(nextLocalCommandId++, CurrentDecisionId, parsedIds);
 
             return true;
         }
@@ -132,7 +134,8 @@ namespace KLTN.Game.Networking
                 }
             }
 
-            SubmitDeclareBlockRpc(nextLocalCommandId++, parsedIds);
+            MatchTurnClockRegistry.MarkSubmitted(CurrentDecisionId);
+            SubmitDeclareBlockRpc(nextLocalCommandId++, CurrentDecisionId, parsedIds);
 
             return true;
         }
@@ -170,8 +173,10 @@ namespace KLTN.Game.Networking
                 return false;
             }
 
+            MatchTurnClockRegistry.MarkSubmitted(CurrentDecisionId);
             SubmitAbilitySelectionRpc(
                 nextLocalCommandId++,
+                CurrentDecisionId,
                 parsedRequestId,
                 parsedPrimaryTargets,
                 parsedSecondaryTargets
@@ -191,7 +196,8 @@ namespace KLTN.Game.Networking
                 return false;
             }
 
-            SubmitCancelAbilitySelectionRpc(nextLocalCommandId++, parsedRequestId);
+            MatchTurnClockRegistry.MarkSubmitted(CurrentDecisionId);
+            SubmitCancelAbilitySelectionRpc(nextLocalCommandId++, CurrentDecisionId, parsedRequestId);
 
             return true;
         }
@@ -203,7 +209,8 @@ namespace KLTN.Game.Networking
                 return false;
             }
 
-            SubmitPassRpc(nextLocalCommandId++);
+            MatchTurnClockRegistry.MarkSubmitted(CurrentDecisionId);
+            SubmitPassRpc(nextLocalCommandId++, CurrentDecisionId);
             return true;
         }
 
@@ -225,7 +232,8 @@ namespace KLTN.Game.Networking
                 return false;
             }
 
-            SubmitMulliganRpc(nextLocalCommandId++, cardIdsToReplace);
+            MatchTurnClockRegistry.MarkSubmitted(CurrentDecisionId);
+            SubmitMulliganRpc(nextLocalCommandId++, CurrentDecisionId, cardIdsToReplace);
             return true;
         }
 

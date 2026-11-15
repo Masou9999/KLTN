@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f86f555c48e14ca6956978e8521cd930, type: 3}
+  m_Name: MaCangSungBats
+  m_EditorClassIdentifier: 
+  abilityId: ma_cang_sung_ally_death
+  sheet: {fileID: 2800000, guid: 5d5e7b7ef35b457bbdb347d94313e912, type: 3}
+  wings: {fileID: 8300000, guid: ea7c8db4644e46d69882a19c320da769, type: 3}
+  chirp: {fileID: 8300000, guid: 5983ce078d5d469fa698acf7ec2f0740, type: 3}
+  duration: 2
+  surroundTime: 0.65
+  disperseTime: 1.1
+  arrivalTime: 1.7
+  batWidth: 91
+  wingsPitch: 1.5
+  wingsVolume: 0.85
+  chirpVolume: 0.7

@@ -1,0 +1,3 @@
+Reference folder: C:/Users/kkira/Downloads/Effects/Ông Kẹ
+BonkAtlas.png: transparent imagegen cutouts adapted from Some sample sticks.webp (sticks 1, 5, 7) and Bonk Effect.webp. 2x2 equal UV cells: stick1, stick5, stick7, BONK. Grip/tip coordinates calibrated to generated 1254px atlas.
+combat-impact.mp3: unchanged copy of universfield-combat-impact-352458.mp3. Full whoosh retained; impact at about 0.40 seconds.

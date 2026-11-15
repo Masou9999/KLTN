@@ -1,0 +1,40 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f8db6d43096d46b39912f3221fb84afc, type: 3}
+  m_Name: MaDoiFeast
+  m_EditorClassIdentifier: 
+  abilityId: ma_doi_play
+  chicken: {fileID: 2800000, guid: ec32a1976f11425fa4a0ccbba567e63f, type: 3}
+  smoke: {fileID: 2800000, guid: a6487d01f17f48b3ac7f1824c36163cc, type: 3}
+  pop: {fileID: 8300000, guid: 6b755c2457b44bfd9913bbc2dd94e231, type: 3}
+  swish: {fileID: 8300000, guid: 6827f7d877d047cf9fc62b2648538d12, type: 3}
+  chew: {fileID: 8300000, guid: 515c8cc45ccd4f528a07ae34536153ff, type: 3}
+  smokeDelay: 0.02
+  shrinkDuration: 0.09
+  chickenDelay: 0.08
+  chickenGrowDuration: 0.13
+  windupDuration: 0.14
+  flightDuration: 0.4
+  returnDuration: 0.1
+  chewDelay: 0.3
+  impactHold: 0.2
+  chewPitch: 1.5
+  chickenWidth: 0.8
+  smokeWidth: 1.5
+  leanDegrees: 7
+  spinDegrees: 180
+  popOffset: 0.105
+  popEnd: 0.26
+  swishOffset: 0.15
+  swishEnd: 0.31
+  chewEnd: 2.03
+  volume: 0.85

@@ -6,6 +6,29 @@ const env = await initializeTestEnvironment({ projectId: 'demo-kltn', firestore:
 await env.clearFirestore(); // also safe on an emulator shared with the Cloud Code tests
 let pass = 0, fail = 0;
 async function t(name, fn) { try { await fn(); pass++; console.log('ok  ', name); } catch (e) { fail++; console.log('FAIL', name, e.message); } }
+const audio = { music: 75, ui: 70, combat: 0, musicMuted: false, uiMuted: false };
+const audioRef = uid => doc(env.authenticatedContext(uid).firestore(), `users/${uid}/settings/audio`);
+await t('audio owner create', () => assertSucceeds(setDoc(audioRef('audioA'), audio)));
+await t('audio owner update and read', async () => {
+  await assertSucceeds(setDoc(audioRef('audioA'), { ...audio, ui: 100 }));
+  await assertSucceeds(getDoc(audioRef('audioA')));
+});
+await t('audio other account cannot read or write', async () => {
+  const ref = doc(env.authenticatedContext('audioB').firestore(), 'users/audioA/settings/audio');
+  await assertFails(getDoc(ref));
+  await assertFails(setDoc(ref, audio));
+});
+await t('audio unauthenticated denied', () => assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), 'users/audioA/settings/audio'))));
+await t('audio rejects irregular and out of range levels', async () => {
+  for (const music of [-10, 43, 73, 110, 75.5])
+    await assertFails(setDoc(audioRef('audioA'), { ...audio, music }));
+});
+await t('audio rejects extra fields and invalid mute flags', async () => {
+  await assertFails(setDoc(audioRef('audioA'), { ...audio, coins: 999 }));
+  await assertFails(setDoc(audioRef('audioA'), { ...audio, musicMuted: 'false' }));
+  await assertFails(setDoc(audioRef('audioA'), { ...audio, music: 0 }));
+});
+
 const now = Date.now(), H = 3600e3, M = 60e3;
 const db = uid => env.authenticatedContext(uid).firestore();
 const zero = { coins: 0, silver: 0, schemaVersion: 1 };

@@ -52,9 +52,9 @@ namespace KLTN.Game.Domain
         {
             int completedRound = state.RoundNumber;
 
-            ClearRoundModifiers(state.Host);
+            ClearRoundModifiers(state, state.Host);
 
-            ClearRoundModifiers(state.Guest);
+            ClearRoundModifiers(state, state.Guest);
 
             state.Host.ReturnBoardCardsToReserve();
             state.Guest.ReturnBoardCardsToReserve();
@@ -174,6 +174,7 @@ namespace KLTN.Game.Domain
                     continue;
                 }
 
+                state.Journal.Ephemeral(state.RoundNumber, AbilityCardState.Capture(card, definition), true);
                 card.Kill();
 
                 bool moved = state
@@ -190,6 +191,7 @@ namespace KLTN.Game.Domain
                 int maximumHealthAtDeath = card.GetMaximumHealth(definition);
 
                 state.RoundHistory.RecordDeath(card, damageAtDeath, maximumHealthAtDeath);
+                state.Journal.PassiveCosts(state, definitionsById, card.Owner);
 
                 deathEvents.Add(
                     GameEvent.FromCard(GameEventType.UnitDied, state.RoundNumber, card)
@@ -210,24 +212,24 @@ namespace KLTN.Game.Domain
             }
         }
 
-        private void ClearRoundModifiers(PlayerState player)
+        private void ClearRoundModifiers(MatchState state, PlayerState player)
         {
             foreach (CardInstance card in player.DrawHand)
             {
-                ClearRoundModifiers(card);
+                ClearRoundModifiers(state, card);
             }
             foreach (CardInstance card in player.Reserve)
             {
-                ClearRoundModifiers(card);
+                ClearRoundModifiers(state, card);
             }
 
             foreach (CardInstance card in player.Board)
             {
-                ClearRoundModifiers(card);
+                ClearRoundModifiers(state, card);
             }
         }
 
-        private void ClearRoundModifiers(CardInstance card)
+        private void ClearRoundModifiers(MatchState state, CardInstance card)
         {
             if (
                 !definitionsById.TryGetValue(
@@ -239,7 +241,13 @@ namespace KLTN.Game.Domain
                 return;
             }
 
+            var before = AbilityCardState.Capture(card, definition);
             card.ClearRoundModifiers(definition);
+            var after = AbilityCardState.Capture(card, definition);
+            if (before.Damage != after.Damage || before.MaximumHealth != after.MaximumHealth || before.Cost != after.Cost)
+                state.Journal.Add(state.RoundNumber, MatchLogCategory.Ability, v =>
+                    card.Zone == CardZone.DrawHand && v != card.Owner ? null :
+                    $"{MatchJournal.Card(before, v)} hết hiệu ứng trong vòng: chỉ số {before.Damage}|{before.Health} → {after.Damage}|{after.Health}; năng lượng tiêu hao {before.Cost} → {after.Cost}.");
         }
 
         #endregion

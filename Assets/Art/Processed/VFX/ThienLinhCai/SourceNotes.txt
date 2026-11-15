@@ -1,0 +1,4 @@
+Source folder: C:/Users/kkira/Downloads/Effects/Thiên Linh Cái
+All PNG/MP3 assets are unchanged copies. Charge: 1536x1024, 3x2 grid, first cell empty; play cells 1-5. Projectile: 2172x724, 6x2 grid, exclude top 34px labels, 6px side borders and 12px bottom. Per-frame heading and leading-edge pivots align the moving fireball. Explosion: 1254x1254, 2x2 grid.
+Charge is centered on source as Fireball Charge.png. No aftermath, rim fire or lingering embers.
+Revive follows Healing state 1-4: continuous cubic approach joins clockwise circular flow at its tangent; head bends into the circle before source stops; the finite tail advances into the same circle. Front/back graphics share one path and only split occlusion. Uses early mint-sheet texture on the continuous ribbon rather than popping in a disconnected ring sprite. Original mint sheet alpha preserved.

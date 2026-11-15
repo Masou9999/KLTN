@@ -67,9 +67,13 @@ namespace KLTN.Game.Domain
                         blockerCard.CurrentHealth
                     );
 
+                    var attackerBefore = CaptureJournalCard(attackerCard);
+                    var blockerBefore = CaptureJournalCard(blockerCard);
                     attackerCard.ApplyDamage(blockerDamage);
 
                     blockerCard.ApplyDamage(attackerDamage);
+                    state.Journal.CombatDamage(state.RoundNumber, attackerBefore, blockerBefore, blockerBefore.Health, blockerCard.CurrentHealth, defenderSeat);
+                    state.Journal.CombatDamage(state.RoundNumber, blockerBefore, attackerBefore, attackerBefore.Health, attackerCard.CurrentHealth, attackerSeat);
 
                     ApplyLifesteal(state, attackerCard, blockerDamageTaken);
 
@@ -80,6 +84,7 @@ namespace KLTN.Game.Domain
                         && !attackerCard.IsDead
                     )
                     {
+                        state.Journal.Ephemeral(state.RoundNumber, CaptureJournalCard(attackerCard), false);
                         attackerCard.Kill();
 
                         attackerDiedFromEphemeral = true;
@@ -90,6 +95,7 @@ namespace KLTN.Game.Domain
                         && !blockerCard.IsDead
                     )
                     {
+                        state.Journal.Ephemeral(state.RoundNumber, CaptureJournalCard(blockerCard), false);
                         blockerCard.Kill();
 
                         blockerDiedFromEphemeral = true;
@@ -106,6 +112,7 @@ namespace KLTN.Game.Domain
                         nexusHealthBefore - defender.NexusHealth
                     );
 
+                    state.Journal.CombatDamage(state.RoundNumber, CaptureJournalCard(attackerCard), null, nexusHealthBefore, defender.NexusHealth, defenderSeat);
                     ApplyLifesteal(state, attackerCard, actualNexusDamage);
 
                     if (
@@ -113,6 +120,7 @@ namespace KLTN.Game.Domain
                         && !attackerCard.IsDead
                     )
                     {
+                        state.Journal.Ephemeral(state.RoundNumber, CaptureJournalCard(attackerCard), false);
                         attackerCard.Kill();
 
                         attackerDiedFromEphemeral = true;
@@ -182,6 +190,7 @@ namespace KLTN.Game.Domain
                     damageAtDeath,
                     maximumHealthAtDeath
                 );
+                state.Journal.PassiveCosts(state, definitionsById, deadCard.Owner);
 
                 deathEvents.Add(
                     GameEvent.FromCard(
@@ -226,6 +235,13 @@ namespace KLTN.Game.Domain
             }
 
             return result;
+        }
+
+        private AbilityCardState CaptureJournalCard(CardInstance card)
+        {
+            if (card == null) return null;
+            definitionsById.TryGetValue(card.DefinitionId, out var definition);
+            return AbilityCardState.Capture(card, definition);
         }
 
         private int DamageOf(CardInstance card)
@@ -280,7 +296,13 @@ namespace KLTN.Game.Domain
                 return;
             }
 
+            int before = state.Player(source.Owner).NexusHealth;
             state.Player(source.Owner).HealNexus(actualDamage);
+            int after = state.Player(source.Owner).NexusHealth;
+            if (before != after)
+                state.Journal.Ability(state.RoundNumber,
+                    new AbilityResolutionEvent(0, null, EffectKind.Heal, CaptureJournalCard(source), null, null,
+                        source.Owner, before, after), " kích hoạt Hút máu");
         }
 
         private CardCombatResolution BuildCardResolution(

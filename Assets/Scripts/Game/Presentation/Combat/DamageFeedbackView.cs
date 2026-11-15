@@ -93,6 +93,12 @@ namespace KLTN.Game.Presentation
             SetHealthAlpha(anticipationAlpha);
         }
 
+        public void PresentHealth(int health)
+        {
+            Initialize();
+            if (healthText != null) healthText.text = Mathf.Max(0, health).ToString();
+        }
+
         public IEnumerator PlayDamage(int damage, int resultingHealth)
         {
             Initialize();

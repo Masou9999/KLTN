@@ -35,12 +35,6 @@ namespace KLTN.Game.Editor
                 Scene game = Load("GameScene");
                 var gameSettings = Find<GameSettingsUI>(game);
                 GameObject panel = Get<GameObject>(gameSettings, "settingsPanel");
-                var surrender = panel.GetComponentsInChildren<Button>(true)
-                    .FirstOrDefault(b => b.name == "SurrenderButton");
-                if (surrender != null)
-                {
-                    Object.DestroyImmediate(surrender.gameObject);
-                }
                 AddUiSoundSlider(panel);
                 AddMuteButtons(panel);
                 EnsureUiAudio(game);
@@ -66,6 +60,14 @@ namespace KLTN.Game.Editor
                 overlay.GetComponent<CanvasGroup>().ignoreParentGroups = true;
                 GameObject copy = Object.Instantiate(panel, overlay.transform, false);
                 copy.name = "SettingsPanel";
+                // MainMenu shares audio controls, never match-only actions.
+                foreach (Button action in copy.GetComponentsInChildren<Button>(true))
+                {
+                    if (action.name == "SurrenderButton")
+                    {
+                        Object.DestroyImmediate(action.gameObject);
+                    }
+                }
                 copy.SetActive(true);
                 var copyRect = (RectTransform)copy.transform;
                 copyRect.anchorMin = copyRect.anchorMax = new Vector2(0.5f, 0.5f);
@@ -256,8 +258,12 @@ namespace KLTN.Game.Editor
         {
             foreach (var panel in new[] { gamePanel, mainPanel })
             {
-                Require(!panel.GetComponentsInChildren<Button>(true)
-                    .Any(b => b.name == "SurrenderButton"), "Surrender still present");
+                if (panel == mainPanel)
+                {
+                    Require(!panel.GetComponentsInChildren<Button>(true)
+                        .Any(b => b.name == "SurrenderButton"),
+                        "MainMenu contains a match-only action");
+                }
                 Require(panel.GetComponentsInChildren<AudioMuteButton>(true).Length == 2,
                     "Missing mute controls");
                 foreach (var transform in panel.GetComponentsInChildren<Transform>(true))
@@ -276,27 +282,27 @@ namespace KLTN.Game.Editor
             {
                 Invoke(game, "OnEnable");
                 Invoke(main, "OnEnable");
-                main.SetMusicVolume(0.42f);
-                main.SetSFXVolume(0.23f);
-                main.SetUiSoundVolume(0.56f);
+                main.SetMusicVolume(0.4f);
+                main.SetSFXVolume(0.2f);
+                main.SetUiSoundVolume(0.6f);
                 game.SetSFXVolume(0f);
-                Require(Mathf.Approximately(AudioVolumeSettings.UiSoundVolume, 0.56f) &&
+                Require(Mathf.Approximately(AudioVolumeSettings.UiSoundVolume, 0.6f) &&
                     !AudioVolumeSettings.UiSoundMuted &&
-                    Mathf.Approximately(Get<Slider>(game, "uiSoundSlider").value, 0.56f),
+                    Mathf.Approximately(Get<Slider>(game, "uiSoundSlider").value, 0.6f),
                     "Combat slider changed UI audio");
-                main.SetSFXVolume(0.23f);
+                main.SetSFXVolume(0.2f);
                 game.SetUiSoundVolume(0f);
                 Require(AudioVolumeSettings.UiSoundMuted &&
-                    Mathf.Approximately(AudioVolumeSettings.SfxVolume, 0.23f) &&
+                    Mathf.Approximately(AudioVolumeSettings.SfxVolume, 0.2f) &&
                     Get<Slider>(main, "uiSoundSlider").value == 0,
                     "UI slider changed combat audio or did not synchronize");
                 AudioVolumeSettings.SetUiSoundMuted(false);
                 Require(Get<Slider>(game, "uiSoundSlider").value > 0,
                     "Unmuting UI did not restore audible volume");
-                Require(Mathf.Approximately(Get<Slider>(game, "musicSlider").value, 0.42f),
+                Require(Mathf.Approximately(Get<Slider>(game, "musicSlider").value, 0.4f),
                     "Menu music change did not reach Game settings");
                 Require(Mathf.Approximately(Get<AudioSource>(game,
-                    "sfxAudioSource").volume, 0.23f), "SFX source not synchronized");
+                    "sfxAudioSource").volume, 0.2f), "SFX source not synchronized");
                 AudioVolumeSettings.SetMusicMuted(true);
                 Require(Get<Slider>(main, "musicSlider").value == 0 &&
                     Get<Slider>(game, "musicSlider").value == 0 &&
@@ -304,10 +310,10 @@ namespace KLTN.Game.Editor
                     "Mute not synchronized");
                 AudioVolumeSettings.SetUiSoundMuted(true);
                 Require(Mathf.Approximately(Get<AudioSource>(game,
-                    "sfxAudioSource").volume, 0.23f), "UI mute changed combat SFX");
-                game.SetMusicVolume(0.64f);
+                    "sfxAudioSource").volume, 0.2f), "UI mute changed combat SFX");
+                game.SetMusicVolume(0.6f);
                 Require(!AudioVolumeSettings.MusicMuted &&
-                    Mathf.Approximately(Get<Slider>(main, "musicSlider").value, 0.64f),
+                    Mathf.Approximately(Get<Slider>(main, "musicSlider").value, 0.6f),
                     "Game music change did not reach MainMenu");
                 main.OpenSettings();
                 Require(!Get<CanvasGroup>(main, "menuGroup").interactable,

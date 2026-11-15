@@ -90,11 +90,37 @@ namespace KLTN.Game.Networking
     }
 
     [Serializable]
+    public sealed class TurnWindowDto
+    {
+        public ulong decisionId;
+        public double startsAt;
+        public double deadline;
+        public bool awaitingPresentation;
+    }
+
+    [Serializable]
+    public sealed class MatchTurnClockDto
+    {
+        public string matchId;
+        public ulong revision;
+        public bool paused;
+        public double serverNow;
+        public TurnWindowDto self;
+        public TurnWindowDto opponent;
+        public int selfTimeouts;
+        public int opponentTimeouts;
+        public int timedOutSeat = -1;
+        public int outcome;
+        public int viewerSeat;
+    }
+
+    [Serializable]
     public sealed class MatchSnapshotDto
     {
         #region Snapshot Identity
 
         public ulong revision;
+        public MatchTurnClockDto turnClock;
         public int viewerSeat;
 
         #endregion
@@ -282,6 +308,7 @@ namespace KLTN.Game.Networking
     [Serializable]
     public sealed class MatchUpdateDto
     {
+        public MatchLogDto[] logs;
         #region Authoritative Update
 
         public MatchSnapshotDto snapshot;
