@@ -2,6 +2,7 @@
   <Project Path="Assembly-CSharp.csproj" />
   <Project Path="KLTN.Game.Domain.csproj" />
   <Project Path="Assembly-CSharp-Editor.csproj" />
+  <Project Path="Assembly-CSharp-firstpass.csproj" />
   <Project Path="KLTN.Game.Domain.Tests.csproj" />
   <Project Path="KLTN.Game.Application.Tests.csproj" />
   <Project Path="KLTN.Infrastructure.Resilience.csproj" />
