@@ -1,5 +1,7 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using DG.Tweening;
 using KLTN.Game.Content;
 using KLTN.Game.Domain;
 using KLTN.Game.Networking;
@@ -52,7 +54,46 @@ namespace KLTN.Game.Presentation
         [Header("Drag")]
         [SerializeField]
         private RectTransform dragLayer;
+
+        [Header("Mulligan")]
+        [SerializeField]
         public MulliganPresenter mulliganPresenter;
+
+        [Header("Card Draw Animation")]
+        [Tooltip("Kéo Transform vị trí Deck (giống Deck Spawn Point của Mulligan) vào đây")]
+        [SerializeField]
+        private Transform selfDeckSpawnPoint;
+
+        [Tooltip("Sorting Order của lá bài lúc đang bay rút bài để nổi lên trên LocalActionStatus")]
+        [SerializeField]
+        private int drawSortingOrder = 50;
+
+        [Tooltip("Vị trí hiển thị lá bài giữa màn hình khi rút (Nếu để trống sẽ tự lấy tâm màn hình)")]
+        [SerializeField]
+        private RectTransform drawShowcasePoint;
+
+        [Tooltip("Độ trễ trước khi rút bài lúc chuyển sang vòng mới (để chữ Vòng X hiện xong trước)")]
+        [SerializeField]
+        private float drawStartDelayOnNewRound = 0.75f;
+
+        [SerializeField]
+        private float drawFlyToCenterDuration = 0.45f;
+
+        [SerializeField]
+        private float drawShowcaseDuration = 0.6f;
+
+        [SerializeField]
+        private float drawFlyToHandDuration = 0.4f;
+
+        [SerializeField]
+        private float drawShowcaseScale = 1.0f;
+
+        [SerializeField]
+        private float drawHandScale = 0.45f;
+
+        [Tooltip("Khoảng cách dàn ngang giữa các lá bài khi rút từ 2 lá trở lên cùng lúc")]
+        [SerializeField]
+        private float drawShowcaseSpacing = 250f;
 
         #endregion
 
@@ -65,6 +106,14 @@ namespace KLTN.Game.Presentation
 
         private readonly Dictionary<string, NetworkCardVisual> faceUpViewsById =
             new Dictionary<string, NetworkCardVisual>();
+
+        private readonly HashSet<string> knownHandCardIds = new HashSet<string>(StringComparer.Ordinal);
+        private readonly HashSet<string> animatingDrawCardIds = new HashSet<string>(StringComparer.Ordinal);
+        private readonly Dictionary<string, (float alpha, bool blocksRaycasts)> savedDrawCardCanvasStates =
+            new Dictionary<string, (float alpha, bool blocksRaycasts)>(StringComparer.Ordinal);
+        private readonly List<GameObject> activeDrawAnimationObjects = new List<GameObject>();
+
+        private int lastSeenRoundNumber = -1;
 
         #endregion
 
@@ -96,6 +145,7 @@ namespace KLTN.Game.Presentation
                 projection.SnapshotChanged -= Render;
             }
 
+            ClearDrawAnimations();
             ClearViews();
         }
 
@@ -118,14 +168,18 @@ namespace KLTN.Game.Presentation
                 return;
             }
 
+            List<CardViewDto> newlyDrawnCards = DetectNewlyDrawnCards(snapshot, out bool isNewRound);
+
+            RenderSelfHand(snapshot);
+
             if (mulliganPresenter != null)
             {
                 mulliganPresenter.UpdateMulliganState(snapshot);
             }
 
-            if (snapshot.roundNumber > 0)
+            if (newlyDrawnCards != null && newlyDrawnCards.Count > 0)
             {
-                RenderSelfHand(snapshot);
+                StartCoroutine(AnimateCardDrawBatchRoutine(newlyDrawnCards, isNewRound));
             }
 
             RenderOpponentHand(snapshot);
@@ -166,7 +220,8 @@ namespace KLTN.Game.Presentation
                     : CardVisualLocation.Hand;
 
                 bool canDrag =
-                    !isSelectionSource
+                    snapshot.roundNumber > 0
+                    && !isSelectionSource
                     && snapshot.viewerCanAct
                     && hasActiveRosterSpace
                     && dto.energy <= snapshot.self.mana;
@@ -177,8 +232,300 @@ namespace KLTN.Game.Presentation
                 {
                     CenterAbilitySelectionSource(view);
                 }
+                else if (
+                    !string.IsNullOrWhiteSpace(dto.instanceId)
+                    && animatingDrawCardIds.Contains(dto.instanceId)
+                )
+                {
+                    HideRealHandCardForDraw(dto.instanceId, view);
+                }
             }
         }
+
+        #endregion
+
+        #region Card Draw Animation
+
+        private List<CardViewDto> DetectNewlyDrawnCards(MatchSnapshotDto snapshot, out bool isNewRound)
+        {
+            isNewRound = snapshot.roundNumber > lastSeenRoundNumber;
+
+            if (snapshot.roundNumber == 0)
+            {
+                lastSeenRoundNumber = 0;
+                knownHandCardIds.Clear();
+                animatingDrawCardIds.Clear();
+                savedDrawCardCanvasStates.Clear();
+
+                if (snapshot.self?.hand != null)
+                {
+                    foreach (CardViewDto dto in snapshot.self.hand)
+                    {
+                        if (!string.IsNullOrWhiteSpace(dto.instanceId))
+                        {
+                            knownHandCardIds.Add(dto.instanceId);
+                        }
+                    }
+                }
+                return null;
+            }
+
+            if (lastSeenRoundNumber <= 0)
+            {
+                lastSeenRoundNumber = snapshot.roundNumber;
+                if (snapshot.self?.hand != null)
+                {
+                    foreach (CardViewDto dto in snapshot.self.hand)
+                    {
+                        if (!string.IsNullOrWhiteSpace(dto.instanceId))
+                        {
+                            knownHandCardIds.Add(dto.instanceId);
+                        }
+                    }
+                }
+                return null;
+            }
+
+            lastSeenRoundNumber = snapshot.roundNumber;
+
+            if (snapshot.self?.hand == null || snapshot.self.hand.Length == 0)
+            {
+                return null;
+            }
+
+            List<CardViewDto> drawnCards = null;
+
+            foreach (CardViewDto dto in snapshot.self.hand)
+            {
+                if (string.IsNullOrWhiteSpace(dto.instanceId))
+                {
+                    continue;
+                }
+
+                if (knownHandCardIds.Add(dto.instanceId))
+                {
+                    animatingDrawCardIds.Add(dto.instanceId);
+                    if (drawnCards == null)
+                    {
+                        drawnCards = new List<CardViewDto>();
+                    }
+                    drawnCards.Add(dto);
+                }
+            }
+
+            return drawnCards;
+        }
+
+        private void HideRealHandCardForDraw(string instanceId, NetworkCardVisual view)
+        {
+            if (view == null) return;
+
+            CanvasGroup cardGroup = view.GetComponent<CanvasGroup>();
+            if (cardGroup == null)
+            {
+                cardGroup = view.gameObject.AddComponent<CanvasGroup>();
+            }
+
+            savedDrawCardCanvasStates[instanceId] = (cardGroup.alpha, cardGroup.blocksRaycasts);
+            cardGroup.alpha = 0f;
+            cardGroup.blocksRaycasts = false;
+        }
+
+        private void RevealRealHandCardAfterDraw(string instanceId)
+        {
+            if (TryGetFaceUpVisual(instanceId, out NetworkCardVisual realHandView) && realHandView != null)
+            {
+                CanvasGroup cardGroup = realHandView.GetComponent<CanvasGroup>();
+                if (cardGroup != null)
+                {
+                    if (savedDrawCardCanvasStates.TryGetValue(instanceId, out var savedState))
+                    {
+                        cardGroup.alpha = savedState.alpha;
+                        cardGroup.blocksRaycasts = savedState.blocksRaycasts;
+                    }
+                    else
+                    {
+                        cardGroup.alpha = 1f;
+                        cardGroup.blocksRaycasts = true;
+                    }
+                }
+            }
+
+            savedDrawCardCanvasStates.Remove(instanceId);
+        }
+
+        private IEnumerator AnimateCardDrawBatchRoutine(List<CardViewDto> drawnCards, bool isNewRound)
+        {
+            if (drawnCards == null || drawnCards.Count == 0)
+            {
+                yield break;
+            }
+
+            float initialDelay = isNewRound ? drawStartDelayOnNewRound : 0.25f;
+            if (initialDelay > 0f)
+            {
+                yield return new WaitForSeconds(initialDelay);
+            }
+
+            RectTransform animationParent = dragLayer != null
+                ? dragLayer
+                : selfHandRoot != null
+                    ? selfHandRoot.root as RectTransform
+                    : transform as RectTransform;
+
+            if (animationParent == null || cardPrefab == null)
+            {
+                foreach (CardViewDto dto in drawnCards)
+                {
+                    animatingDrawCardIds.Remove(dto.instanceId);
+                    RevealRealHandCardAfterDraw(dto.instanceId);
+                }
+                yield break;
+            }
+
+            Vector3 startWorldPos = selfDeckSpawnPoint != null
+                ? selfDeckSpawnPoint.position
+                : selfHandRoot != null
+                    ? selfHandRoot.position
+                    : animationParent.position;
+
+            Vector3 centerWorldPos = drawShowcasePoint != null
+                ? drawShowcasePoint.position
+                : abilitySelectionSourceRoot != null
+                    ? abilitySelectionSourceRoot.position
+                    : animationParent.position;
+
+            Vector3 baseCenterLocalPos = animationParent.InverseTransformPoint(centerWorldPos);
+            Vector3 startLocalPos = animationParent.InverseTransformPoint(startWorldPos);
+
+            int count = drawnCards.Count;
+            List<NetworkCardVisual> tempCards = new List<NetworkCardVisual>(count);
+            float maxFlyToCenterTime = 0f;
+
+            for (int i = 0; i < count; i++)
+            {
+                CardViewDto cardDto = drawnCards[i];
+                NetworkCardVisual tempCard = Instantiate(cardPrefab, animationParent);
+                activeDrawAnimationObjects.Add(tempCard.gameObject);
+                tempCards.Add(tempCard);
+
+                Canvas tempCanvas = tempCard.GetComponent<Canvas>();
+                if (tempCanvas == null)
+                {
+                    tempCanvas = tempCard.gameObject.AddComponent<Canvas>();
+                }
+                tempCanvas.overrideSorting = true;
+                tempCanvas.sortingOrder = drawSortingOrder + i;
+
+                CardVisualLayout layout = tempCard.GetComponent<CardVisualLayout>();
+                if (layout != null)
+                {
+                    layout.Apply(CardVisualLocation.Mulligan);
+                }
+
+                tempCard.BindFaceUp(cardDto, FindArtwork(cardDto.definitionId));
+                tempCard.SetOwnerPerspective(false);
+
+                DraggableHandCard dragScript = tempCard.GetComponent<DraggableHandCard>();
+                if (dragScript != null)
+                {
+                    Destroy(dragScript);
+                }
+
+                CanvasGroup tempGroup = tempCard.GetComponent<CanvasGroup>();
+                if (tempGroup == null)
+                {
+                    tempGroup = tempCard.gameObject.AddComponent<CanvasGroup>();
+                }
+                tempGroup.alpha = 1f;
+                tempGroup.blocksRaycasts = false;
+
+                RectTransform tempRect = tempCard.GetComponent<RectTransform>();
+                tempRect.localPosition = startLocalPos;
+                tempRect.localScale = Vector3.zero;
+                tempRect.localEulerAngles = new Vector3(0f, 90f, 0f);
+
+                float offsetIndex = i - (count - 1) * 0.5f;
+                Vector3 targetShowcaseLocalPos = baseCenterLocalPos + new Vector3(offsetIndex * drawShowcaseSpacing, 0f, 0f);
+
+                float staggerDelay = i * 0.18f;
+                Sequence toCenterSeq = DOTween.Sequence();
+                toCenterSeq.Insert(staggerDelay, tempRect.DOLocalMove(targetShowcaseLocalPos, drawFlyToCenterDuration).SetEase(Ease.OutCubic));
+                toCenterSeq.Insert(staggerDelay, tempRect.DOScale(Vector3.one * drawShowcaseScale, drawFlyToCenterDuration).SetEase(Ease.OutBack));
+                toCenterSeq.Insert(staggerDelay, tempRect.DOLocalRotate(Vector3.zero, drawFlyToCenterDuration).SetEase(Ease.OutBack));
+
+                maxFlyToCenterTime = Mathf.Max(maxFlyToCenterTime, staggerDelay + drawFlyToCenterDuration);
+            }
+
+            yield return new WaitForSeconds(maxFlyToCenterTime);
+
+            yield return new WaitForSeconds(drawShowcaseDuration);
+
+            yield return new WaitForEndOfFrame();
+
+            float maxFlyToHandTime = 0f;
+
+            for (int i = 0; i < count; i++)
+            {
+                NetworkCardVisual tempCard = tempCards[i];
+                if (tempCard == null) continue;
+
+                CardViewDto cardDto = drawnCards[i];
+                RectTransform tempRect = tempCard.GetComponent<RectTransform>();
+
+                Vector3 targetHandWorldPos = selfHandRoot != null ? selfHandRoot.position : centerWorldPos;
+                if (TryGetFaceUpVisual(cardDto.instanceId, out NetworkCardVisual realHandView) && realHandView != null)
+                {
+                    targetHandWorldPos = realHandView.transform.position;
+                }
+
+                float handDelay = i * 0.08f;
+                Sequence toHandSeq = DOTween.Sequence();
+                toHandSeq.Insert(handDelay, tempRect.DOMove(targetHandWorldPos, drawFlyToHandDuration).SetEase(Ease.InOutCubic));
+                toHandSeq.Insert(handDelay, tempRect.DOScale(Vector3.one * drawHandScale, drawFlyToHandDuration).SetEase(Ease.InOutQuad));
+
+                maxFlyToHandTime = Mathf.Max(maxFlyToHandTime, handDelay + drawFlyToHandDuration);
+            }
+
+            yield return new WaitForSeconds(maxFlyToHandTime);
+
+            for (int i = 0; i < count; i++)
+            {
+                CardViewDto cardDto = drawnCards[i];
+                animatingDrawCardIds.Remove(cardDto.instanceId);
+                RevealRealHandCardAfterDraw(cardDto.instanceId);
+
+                NetworkCardVisual tempCard = tempCards[i];
+                if (tempCard != null)
+                {
+                    tempCard.transform.DOKill();
+                    activeDrawAnimationObjects.Remove(tempCard.gameObject);
+                    Destroy(tempCard.gameObject);
+                }
+            }
+        }
+
+        private void ClearDrawAnimations()
+        {
+            foreach (GameObject animObj in activeDrawAnimationObjects)
+            {
+                if (animObj != null)
+                {
+                    animObj.transform.DOKill();
+                    Destroy(animObj);
+                }
+            }
+
+            activeDrawAnimationObjects.Clear();
+            animatingDrawCardIds.Clear();
+            savedDrawCardCanvasStates.Clear();
+            knownHandCardIds.Clear();
+            lastSeenRoundNumber = -1;
+        }
+
+        #endregion
+
+        #region Helpers & Board/Reserve Rendering
 
         private static bool IsPendingAbilitySelectionSource(
             MatchSnapshotDto snapshot,
@@ -383,8 +730,6 @@ namespace KLTN.Game.Presentation
 
             if (TryGetFaceUpVisual(card.instanceId, out NetworkCardVisual existing))
             {
-                // Keep a pending Play source in the centre for its entire host-confirmed
-                // ability sequence. The next snapshot moves it to Reserve afterward.
                 if (
                     abilitySelectionSourceRoot != null
                     && existing.transform.parent == abilitySelectionSourceRoot
@@ -672,13 +1017,13 @@ namespace KLTN.Game.Presentation
         #region Artwork Lookup
 
         public NetworkCardVisual CreateGraveyardCard(
-        CardViewDto dto,
-        RectTransform parent
+            CardViewDto dto,
+            RectTransform parent
         )
         {
             if (dto == null || parent == null || cardPrefab == null)
             {
-            return null;
+                return null;
             }
 
             NetworkCardVisual view = Instantiate(cardPrefab, parent);
@@ -711,6 +1056,7 @@ namespace KLTN.Game.Presentation
             {
                 if (spawnedView != null)
                 {
+                    spawnedView.SetActive(false);
                     Destroy(spawnedView);
                 }
             }

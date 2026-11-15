@@ -9,6 +9,7 @@ namespace KLTN.Game.Presentation
         Reserve,
         Board,
         AbilitySelection,
+        Mulligan,
     }
 
     [DisallowMultipleComponent]
@@ -37,6 +38,9 @@ namespace KLTN.Game.Presentation
 
         [SerializeField]
         private Vector2 abilitySelectionSize = new Vector2(200f, 280f);
+        
+        [SerializeField]
+        private Vector2 mulliganSize = new Vector2(260f, 360f);
 
         #endregion
 
@@ -63,6 +67,19 @@ namespace KLTN.Game.Presentation
             ConfigureVisualRoot();
         }
 
+        private void EnsureInitialized()
+        {
+            if (rectTransform == null)
+            {
+                rectTransform = GetComponent<RectTransform>();
+            }
+            
+            if (layoutElement == null)
+            {
+                layoutElement = GetComponent<LayoutElement>();
+            }
+        }
+
 #if UNITY_EDITOR
         private void OnValidate()
         {
@@ -84,6 +101,8 @@ namespace KLTN.Game.Presentation
 
         public void Apply(CardVisualLocation location)
         {
+            EnsureInitialized();
+            
             CurrentLocation = location;
 
             Vector2 targetSize = location switch
@@ -92,6 +111,7 @@ namespace KLTN.Game.Presentation
                 CardVisualLocation.Reserve => reserveSize,
                 CardVisualLocation.Board => boardSize,
                 CardVisualLocation.AbilitySelection => abilitySelectionSize,
+                CardVisualLocation.Mulligan => mulliganSize,
                 _ => boardSize,
             };
             ApplyRootSize(targetSize);
