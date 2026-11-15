@@ -18,7 +18,7 @@ namespace KLTN.Game.Editor
             if (!Application.isBatchMode && !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
             var scene = EditorSceneManager.OpenScene("Assets/Scenes/MainMenu.unity");
             var controller = Object.FindAnyObjectByType<MainMenuController>();
-            var shortcuts = Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None)
+            var shortcuts = Object.FindObjectsByType<Canvas>()
                 .First(c => c.isRootCanvas).transform.Find("MenuShortcuts");
             BuildLogoutShortcut(shortcuts, controller);
             EditorSceneManager.MarkSceneDirty(scene);
@@ -108,7 +108,7 @@ namespace KLTN.Game.Editor
             if (!Application.isBatchMode && !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
             var scene = EditorSceneManager.OpenScene("Assets/Scenes/MainMenu.unity");
             var controller = Object.FindAnyObjectByType<MainMenuController>();
-            var canvas = Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None).First(c => c.isRootCanvas);
+            var canvas = Object.FindObjectsByType<Canvas>().First(c => c.isRootCanvas);
             var buttons = canvas.GetComponentsInChildren<Button>(true);
             var quit = buttons.FirstOrDefault(b => b.name == "QuitButton") ?? buttons.First(b => b.name == "LogoutButton");
             quit.name = "QuitButton";

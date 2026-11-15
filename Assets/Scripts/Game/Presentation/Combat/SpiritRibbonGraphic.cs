@@ -6,7 +6,10 @@ namespace KLTN.Game.Presentation
     [RequireComponent(typeof(CanvasRenderer))]
     public sealed class SpiritRibbonGraphic : MaskableGraphic
     {
-        protected SpiritRibbonGraphic() { useLegacyMeshGeneration = false; }
+        private SpiritRibbonGraphic()
+        {
+            useLegacyMeshGeneration = false;
+        }
         private Vector2[] points;
         private float[] distances;
         private float tail, head, width, scroll;
