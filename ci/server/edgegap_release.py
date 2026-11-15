@@ -140,14 +140,41 @@ def make_payload(config, version, repository, username, password):
     return payload
 
 
+def registry_tags(api, registry_image, docker_image):
+    """Resolve the registry API name with read-only requests before any mutation.
+
+    Docker uses project/image. The registry management API can scope image names
+    to the authenticated organization's project, so also try the relative image.
+    Never fall back on authentication/server errors, or on a successful empty list.
+    """
+    relative_image = docker_image.split("/", 1)[-1]
+    if registry_image not in (docker_image, relative_image):
+        raise ValueError("EDGEGAP_REGISTRY_IMAGE_NAME must match the Docker image, with or without its project prefix.")
+    candidates = list(dict.fromkeys([registry_image, relative_image]))
+    for name in candidates:
+        path = f"/v1/container-registry/images/{segment(name)}/tags"
+        try:
+            data = api.request("GET", path)
+        except ApiError as error:
+            if error.status != 404:
+                raise
+            continue
+        tags = data.get("data")
+        if not isinstance(tags, list):
+            raise RuntimeError("Unexpected registry tag response; refusing to replace the current version.")
+        print(f"Registry API image name: {name}")
+        return path, tags
+    raise RuntimeError("Registry image lookup returned 404 for both configured and project-relative names. "
+                       "Check the image repository and API token organization; current version was not changed.")
+
+
 def release(api, app, payload, registry_image, apply=False, timeout=600):
     app_path = f"/v1/app/{segment(app)}"
     api.request("GET", app_path)  # Fail authentication/app lookup before mutation.
     old = versions(api, app)
     if len(old) > 1:
         raise RuntimeError("Expected zero or one version. Review/remove extra versions manually first.")
-    image_path = f"/v1/container-registry/images/{segment(registry_image)}/tags"
-    tags = api.request("GET", image_path).get("data")
+    image_path, tags = registry_tags(api, registry_image, payload["docker_image"])
     if not isinstance(tags, list) or not any(t.get("tag") == payload["docker_tag"] for t in tags):
         raise RuntimeError("New image tag is not present in the configured Edgegap registry image.")
     # Always resolve deployment ownership during preflight as well.

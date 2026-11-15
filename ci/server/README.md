@@ -108,6 +108,9 @@ Repo → **Settings → Secrets and variables → Actions**.
 | `EDGEGAP_ALLOCATOR_READY` | `true`, chỉ sau khi hoàn thành bước 3 |
 
 `EDGEGAP_REGISTRY_IMAGE_NAME` phải trỏ cùng image với `EDGEGAP_IMAGE_REPOSITORY`.
+Với repository `registry.edgegap.com/<project>/kltn`, có thể đặt tên API là `kltn`.
+Script cũng chấp nhận `<project>/kltn`; nếu API trả 404, nó thử lại bằng tên `kltn`
+qua GET trước khi thay tài nguyên. Không thử lại với tên khác khi lỗi quyền truy cập.
 Script kiểm tra tag mới qua API này trước khi xóa version. Không commit các credential.
 
 ### 5. Commit/push và chạy lần đầu
@@ -161,6 +164,10 @@ Không deploy thủ công trên dashboard cùng lúc workflow đang chạy.
   `deploy_existing`. Bản legacy tên timestamp cần phục hồi thủ công qua dashboard với cấu hình
   cũ, rồi đặt `KLTN_RELEASE_READY=true` và enable app sau khi kiểm tra.
 - **Tag SHA đã tồn tại:** không build/push đè. Chọn deploy_existing hoặc tạo commit mới.
+- **GET registry tags trả 404 sau khi push thành công:** dùng script mới có xử lý tên
+  image theo project (hoặc đặt `EDGEGAP_REGISTRY_IMAGE_NAME=kltn`). Push bản sửa rồi
+  tạo **Run workflow mới** trên nhánh đã cập nhật, nhập tag đã push vào `deploy_existing`.
+  Không dùng Re-run của lần chạy cũ vì nó vẫn dùng code ở commit cũ; không cần build Unity lại.
 - **Dọn registry lỗi:** release vẫn thành công và có cảnh báo; tự xóa tag cũ không còn dùng.
   Chỉ tag của version vừa thay được dọn. Các image mồ côi từ lần release lỗi/alias khác không
   bị xóa hàng loạt. Cần xóa hết alias của artifact cũ mới giải phóng toàn bộ dung lượng.

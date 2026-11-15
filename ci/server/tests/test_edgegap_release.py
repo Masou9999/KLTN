@@ -174,6 +174,50 @@ class ReleaseTests(unittest.TestCase):
 
 
 class TimeoutTests(unittest.TestCase):
+    def test_registry_404_falls_back_to_relative_image_and_uses_it_for_cleanup(self):
+        class ScopedApi(FakeApi):
+            def request(self, method, path, body=None):
+                if path == '/v1/container-registry/images/project%2Fkltn/tags':
+                    self.calls.append((method, path, body))
+                    raise release.ApiError(method, path, 404)
+                return super().request(method, path, body)
+        api = ScopedApi()
+        payload = release.make_payload({"req_cpu": 1536, "req_memory": 3072,
+            "ports": [{"name": "gameport", "port": 7777, "protocol": "UDP"}]},
+            NEW, "registry.edgegap.com/project/kltn", "user", "secret")
+        with patch.object(release, "wait_for", side_effect=ReleaseTests.fast_wait):
+            release.release(api, 'kltn', payload, 'project/kltn', apply=True)
+        self.assertIn(('DELETE', '/v1/container-registry/images/kltn/tags/' + OLD, None), api.calls)
+
+    def test_registry_does_not_fallback_on_auth_or_server_errors(self):
+        for code in (401, 403, 500):
+            class BrokenApi:
+                calls = 0
+                def request(self, method, path):
+                    self.calls += 1
+                    raise release.ApiError(method, path, code)
+            api = BrokenApi()
+            with self.assertRaises(release.ApiError):
+                release.registry_tags(api, 'project/kltn', 'project/kltn')
+            self.assertEqual(api.calls, 1)
+
+    def test_registry_rejects_unrelated_image(self):
+        api = FakeApi()
+        with self.assertRaises(ValueError):
+            release.registry_tags(api, 'other/image', 'project/kltn')
+        self.assertEqual(api.calls, [])
+
+    def test_registry_missing_image_fails_without_mutation(self):
+        class MissingApi:
+            def request(self, method, path):
+                self.assert_read(method)
+                raise release.ApiError(method, path, 404)
+            @staticmethod
+            def assert_read(method):
+                assert method == 'GET'
+        with self.assertRaisesRegex(RuntimeError, 'current version was not changed'):
+            release.registry_tags(MissingApi(), 'project/kltn', 'project/kltn')
+
     def test_wait_is_bounded(self):
         times = iter([0, 0, 10])
         with self.assertRaisesRegex(RuntimeError, "Timed out"):
