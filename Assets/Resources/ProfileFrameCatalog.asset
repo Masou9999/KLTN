@@ -1,0 +1,71 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7d8701f48de540f98d613fa97b27b6e0, type: 3}
+  m_Name: ProfileFrameCatalog
+  m_EditorClassIdentifier: Assembly-CSharp::KLTN.Game.Content.ProfileFrameCatalog
+  entries:
+  - tier: 0
+    sprite: {fileID: 21300000, guid: 0c397564c92c471eb9bfbc84bf58e0eb, type: 3}
+    informationRect:
+      serializedVersion: 2
+      x: 240
+      y: 96
+      width: 248
+      height: 99
+  - tier: 1
+    sprite: {fileID: 21300000, guid: a6e29be55040462ea789acdd814ab47a, type: 3}
+    informationRect:
+      serializedVersion: 2
+      x: 237
+      y: 90
+      width: 252
+      height: 98
+  - tier: 2
+    sprite: {fileID: 21300000, guid: 968d3835507443e886a92223e76927fb, type: 3}
+    informationRect:
+      serializedVersion: 2
+      x: 224
+      y: 82
+      width: 249
+      height: 98
+  - tier: 3
+    sprite: {fileID: 21300000, guid: 49e261479e894d64bbeb2316431dad43, type: 3}
+    informationRect:
+      serializedVersion: 2
+      x: 216
+      y: 94
+      width: 244
+      height: 92
+  - tier: 4
+    sprite: {fileID: 21300000, guid: a9b306e2d794436784dfe9efb2bd5c22, type: 3}
+    informationRect:
+      serializedVersion: 2
+      x: 246
+      y: 96
+      width: 244
+      height: 90
+  - tier: 5
+    sprite: {fileID: 21300000, guid: c08cdfbc8abc41179ea80a29fae6b4c1, type: 3}
+    informationRect:
+      serializedVersion: 2
+      x: 216
+      y: 83
+      width: 244
+      height: 91
+  - tier: 6
+    sprite: {fileID: 21300000, guid: 6d07fe01114d49419823584368954a01, type: 3}
+    informationRect:
+      serializedVersion: 2
+      x: 237
+      y: 86
+      width: 244
+      height: 91

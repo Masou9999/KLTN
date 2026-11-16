@@ -27,6 +27,33 @@ namespace KLTN.Infrastructure.Ranking
 
         public event Action<SeasonStanding> MyStandingChanged;
 
+        private int profileFrameSession;
+        private int profileFrameRequest;
+        private string profileFrameUserId;
+        private ProfileFrameResult? profileFrame;
+
+        public bool TryGetCachedProfileFrame(out ProfileFrameResult value)
+        {
+            value = profileFrame.GetValueOrDefault();
+            return profileFrame.HasValue && profileFrameUserId == CurrentUserId;
+        }
+
+        public async Task<RankingResult<ProfileFrameResult>> RefreshProfileFrameAsync()
+        {
+            int session = profileFrameSession;
+            int request = ++profileFrameRequest;
+            string uid = CurrentUserId;
+            var result = await PreviousSeasonFrameQuery.ReadAsync(Gateway, uid);
+            if (session != profileFrameSession || uid != CurrentUserId || request != profileFrameRequest)
+                return RankingResult<ProfileFrameResult>.Fail(RankingErrorCode.NotSignedIn, "Phiên đăng nhập đã thay đổi.");
+            if (result.Success)
+            {
+                profileFrame = result.Value;
+                profileFrameUserId = uid;
+            }
+            return result;
+        }
+
         #region Bootstrap
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -89,6 +116,9 @@ namespace KLTN.Infrastructure.Ranking
         /// </summary>
         private async void HandleLogin()
         {
+            ++profileFrameSession;
+            profileFrame = null;
+            profileFrameUserId = null;
             try
             {
                 RankingResult<SeasonWindow?> season = await RefreshSeasonAsync();
@@ -106,6 +136,9 @@ namespace KLTN.Infrastructure.Ranking
 
         private void HandleLogout()
         {
+            ++profileFrameSession;
+            profileFrame = null;
+            profileFrameUserId = null;
             CurrentSeason = null;
             MyStanding = null;
             MyStandingChanged?.Invoke(null);

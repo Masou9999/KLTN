@@ -26,6 +26,8 @@ namespace KLTN.Infrastructure.Economy
 
         private IEconomyGateway gateway;
         private Task<EconomyResult> loadTask;
+        private int sessionVersion;
+        private string CurrentUserId => AuthManager.Instance != null ? AuthManager.Instance.CurrentUserId : null;
 
         #region Bootstrap
 
@@ -89,7 +91,10 @@ namespace KLTN.Infrastructure.Economy
 
         private async void HandleLogin()
         {
+            ++sessionVersion;
             Current = null;
+            loadTask = null;
+            ProfileChanged?.Invoke(null);
             EconomyResult result = await EnsureLoadedAsync();
 
             if (!result.Success)
@@ -100,6 +105,7 @@ namespace KLTN.Infrastructure.Economy
 
         private void HandleLogout()
         {
+            ++sessionVersion;
             Current = null;
             loadTask = null;
             ProfileChanged?.Invoke(null);
@@ -144,7 +150,11 @@ namespace KLTN.Infrastructure.Economy
                 return EconomyResult.Fail(EconomyErrorCode.Rejected, RejectionMessage(rejection));
             }
 
+            int session = sessionVersion;
+            string uid = CurrentUserId;
             EconomyResult result = await gateway.PurchaseAsync(entry);
+            if (session != sessionVersion || uid != CurrentUserId)
+                return EconomyResult.Fail(EconomyErrorCode.NotSignedIn, "Phiên đăng nhập đã thay đổi.");
 
             if (result.Success)
             {
@@ -178,8 +188,12 @@ namespace KLTN.Infrastructure.Economy
 
         private async Task<EconomyResult> LoadInternalAsync()
         {
+            int session = sessionVersion;
+            string uid = CurrentUserId;
             IReadOnlyList<string> starters = Catalog != null ? Catalog.StarterCardIds() : new List<string>();
             EconomyResult result = await gateway.LoadOrCreateProfileAsync(starters);
+            if (session != sessionVersion || uid != CurrentUserId)
+                return EconomyResult.Fail(EconomyErrorCode.NotSignedIn, "Phiên đăng nhập đã thay đổi.");
 
             if (result.Success)
             {
@@ -195,7 +209,7 @@ namespace KLTN.Infrastructure.Economy
 
         private void Apply(PlayerProfile profile)
         {
-            if (profile == null)
+            if (profile == null || profile.UserId != CurrentUserId)
             {
                 return;
             }
