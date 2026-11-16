@@ -5,7 +5,7 @@ namespace KLTN.Game.Domain
 {
     public static class DeckRules
     {
-        public const int RequiredCardCount = 25;
+        public const int RequiredCardCount = 30;
 
         public static void Validate(
             IReadOnlyList<CardDefinition> deck,

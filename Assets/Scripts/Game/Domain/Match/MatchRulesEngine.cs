@@ -13,7 +13,6 @@ namespace KLTN.Game.Domain
         #region Constants
 
         private const int MaximumMana = 10;
-        private const int DrawIntervalRounds = 2;
 
         /// <summary>
         /// Minimum current Power required to block a Fearsome attacker. Presentation

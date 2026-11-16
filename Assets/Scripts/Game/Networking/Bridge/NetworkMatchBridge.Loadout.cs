@@ -127,7 +127,7 @@ namespace KLTN.Game.Networking
         /// Keeps only known card IDs. On a dedicated server the owned list comes from
         /// AdmitPlayer and the client's report can only narrow it (FR-MATCH-11); listen-host
         /// trusts the report (private match). Falls back to the starter set when the list is
-        /// missing or smaller than the starter set, then builds a weighted 25-card deck.
+        /// missing or smaller than the starter set, then builds a weighted deck.
         /// Requires definitionsById to be populated.
         /// </summary>
         private IReadOnlyList<CardDefinition> BuildDeckForSeat(MatchSession session, SeatId seat)

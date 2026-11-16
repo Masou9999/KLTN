@@ -47,6 +47,19 @@ namespace KLTN.Game.Domain.Tests
             );
         }
 
+        [TestCase(25)]
+        [TestCase(29)]
+        [TestCase(31)]
+        public void Validate_RejectsDeckSizesOtherThan30(int size)
+        {
+            var deck = new List<CardDefinition>();
+            CardDefinition filler = Definition("Filler");
+            for (int i = 0; i < size; i++)
+                deck.Add(filler);
+
+            Assert.Throws<InvalidOperationException>(() => DeckRules.Validate(deck));
+        }
+
         [Test]
         public void DefaultDeckBuilder_SkipsCopiesBeyondLimit()
         {

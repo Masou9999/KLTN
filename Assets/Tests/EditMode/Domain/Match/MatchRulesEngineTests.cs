@@ -372,28 +372,75 @@ namespace KLTN.Game.Domain.Tests
         }
 
         [Test]
-        public void EverySecondCompletedRound_DrawsAndRefillsMana()
+        public void EveryCompletedRound_DrawsForBothPlayersAndRefillsMana()
         {
             MatchState state = CreateState();
 
             int hostDeckBefore = state.Host.Deck.Count;
             int hostHandBefore = state.Host.DrawHand.Count;
+            int guestDeckBefore = state.Guest.Deck.Count;
+            int guestHandBefore = state.Guest.DrawHand.Count;
 
             engine.TryPass(state, SeatId.Host);
             engine.TryPass(state, SeatId.Guest);
 
             Assert.AreEqual(2, state.RoundNumber);
             Assert.AreEqual(2, state.Host.Mana);
-            Assert.AreEqual(hostHandBefore, state.Host.DrawHand.Count);
+            Assert.AreEqual(hostHandBefore + 1, state.Host.DrawHand.Count);
+            Assert.AreEqual(guestHandBefore + 1, state.Guest.DrawHand.Count);
+            Assert.AreEqual(hostDeckBefore - 1, state.Host.Deck.Count);
+            Assert.AreEqual(guestDeckBefore - 1, state.Guest.Deck.Count);
+            Assert.AreEqual(2, state.Guest.Mana);
 
             engine.TryPass(state, SeatId.Guest);
             engine.TryPass(state, SeatId.Host);
 
             Assert.AreEqual(3, state.RoundNumber);
             Assert.AreEqual(3, state.Host.Mana);
-            Assert.AreEqual(hostHandBefore + 1, state.Host.DrawHand.Count);
+            Assert.AreEqual(hostHandBefore + 2, state.Host.DrawHand.Count);
+            Assert.AreEqual(guestHandBefore + 2, state.Guest.DrawHand.Count);
+            Assert.AreEqual(3, state.Guest.Mana);
 
-            Assert.AreEqual(hostDeckBefore - 1, state.Host.Deck.Count);
+            Assert.AreEqual(hostDeckBefore - 2, state.Host.Deck.Count);
+            Assert.AreEqual(guestDeckBefore - 2, state.Guest.Deck.Count);
+        }
+
+        [Test]
+        public void NewRound_WithOneEmptyDeck_StillDrawsForOtherPlayer()
+        {
+            MatchState state = CreateState();
+            state.Host.Deck.Clear();
+            int hostHandBefore = state.Host.DrawHand.Count;
+            int guestHandBefore = state.Guest.DrawHand.Count;
+
+            Assert.IsTrue(engine.TryPass(state, SeatId.Host).Accepted);
+            Assert.IsTrue(engine.TryPass(state, SeatId.Guest).Accepted);
+
+            Assert.AreEqual(2, state.RoundNumber);
+            Assert.AreEqual(hostHandBefore, state.Host.DrawHand.Count);
+            Assert.AreEqual(0, state.Host.Deck.Count);
+            Assert.AreEqual(guestHandBefore + 1, state.Guest.DrawHand.Count);
+            Assert.IsFalse(state.IsFinished);
+        }
+
+        [Test]
+        public void FinishedMatch_DoesNotAdvanceRoundOrDraw()
+        {
+            MatchState state = CreateState();
+            int hostHandBefore = state.Host.DrawHand.Count;
+            int guestHandBefore = state.Guest.DrawHand.Count;
+            int hostDeckBefore = state.Host.Deck.Count;
+            int guestDeckBefore = state.Guest.Deck.Count;
+
+            Assert.IsTrue(engine.TryPass(state, SeatId.Host).Accepted);
+            Assert.IsTrue(engine.TrySurrender(state, SeatId.Guest).Accepted);
+            Assert.IsFalse(engine.TryPass(state, SeatId.Guest).Accepted);
+
+            Assert.AreEqual(1, state.RoundNumber);
+            Assert.AreEqual(hostHandBefore, state.Host.DrawHand.Count);
+            Assert.AreEqual(guestHandBefore, state.Guest.DrawHand.Count);
+            Assert.AreEqual(hostDeckBefore, state.Host.Deck.Count);
+            Assert.AreEqual(guestDeckBefore, state.Guest.Deck.Count);
         }
 
         [Test]

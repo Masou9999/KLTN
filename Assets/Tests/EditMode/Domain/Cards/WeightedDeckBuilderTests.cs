@@ -21,18 +21,19 @@ namespace KLTN.Game.Domain.Tests
         };
 
         [Test]
-        public void Build_StarterSet_Has25CardsAndEveryOwnedCard()
+        public void Build_StarterSet_Has30CardsAndEveryOwnedCard()
         {
             IReadOnlyList<CardDefinition> deck = Build(Starter);
 
             Dictionary<string, int> counts = Count(deck);
 
-            Assert.AreEqual(DeckRules.RequiredCardCount, deck.Count);
+            Assert.AreEqual(30, deck.Count);
             Assert.AreEqual(Starter.Length, counts.Count);
 
             foreach (string id in Starter)
             {
                 Assert.GreaterOrEqual(counts[id], 1, id);
+                Assert.LessOrEqual(counts[id], 4, id);
             }
         }
 

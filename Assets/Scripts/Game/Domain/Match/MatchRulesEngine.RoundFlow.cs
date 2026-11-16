@@ -59,11 +59,8 @@ namespace KLTN.Game.Domain
             state.Host.ReturnBoardCardsToReserve();
             state.Guest.ReturnBoardCardsToReserve();
 
-            if (completedRound % DrawIntervalRounds == 0)
-            {
-                state.Host.DrawOne();
-                state.Guest.DrawOne();
-            }
+            state.Host.DrawOne();
+            state.Guest.DrawOne();
 
             state.Host.AdvanceAndRefillMana(MaximumMana);
 

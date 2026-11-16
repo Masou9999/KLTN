@@ -20,8 +20,8 @@ namespace KLTN.Game.Domain.Tests
             Assert.AreEqual(4, state.Host.DrawHand.Count);
             Assert.AreEqual(4, state.Guest.DrawHand.Count);
 
-            Assert.AreEqual(DeckRules.RequiredCardCount - 4, state.Host.Deck.Count);
-            Assert.AreEqual(DeckRules.RequiredCardCount - 4, state.Guest.Deck.Count);
+            Assert.AreEqual(26, state.Host.Deck.Count);
+            Assert.AreEqual(26, state.Guest.Deck.Count);
         }
 
         [Test]
