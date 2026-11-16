@@ -64,7 +64,7 @@ namespace KLTN.Game.Presentation
         [SerializeField]
         private Transform selfDeckSpawnPoint;
 
-        [Tooltip("Sorting Order của lá bài lúc đang bay rút bài để nổi lên trên LocalActionStatus")]
+        [Tooltip("Thứ tự 0–99 trong lớp GameCardMotion khi lá bài đang bay rút bài")]
         [SerializeField]
         private int drawSortingOrder = 50;
 
@@ -414,8 +414,7 @@ namespace KLTN.Game.Presentation
                 {
                     tempCanvas = tempCard.gameObject.AddComponent<Canvas>();
                 }
-                tempCanvas.overrideSorting = true;
-                tempCanvas.sortingOrder = drawSortingOrder + i;
+                MatchSorting.Apply(tempCanvas, MatchSorting.CardMotion, drawSortingOrder + i);
 
                 CardVisualLayout layout = tempCard.GetComponent<CardVisualLayout>();
                 if (layout != null)

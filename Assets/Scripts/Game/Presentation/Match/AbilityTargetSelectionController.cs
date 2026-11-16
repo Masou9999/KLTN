@@ -460,17 +460,13 @@ namespace KLTN.Game.Presentation
             rect.offsetMin = Vector2.zero;
             rect.offsetMax = Vector2.zero;
 
-            // Use an overlay sorting canvas independent of the world-space HUD canvas.
-            // The source card HUD sorts at 100; links remain above the board at 99.
+            // Links share the targeting band and sit below the selection controls.
             Canvas linkCanvas = targetLinkInstance.GetComponent<Canvas>();
             if (linkCanvas == null)
             {
                 linkCanvas = targetLinkInstance.AddComponent<Canvas>();
             }
-            linkCanvas.overrideSorting = true;
-            linkCanvas.sortingOrder = selectionCanvas != null
-                ? selectionCanvas.sortingOrder - 1
-                : rootCanvas.sortingOrder + 1;
+            MatchSorting.Apply(linkCanvas, MatchSorting.Targeting);
             targetLinks.raycastTarget = false;
             targetLinks.maskable = false;
         }

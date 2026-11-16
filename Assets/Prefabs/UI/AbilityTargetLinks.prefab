@@ -58,8 +58,8 @@ Canvas:
   m_UseReflectionProbes: 0
   m_AdditionalShaderChannelsFlag: 0
   m_UpdateRectTransformForStandalone: 0
-  m_SortingLayerID: 0
-  m_SortingOrder: 99
+  m_SortingLayerID: 1860000105
+  m_SortingOrder: 500
   m_TargetDisplay: 0
 --- !u!1 &8648655395871017071
 GameObject:

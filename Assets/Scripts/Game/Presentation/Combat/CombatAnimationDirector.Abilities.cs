@@ -972,6 +972,9 @@ namespace KLTN.Game.Presentation
                 Image image = gameObject.GetComponent<Image>();
                 image.color = Color.clear;
                 image.raycastTarget = true;
+                gameObject.layer = canvas.gameObject.layer;
+                MatchSorting.Apply(gameObject.AddComponent<Canvas>(), MatchSorting.Hud, 10);
+                gameObject.AddComponent<UnityEngine.UI.GraphicRaycaster>();
 
                 if (topBar != null)
                 {

@@ -80,7 +80,8 @@ namespace KLTN.Game.Editor
             // Result/selection panels are active in the authored scene and normally hidden by runtime Awake.
             // Hide those only in this unsaved preview so the launcher can be inspected unobstructed.
             foreach (var canvas in UnityEngine.Object.FindObjectsByType<Canvas>(FindObjectsInactive.Include))
-                if (canvas.sortingOrder == 100 || canvas.sortingOrder == 20) canvas.gameObject.SetActive(false);
+                if (canvas.sortingLayerName == MatchSorting.Result || canvas.sortingLayerName == MatchSorting.Targeting)
+                    canvas.gameObject.SetActive(false);
             Capture(modal, "Logs/match-log-button-preview.png");
             modal.Show(); Require(scroll.verticalNormalizedPosition < .01f, "Reopening must show latest.");
             journal.Accept(new MatchUpdateDto { snapshot = new MatchSnapshotDto { matchId = "next-match", viewerSeat = 0 } });

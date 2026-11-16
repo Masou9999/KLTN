@@ -46,8 +46,7 @@ namespace KLTN.Game.Editor
                 rect.sizeDelta = new Vector2(1000f, 600f);
 
                 Canvas canvas = root.GetComponent<Canvas>();
-                canvas.overrideSorting = true;
-                canvas.sortingOrder = 99;
+                MatchSorting.Apply(canvas, MatchSorting.Targeting);
 
                 var beam = new GameObject(
                     "Beams",

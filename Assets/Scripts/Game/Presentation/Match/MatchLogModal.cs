@@ -206,7 +206,7 @@ namespace KLTN.Game.Presentation
             var overlay = Rect("LogModal", root);
             Stretch(overlay);
             var canvas = overlay.gameObject.AddComponent<Canvas>();
-            canvas.overrideSorting = true; canvas.sortingOrder = 200;
+            MatchSorting.Apply(canvas, MatchSorting.Modal);
             overlay.gameObject.AddComponent<GraphicRaycaster>();
             modal.modalRoot = overlay.gameObject;
             var backdrop = Rect("Backdrop", overlay); Stretch(backdrop);

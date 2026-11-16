@@ -52,15 +52,14 @@ namespace KLTN.Game.Presentation
             var root=(RectTransform)graphics.transform; root.SetParent(layer,false);root.sizeDelta=layer.rect.size;
             // Pending Play cards have their own sorting Canvas. Sibling order alone
             // cannot put a centered charge or a revive stream above those cards.
-            Canvas basis=layer.GetComponentInParent<Canvas>();
-            int order=basis!=null ? basis.sortingOrder : 0;
-            foreach(var rect in new[] {layer,source,target})
-                foreach(var canvas in rect.GetComponentsInParent<Canvas>(true))
-                    order=Mathf.Max(order,canvas.sortingOrder);
             Canvas overlay=graphics.GetComponent<Canvas>();
-            overlay.overrideSorting=true;
-            if(basis!=null) overlay.sortingLayerID=basis.sortingLayerID;
-            overlay.sortingOrder=order+1;
+            MatchSorting.Apply(overlay, MatchSorting.Effects, 10);
+            // A pending source card may still be displayed in the targeting HUD.
+            // Lift this effect within that band, never over phase/modal/system UI.
+            foreach(var rect in new[] {source,target})
+                foreach(var canvas in rect.GetComponentsInParent<Canvas>(true))
+                    if(canvas.sortingLayerName==MatchSorting.Targeting)
+                        MatchSorting.Apply(overlay, MatchSorting.Targeting, 20);
             return root;
         }
         private static Vector2 Center(RectTransform layer,RectTransform card) => layer.InverseTransformPoint(card.TransformPoint(card.rect.center));

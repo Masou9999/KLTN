@@ -44,6 +44,36 @@ TagManager:
   - name: Ui
     uniqueID: 2401733819
     locked: 0
+  - name: GameBackground
+    uniqueID: 1860000100
+    locked: 0
+  - name: GameBoard
+    uniqueID: 1860000101
+    locked: 0
+  - name: GameCardMotion
+    uniqueID: 1860000102
+    locked: 0
+  - name: GameEffects
+    uniqueID: 1860000103
+    locked: 0
+  - name: GameHUD
+    uniqueID: 1860000104
+    locked: 0
+  - name: GameTargeting
+    uniqueID: 1860000105
+    locked: 0
+  - name: GamePhase
+    uniqueID: 1860000106
+    locked: 0
+  - name: GameModal
+    uniqueID: 1860000107
+    locked: 0
+  - name: GameResult
+    uniqueID: 1860000108
+    locked: 0
+  - name: SystemOverlay
+    uniqueID: 1860000109
+    locked: 0
   m_RenderingLayers:
   - Default
   m_MigratedRenderPipelines: []

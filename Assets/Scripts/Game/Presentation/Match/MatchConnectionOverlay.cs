@@ -15,7 +15,6 @@ namespace KLTN.Game.Presentation
     {
         #region Constants
 
-        private const int SortingOrder = 5000;
         private static readonly Vector2 ReferenceResolution = new Vector2(1920f, 1080f);
         private static readonly Color BannerShade = new Color(0f, 0f, 0f, 0.35f);
         private static readonly Color DialogShade = new Color(0f, 0f, 0f, 0.8f);
@@ -132,7 +131,7 @@ namespace KLTN.Game.Presentation
 
             var canvas = canvasObject.GetComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvas.sortingOrder = SortingOrder;
+            MatchSorting.Apply(canvas, MatchSorting.SystemOverlay);
 
             var scaler = canvasObject.GetComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
