@@ -72,6 +72,25 @@ namespace KLTN.Game.Tests
 
         #region Death And Revival
 
+        [Test]
+        public void RoundEnd_PublishesDeathBeforeRoundStart_WithoutExpiringReserve()
+        {
+            CardInstance board = Add(companion);
+            CardInstance reserve = Add(companion);
+            state.Host.TryMoveReserveCardToBoard(board, 0);
+            var engine = new MatchRulesEngine(definitions, new SeededRandomSource(19));
+            Assert.IsTrue(engine.TryPass(state, SeatId.Host).Accepted);
+            Assert.IsTrue(engine.TryPass(state, SeatId.Guest).Accepted);
+            AbilityResolution resolution = state.TakeAbilityResolution();
+            Assert.AreEqual(1, resolution.Events.Count);
+            Assert.IsTrue(resolution.Events[0].IsDeathOnly);
+            Assert.AreEqual(CardZone.Board, resolution.Events[0].TargetBefore.Zone);
+            Assert.AreEqual(CardZone.Graveyard, resolution.Events[0].TargetAfter.Zone);
+            Assert.AreEqual(CardZone.Reserve, reserve.Zone);
+            Assert.IsFalse(reserve.IsDead);
+            Assert.AreEqual(1, state.RoundHistory.AllDeaths.Count);
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         public void KillThenRevive_PreservesDeathAndLivingCard(bool onBoard)

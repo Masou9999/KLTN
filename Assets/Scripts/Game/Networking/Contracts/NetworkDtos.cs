@@ -245,6 +245,7 @@ namespace KLTN.Game.Networking
         public string abilityId;
         public int effectKind;
         public bool isRoundStartPassive;
+        public bool isDeathOnly;
         public CardViewDto source;
         public CardViewDto targetBefore;
         public CardViewDto targetAfter;

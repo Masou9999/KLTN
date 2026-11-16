@@ -18,11 +18,11 @@ namespace KLTN.Sandbox
         public const int HandLimit = 10;
         public static readonly string[] ReserveIds =
         {
-            "MaLon", "VongNhi", "ThanTrung", "ThienLinhCai", "OngKe", "MaTranh", "MaDoi", "MaCangSung"
+            "MaLon", "VongNhi", "ThanTrung", "ThienLinhCai", "OngKe", "MaTranh", "MaDoi", "MaCangSung", "MaDa"
         };
         public static readonly string[] HandIds =
         {
-            "ThanTrung", "ThienLinhCai", "OngKe", "MaTranh", "MaDoi", "MaCangSung"
+            "ThanTrung", "ThienLinhCai", "OngKe", "MaTranh", "MaDoi", "MaCangSung", "MaDa"
         };
 
         #endregion
@@ -102,11 +102,9 @@ namespace KLTN.Sandbox
         /// </summary>
         public bool ApplyCounts(int[] reserveCounts, int[] handCounts)
         {
-            // Older validation fixtures predate the extra card; preserve its count.
-            if (reserveCounts?.Length == ReserveIds.Length - 1)
-                reserveCounts = reserveCounts.Concat(new[] { Count("MaCangSung", true) }).ToArray();
-            if (handCounts?.Length == HandIds.Length - 1)
-                handCounts = handCounts.Concat(new[] { Count("MaCangSung", false) }).ToArray();
+            // Older fixtures predate Ma Cang Sung and Ma Da; preserve omitted counts.
+            reserveCounts = CompleteLegacyCounts(reserveCounts, ReserveIds, true, 7);
+            handCounts = CompleteLegacyCounts(handCounts, HandIds, false, 5);
             if (State.PendingSelection != null
                 || !ValidCounts(reserveCounts, ReserveIds.Length)
                 || !ValidCounts(handCounts, HandIds.Length)
@@ -119,7 +117,8 @@ namespace KLTN.Sandbox
             // Played test units can be removed from Reserve, but only enter via Play.
             for (int i = 2; i < ReserveIds.Length; i++)
             {
-                if (reserveCounts[i] > Count(ReserveIds[i], true))
+                if (!CanAddDirectlyToReserve(ReserveIds[i])
+                    && reserveCounts[i] > Count(ReserveIds[i], true))
                 {
                     return false;
                 }
@@ -134,6 +133,20 @@ namespace KLTN.Sandbox
         {
             return counts != null && counts.Length == length
                 && counts.All(count => count >= 0 && count <= HandLimit);
+        }
+
+        public static bool CanAddDirectlyToReserve(string id)
+        {
+            return id == "MaLon" || id == "VongNhi" || id == "MaDa";
+        }
+
+        private int[] CompleteLegacyCounts(int[] counts, string[] ids,
+            bool reserve, int minimumLength)
+        {
+            if (counts == null || counts.Length < minimumLength
+                || counts.Length >= ids.Length) return counts;
+            return counts.Concat(ids.Skip(counts.Length)
+                .Select(id => Count(id, reserve))).ToArray();
         }
 
         private List<CardInstance> Zone(bool reserve)

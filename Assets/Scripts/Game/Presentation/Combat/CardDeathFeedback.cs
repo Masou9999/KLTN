@@ -141,6 +141,8 @@ namespace KLTN.Game.Presentation
 
         #region Public API
 
+        public RectTransform VisualRoot => visualRoot;
+
         /// <summary>
         /// Shows a reversible crack while the local player has selected a lethal target.
         /// No shard or gameplay state is created until the host resolves the effect.

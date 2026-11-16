@@ -65,6 +65,7 @@ namespace KLTN.Game.Presentation
                 || update.snapshot.viewerCanDeclareBlock;
 
             AbilityResolutionEventDto[] events = update.abilityResolution.events;
+            bool transitionPending = HasRoundTransition(update);
 
             for (int i = 0; i < events.Length; i++)
             {
@@ -73,6 +74,14 @@ namespace KLTN.Game.Presentation
                 if (effect == null)
                 {
                     continue;
+                }
+
+                // Finish natural expiry deaths before announcing the next round.
+                // Other ability sequences retain their existing post-banner ordering.
+                if (transitionPending && !effect.isDeathOnly)
+                {
+                    yield return AnimateRoundTransition(update);
+                    transitionPending = false;
                 }
 
                 if (i == 0 || !BelongsToSameAbility(events[i - 1], effect))
@@ -91,6 +100,11 @@ namespace KLTN.Game.Presentation
                     if (paired) i++;
                 }
                 else yield return AnimateAbilityEffect(effect, viewerSeat, reserveCanDrag);
+            }
+
+            if (transitionPending)
+            {
+                yield return AnimateRoundTransition(update);
             }
 
             foreach (CardReviveFeedback feedback in activeReviveFeedbacks)
@@ -123,14 +137,14 @@ namespace KLTN.Game.Presentation
 
                 if (
                     effect?.targetBefore == null
-                    || effect.targetAfter == null
-                    || effect.targetAfter.health > 0
+                    || !IsAbilityDeath(effect)
                 )
                 {
                     continue;
                 }
 
                 if (ResolveFeastProfile(effect) != null) continue;
+                if (ResolveWaterDeath(effect.targetBefore.definitionId) != null) continue;
 
                 NetworkCardVisual target = boardPresenter.PrepareAbilitySource(
                     effect.targetBefore,
@@ -210,13 +224,20 @@ namespace KLTN.Game.Presentation
 
             Canvas.ForceUpdateCanvases();
 
+            if (effect.isDeathOnly)
+            {
+                yield return PlayCardDeath(target, effect.targetBefore.instanceId);
+                yield break;
+            }
+
             Vector3 targetPosition = CardCenter(target);
             Vector3 sourcePosition = source == null
                 ? targetPosition + Vector3.down * 100f
                 : CardCenter(source);
 
             FeastEffectProfile feast = ResolveFeastProfile(effect);
-            if (feast != null && source != null)
+            if (feast != null && source != null
+                && ResolveWaterDeath(target.DefinitionId) == null)
             {
                 target.GetComponent<CardDeathFeedback>()?.ClearTargetPreviewCrack();
                 if (feastView == null)
@@ -295,21 +316,11 @@ namespace KLTN.Game.Presentation
                 yield return PlayAbilityImpact(targetPosition);
             }
 
-            bool killed = effect.targetAfter != null
-                && effect.targetAfter.health <= 0;
+            bool killed = IsAbilityDeath(effect);
 
             if (killed)
             {
-                CardDeathFeedback death = target.GetComponent<CardDeathFeedback>();
-
-                if (death != null)
-                {
-                    activeDeathFeedbacks.Add(death);
-                    yield return death.PlayDeath(
-                        effect.targetBefore.instanceId,
-                        PlayDeathDust
-                    );
-                }
+                yield return PlayCardDeath(target, effect.targetBefore.instanceId);
 
                 yield break;
             }
@@ -328,6 +339,13 @@ namespace KLTN.Game.Presentation
                     yield return feedback.PlayDamage(damage, effect.targetAfter.health);
                 }
             }
+        }
+
+        private static bool IsAbilityDeath(AbilityResolutionEventDto effect)
+        {
+            // Opponent Graveyard identities are filtered out of targetAfter.
+            return effect != null && (effect.targetZoneAfter == (int)CardZone.Graveyard
+                || (effect.targetAfter != null && effect.targetAfter.health <= 0));
         }
 
         private SpiritSpellProfile ResolveSpiritProfile(AbilityResolutionEventDto effect)

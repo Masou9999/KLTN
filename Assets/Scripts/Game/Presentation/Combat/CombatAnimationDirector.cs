@@ -140,6 +140,8 @@ namespace KLTN.Game.Presentation
 
             StopAllCoroutines();
 
+            ResetWaterDeaths();
+
             CleanupAbilityPresentation();
 
             activeDamageFeedbackCount = 0;
@@ -204,7 +206,7 @@ namespace KLTN.Game.Presentation
                         yield return AnimateResolution(currentUpdate);
                     }
 
-                    if (HasRoundTransition(currentUpdate))
+                    if (HasRoundTransition(currentUpdate) && !hasAbilities)
                     {
                         yield return AnimateRoundTransition(currentUpdate);
                     }

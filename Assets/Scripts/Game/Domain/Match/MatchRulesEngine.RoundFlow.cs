@@ -171,7 +171,8 @@ namespace KLTN.Game.Domain
                     continue;
                 }
 
-                state.Journal.Ephemeral(state.RoundNumber, AbilityCardState.Capture(card, definition), true);
+                AbilityCardState before = AbilityCardState.Capture(card, definition);
+                state.Journal.Ephemeral(state.RoundNumber, before, true);
                 card.Kill();
 
                 bool moved = state
@@ -189,6 +190,12 @@ namespace KLTN.Game.Domain
 
                 state.RoundHistory.RecordDeath(card, damageAtDeath, maximumHealthAtDeath);
                 state.Journal.PassiveCosts(state, definitionsById, card.Owner);
+
+                state.RecordAbilityResolution(new AbilityResolutionEvent(
+                    state.NextAbilityResolutionSequence(), null, EffectKind.Kill,
+                    null, before, AbilityCardState.Capture(card, definition),
+                    isDeathOnly: true
+                ));
 
                 deathEvents.Add(
                     GameEvent.FromCard(GameEventType.UnitDied, state.RoundNumber, card)

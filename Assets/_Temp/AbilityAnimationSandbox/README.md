@@ -9,7 +9,7 @@ UGS session, network host, opponent client, or build is required.
 - **THÊM THẺ** next to Settings opens a count editor for your side. Minus removes
   cards; plus adds cards. **XÁC NHẬN** applies the draft; **HỦY** discards it.
 - Reserve capacity is 4 (including Board); this sandbox limits Draw Hand to 10.
-  Ma Lon and Vong Nhi can be added directly to Reserve. Test units enter via
+  Ma Lon, Vong Nhi and Ma Da can be added directly to Reserve. Other test units enter via
   Draw Hand; once summoned, they appear in the Reserve section for removal.
 - Removing cards is fixture editing, not killing: it does not trigger Vong Nhi,
   Ma Lon, or the allied-death condition for Ma Tranh. Existing cards retain their
@@ -27,6 +27,16 @@ UGS session, network host, opponent client, or build is required.
   remove a unit through the modal to make room. Reset replenishes enemy targets.
 - Draw effects draw from a deterministic 25-card deck of test units. Any draws
   beyond the sandbox hand limit are returned to the bottom of that local deck.
+
+### Ma Da
+
+Existing scenes add the Ma Da rows automatically in Play Mode; no rebuild is needed.
+In **THÊM THẺ**, remove one Ma Lon, add one Ma Da to Reserve, and add one Thien Linh
+Cai to Draw Hand. Confirm, summon Thien Linh Cai, and select Ma Da: its water death
+plays before revival. The dead Ma Da's Last Breath remains recorded independently.
+The minus button only edits the fixture; it does not play death or record Last Breath.
+This ability-only sandbox still has no attack declaration; direct Nexus/combat tests
+must be performed in GameScene.
 
 ## Maintenance
 

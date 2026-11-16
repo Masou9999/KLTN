@@ -72,7 +72,12 @@ namespace KLTN.Game.Domain
             }
 
             pendingAbilityResolutionEvents.Add(resolutionEvent);
-            Journal.Ability(RoundNumber, resolutionEvent, resolutionEvent.JournalContext, resolutionEvent.Duration);
+            // Natural deaths already have an Ephemeral journal entry.
+            if (!resolutionEvent.IsDeathOnly)
+            {
+                Journal.Ability(RoundNumber, resolutionEvent,
+                    resolutionEvent.JournalContext, resolutionEvent.Duration);
+            }
         }
 
         /// <summary>Returns and clears the effects applied since the last publication.</summary>

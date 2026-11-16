@@ -57,6 +57,7 @@ namespace KLTN.Game.Domain
         public int NexusHealthBefore { get; }
         public int NexusHealthAfter { get; }
         public bool IsRoundStartPassive { get; }
+        public bool IsDeathOnly { get; }
 
         public AbilityResolutionEvent(
             long sequence,
@@ -70,7 +71,8 @@ namespace KLTN.Game.Domain
             int nexusHealthAfter = 0,
             bool isRoundStartPassive = false,
             string journalContext = "",
-            EffectDuration duration = EffectDuration.Permanent
+            EffectDuration duration = EffectDuration.Permanent,
+            bool isDeathOnly = false
         )
         {
             JournalContext = journalContext;
@@ -85,6 +87,7 @@ namespace KLTN.Game.Domain
             NexusHealthBefore = nexusHealthBefore;
             NexusHealthAfter = nexusHealthAfter;
             IsRoundStartPassive = isRoundStartPassive;
+            IsDeathOnly = isDeathOnly;
         }
     }
 

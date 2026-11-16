@@ -300,6 +300,9 @@ namespace KLTN.Game.Presentation
 
             yield return WaitUnscaled(impactHoldDuration);
 
+            // An unblocked Ephemeral attacker still dies after striking the Nexus.
+            // Queue its death before returning home, just like unit-vs-unit combat.
+            yield return ShowStepLethalHighlights(step);
 
             yield return ReturnCard(attackerAnimator);
         }

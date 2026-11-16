@@ -74,6 +74,7 @@ namespace KLTN.Game.Networking
                         abilityId = effect.AbilityId,
                         effectKind = (int)effect.Kind,
                         isRoundStartPassive = effect.IsRoundStartPassive,
+                        isDeathOnly = effect.IsDeathOnly,
                         source = source,
                         targetBefore = before,
                         targetAfter = after,

@@ -164,7 +164,10 @@ namespace KLTN.Game.Presentation
 
             pendingDeathsById.Add(instanceId, deathFeedback);
             activeDeathFeedbacks.Add(deathFeedback);
-            routines.Add(deathFeedback.ShowLethalHighlight(instanceId));
+            if (ResolveWaterDeath(visual.DefinitionId) == null)
+            {
+                routines.Add(deathFeedback.ShowLethalHighlight(instanceId));
+            }
         }
 
         private IEnumerator AnimatePendingDeaths()
@@ -178,7 +181,9 @@ namespace KLTN.Game.Presentation
                     continue;
                 }
 
-                routines.Add(pair.Value.PlayShatter(pair.Key, PlayDeathDust));
+                routines.Add(PlayCardDeath(
+                    pair.Value.GetComponent<NetworkCardVisual>(), pair.Key
+                ));
             }
 
             yield return RunMany(routines);
