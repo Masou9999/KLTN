@@ -496,21 +496,17 @@ namespace KLTN.Game.Domain
                     executionSelection
                 );
 
-                UpdateOutcome(state);
-
-                if (state.IsFinished)
-                {
-                    triggeredAbilityQueue.Clear();
-
-                    state.Phase = MatchPhase.Finished;
-
-                    return;
-                }
-
                 if (emittedEvents.Events.Count > 0)
                 {
                     triggeredAbilityQueue.Enqueue(state, emittedEvents);
                 }
+            }
+
+            // Include every reaction emitted by this chain before adjudicating lethal damage.
+            UpdateOutcome(state);
+            if (state.IsFinished)
+            {
+                state.Phase = MatchPhase.Finished;
             }
         }
 

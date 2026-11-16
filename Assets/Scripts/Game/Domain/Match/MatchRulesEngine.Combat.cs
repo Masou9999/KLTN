@@ -329,8 +329,14 @@ namespace KLTN.Game.Domain
             );
         }
 
-        private static void UpdateOutcome(MatchState state)
+        private void UpdateOutcome(MatchState state)
         {
+            // A lethal intermediate state is not final while the reaction chain is pending.
+            if (state.IsFinished || state.PendingSelection != null || triggeredAbilityQueue.Count > 0)
+            {
+                return;
+            }
+
             bool hostDead = state.Host.NexusHealth <= 0;
 
             bool guestDead = state.Guest.NexusHealth <= 0;

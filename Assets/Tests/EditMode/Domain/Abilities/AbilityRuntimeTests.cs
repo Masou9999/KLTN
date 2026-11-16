@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using NUnit.Framework;
 
 namespace KLTN.Game.Domain.Tests
@@ -618,6 +618,147 @@ namespace KLTN.Game.Domain.Tests
             Assert.AreEqual(19, state.Guest.NexusHealth);
 
             Assert.AreEqual(2, state.RoundHistory.CurrentRoundDeaths.Count);
+        }
+
+        [TestCase(SeatId.Host, 1, MatchOutcome.Draw)]
+        [TestCase(SeatId.Guest, 1, MatchOutcome.Draw)]
+        [TestCase(SeatId.Host, 2, MatchOutcome.GuestWon)]
+        [TestCase(SeatId.Guest, 2, MatchOutcome.GuestWon)]
+        public void LethalVongNhi_ResolvesBothSides(SeatId attacker, int guestHealth, MatchOutcome expected)
+        {
+            var state = CreateLethalCombatState(attacker);
+            state.Guest.HealNexus(guestHealth - 1);
+            var definitions = new Dictionary<string, CardDefinition>
+            {
+                { "fighter", new CardDefinition("fighter", "Fighter", 1, 1, 0) },
+                { "vong", Definition("vong", Ability("revenge", AbilityTrigger.AllyDeath,
+                    new EffectDefinition(EffectKind.Damage, EffectTarget.EnemyNexus, amount: 1))) }
+            };
+            state.Host.Reserve.Add(new CardInstance(3, "vong", SeatId.Host, CardZone.Reserve, 3));
+            state.Guest.Reserve.Add(new CardInstance(4, "vong", SeatId.Guest, CardZone.Reserve, 3));
+            ResolveLethalCombat(new MatchRulesEngine(definitions), state, attacker);
+            Assert.AreEqual(0, state.Host.NexusHealth);
+            Assert.AreEqual(guestHealth - 1, state.Guest.NexusHealth);
+            Assert.AreEqual(expected, state.Outcome);
+            Assert.AreEqual(MatchPhase.Finished, state.Phase);
+        }
+
+        [Test]
+        public void LethalCombat_DeathTriggerCanHealNexusBackFromZero()
+        {
+            var state = CreateLethalCombatState(SeatId.Host);
+            var definitions = new Dictionary<string, CardDefinition>
+            {
+                { "fighter", new CardDefinition("fighter", "Fighter", 1, 1, 0,
+                    keywords: UnitKeyword.Ephemeral, abilities: new[] {
+                        Ability("heal_enemy", AbilityTrigger.Death,
+                            new EffectDefinition(EffectKind.Heal, EffectTarget.EnemyNexus, amount: 2)) }) }
+            };
+            var engine = new MatchRulesEngine(definitions);
+            Assert.IsTrue(engine.TryDeclareAttack(state, SeatId.Host, new[] { 1UL, 0UL, 0UL }).Accepted);
+            Assert.IsTrue(engine.TryDeclareBlock(state, SeatId.Guest, new ulong[3]).Accepted);
+            Assert.AreEqual(2, state.Guest.NexusHealth);
+            Assert.AreEqual(MatchOutcome.Running, state.Outcome);
+            Assert.AreEqual(CardZone.Graveyard, state.Host.Graveyard[0].Zone);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void LethalChain_WaitsForSelectionAndThenResumes(bool timeout)
+        {
+            var state = CreateLethalCombatState(SeatId.Host);
+            var definitions = new Dictionary<string, CardDefinition>
+            {
+                { "fighter", new CardDefinition("fighter", "Fighter", 1, 1, 0, abilities: new[] {
+                    Ability("revenge", AbilityTrigger.Death,
+                        new EffectDefinition(EffectKind.Damage, EffectTarget.EnemyNexus, amount: 1)) }) },
+                { "watcher", Definition("watcher", new AbilityDefinition("selected_heal", AbilityTrigger.AllyDeath,
+                    new[] { new EffectDefinition(EffectKind.Heal, EffectTarget.EnemyNexus, amount: 2) },
+                    requiredTargets: new[] { new AbilityTargetRequirement(AbilityTargetSlot.Primary,
+                        TargetRelation.Ally, AbilityTargetZone.ActiveRoster, excludeSource: false) })) }
+            };
+            state.Host.Reserve.Add(new CardInstance(3, "watcher", SeatId.Host, CardZone.Reserve, 3));
+            var engine = new MatchRulesEngine(definitions);
+            ResolveLethalCombat(engine, state, SeatId.Host);
+            Assert.AreEqual(0, state.Guest.NexusHealth);
+            Assert.AreEqual(MatchOutcome.Running, state.Outcome);
+            Assert.AreEqual(MatchPhase.AbilitySelection, state.Phase);
+            Assert.IsNotNull(state.PendingSelection);
+            var result = timeout ? engine.TryTimeout(state, SeatId.Host)
+                : engine.TrySubmitAbilitySelection(state, SeatId.Host, state.PendingSelection.RequestId,
+                    new AbilityTargetSelection(new[] { 3UL }, null));
+            Assert.IsTrue(result.Accepted);
+            Assert.IsNull(state.PendingSelection);
+            Assert.AreEqual(2, state.Guest.NexusHealth);
+            Assert.AreEqual(0, state.Host.NexusHealth);
+            Assert.AreEqual(MatchOutcome.GuestWon, state.Outcome);
+            Assert.AreEqual(MatchPhase.Finished, state.Phase);
+        }
+
+        [Test]
+        public void LethalAbility_ResolvesNewDeathTriggersBeforeOutcome()
+        {
+            var state = CreateReadyState();
+            state.Host.ApplyNexusDamage(19);
+            state.Guest.ApplyNexusDamage(19);
+            var definitions = new Dictionary<string, CardDefinition>
+            {
+                { "caster", Definition("caster", Ability("blast", AbilityTrigger.Play,
+                    new EffectDefinition(EffectKind.Damage, EffectTarget.EnemyNexus, amount: 1),
+                    new EffectDefinition(EffectKind.Kill, EffectTarget.WeakestEnemies, count: 1))) },
+                { "victim", Definition("victim", Ability("revenge", AbilityTrigger.Death,
+                    new EffectDefinition(EffectKind.Damage, EffectTarget.EnemyNexus, amount: 1))) }
+            };
+            AddHandCard(state.Host, 1, "caster", 3);
+            state.Guest.Reserve.Add(new CardInstance(2, "victim", SeatId.Guest, CardZone.Reserve, 3));
+            Assert.IsTrue(new MatchRulesEngine(definitions).TrySummonUnit(state, SeatId.Host, 1).Accepted);
+            Assert.AreEqual(0, state.Host.NexusHealth);
+            Assert.AreEqual(0, state.Guest.NexusHealth);
+            Assert.AreEqual(MatchOutcome.Draw, state.Outcome);
+            Assert.AreEqual(MatchPhase.Finished, state.Phase);
+        }
+
+        [Test]
+        public void RoundEndLethalDeaths_FinishChainWithoutStartingNextRound()
+        {
+            var state = CreateLethalCombatState(SeatId.Host);
+            var definitions = new Dictionary<string, CardDefinition>
+            {
+                { "fighter", new CardDefinition("fighter", "Fighter", 1, 1, 0,
+                    keywords: UnitKeyword.Ephemeral, abilities: new[] {
+                        Ability("revenge", AbilityTrigger.Death,
+                            new EffectDefinition(EffectKind.Damage, EffectTarget.EnemyNexus, amount: 1)) }) }
+            };
+            state.Host.TryMoveReserveCardToBoard(state.Host.Reserve[0], 0);
+            state.Guest.TryMoveReserveCardToBoard(state.Guest.Reserve[0], 0);
+            var engine = new MatchRulesEngine(definitions);
+            int round = state.RoundNumber;
+            Assert.IsTrue(engine.TryPass(state, SeatId.Host).Accepted);
+            var result = engine.TryPass(state, SeatId.Guest);
+            Assert.IsTrue(result.Accepted);
+            Assert.AreEqual(MatchOutcome.Draw, state.Outcome);
+            Assert.AreEqual(MatchPhase.Finished, state.Phase);
+            Assert.AreEqual(round, state.RoundNumber);
+        }
+
+        private static MatchState CreateLethalCombatState(SeatId attacker)
+        {
+            var state = new MatchState(attacker);
+            state.HostMulliganDone = state.GuestMulliganDone = true;
+            state.BeginFirstRound();
+            state.Host.ApplyNexusDamage(19);
+            state.Guest.ApplyNexusDamage(19);
+            state.Host.Reserve.Add(new CardInstance(1, "fighter", SeatId.Host, CardZone.Reserve, 1));
+            state.Guest.Reserve.Add(new CardInstance(2, "fighter", SeatId.Guest, CardZone.Reserve, 1));
+            return state;
+        }
+
+        private static void ResolveLethalCombat(MatchRulesEngine engine, MatchState state, SeatId attacker)
+        {
+            ulong attackId = attacker == SeatId.Host ? 1UL : 2UL;
+            ulong blockId = attacker == SeatId.Host ? 2UL : 1UL;
+            Assert.IsTrue(engine.TryDeclareAttack(state, attacker, new[] { attackId, 0UL, 0UL }).Accepted);
+            Assert.IsTrue(engine.TryDeclareBlock(state, attacker.Opponent(), new[] { blockId, 0UL, 0UL }).Accepted);
         }
 
         private static Dictionary<string, CardDefinition> CreateTargetedDefinitions()

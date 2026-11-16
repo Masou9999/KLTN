@@ -144,19 +144,7 @@ namespace KLTN.Game.Domain
                 out deathEventBatch
             );
 
-            UpdateOutcome(state);
-
-            if (state.IsFinished)
-            {
-                state.Phase = MatchPhase.Finished;
-
-                state.LastEvent =
-                    $"Combat kết thúc với {blockerCount} blocker. "
-                    + $"Kết quả: {state.Outcome}.";
-
-                return CommandResult.Success(resolution);
-            }
-
+            // Combat damage and its death triggers form one resolution chain.
             state.Host.ReturnBoardCardsToReserve();
             state.Guest.ReturnBoardCardsToReserve();
 
