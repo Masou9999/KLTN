@@ -11,11 +11,13 @@ namespace KLTN.Audio
         public int combat = 75;
         public bool musicMuted;
         public bool uiMuted;
+        public bool combatMuted;
 
         public AudioPreferences Copy() => (AudioPreferences)MemberwiseClone();
         public bool SameAs(AudioPreferences other) => other != null
             && music == other.music && ui == other.ui && combat == other.combat
-            && musicMuted == other.musicMuted && uiMuted == other.uiMuted;
+            && musicMuted == other.musicMuted && uiMuted == other.uiMuted
+            && combatMuted == other.combatMuted;
         public bool IsValid() => ValidLevel(music) && ValidLevel(ui)
             && ValidLevel(combat) && (music != 0 || musicMuted)
             && (ui != 0 || uiMuted);

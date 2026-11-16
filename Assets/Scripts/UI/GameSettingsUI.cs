@@ -37,10 +37,14 @@ public class GameSettingsUI : MonoBehaviour
 
     #region Unity Lifecycle
 
-    private void Awake()
+    private void Awake() => InitializeControls();
+
+    /// <summary>Binds authored controls, creating missing controls only once.</summary>
+    public void InitializeControls()
     {
-        BuildSaveControls();
+        if (saveButton != null && resolutionToggles != null) return;
         selectedResolution = WindowResolutionSettings.SavedIndex;
+        BuildSaveControls();
         if (closeButton != null)
         {
             resolutionToggles = ResolutionSettingsControls.Build(
@@ -58,11 +62,14 @@ public class GameSettingsUI : MonoBehaviour
         foreach (var button in settingsPanel.GetComponentsInChildren<Button>(true))
         {
             if (button.name == "CloseButton") close = button;
-            if (button.name == "SurrenderButton") surrender = button;
+            if (button.name == "SurrenderButton" && button.gameObject.activeSelf)
+                surrender = button;
+            if (button.name == "SaveAudioButton") saveButton = button;
         }
         if (close == null) return;
         closeButton = close;
-        saveButton = Instantiate(close, close.transform.parent, false);
+        if (saveButton == null)
+            saveButton = Instantiate(close, close.transform.parent, false);
         saveButton.name = "SaveAudioButton";
         saveButton.onClick = new Button.ButtonClickedEvent();
         saveButton.onClick.AddListener(() => UIClickManager.Instance?.PlayClick());
@@ -74,23 +81,27 @@ public class GameSettingsUI : MonoBehaviour
         saveLabel = saveButton.GetComponentInChildren<TMP_Text>(true);
         saveLabel.text = "Lưu";
         // Match settings retain their own action; only audio state is shared.
-        PositionAction(saveButton, surrender != null ? 0 : -115);
-        PositionAction(close, surrender != null ? 240 : 115);
+        PositionAction(saveButton, surrender != null ? 0 : -125);
+        PositionAction(close, surrender != null ? 250 : 125);
         if (surrender != null)
         {
-            PositionAction(surrender, -240);
+            PositionAction(surrender, -250);
         }
         close.GetComponentInChildren<TMP_Text>(true).text = "Đóng";
-        saveStatus = Instantiate(saveLabel, close.transform.parent, false);
+        Transform existingStatus = close.transform.parent.Find("AudioSaveStatus");
+        saveStatus = existingStatus != null ? existingStatus.GetComponent<TMP_Text>()
+            : Instantiate(saveLabel, close.transform.parent, false);
         saveStatus.name = "AudioSaveStatus";
         saveStatus.rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
         saveStatus.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
         saveStatus.rectTransform.pivot = new Vector2(0.5f, 0.5f);
-        saveStatus.rectTransform.anchoredPosition = new Vector2(0, -144);
-        saveStatus.rectTransform.sizeDelta = new Vector2(660, 22);
+        saveStatus.rectTransform.anchoredPosition = new Vector2(0, -180);
+        saveStatus.rectTransform.sizeDelta = new Vector2(600, 22);
         saveStatus.enableAutoSizing = true;
         saveStatus.fontSizeMin = 14;
-        saveStatus.fontSizeMax = 18;
+        saveStatus.fontSizeMax = 16;
+        saveStatus.fontStyle = FontStyles.Normal;
+        saveStatus.color = new Color(0.75f, 0.78f, 0.8f);
         saveStatus.raycastTarget = false;
         Refresh();
     }
@@ -100,11 +111,11 @@ public class GameSettingsUI : MonoBehaviour
         var rect = (RectTransform)button.transform;
         rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
         rect.pivot = new Vector2(0.5f, 0.5f);
-        rect.anchoredPosition = new Vector2(x, -184);
-        rect.sizeDelta = new Vector2(220, 48);
+        rect.anchoredPosition = new Vector2(x, -242);
+        rect.sizeDelta = new Vector2(220, 52);
     }
 
-    private async void SaveAudio()
+    public async void SaveAudio()
     {
         if (AudioVolumeSettings.IsSaving) return;
         if (selectedResolution != WindowResolutionSettings.SavedIndex)
@@ -127,6 +138,7 @@ public class GameSettingsUI : MonoBehaviour
 
     private void OnEnable()
     {
+        InitializeControls();
         AudioVolumeSettings.Changed += Refresh;
         Refresh();
     }
@@ -142,6 +154,7 @@ public class GameSettingsUI : MonoBehaviour
 
     public void OpenSettings()
     {
+        InitializeControls();
         if (previewCheckpoint == null)
         {
             previewCheckpoint = AudioVolumeSettings.CapturePreview();

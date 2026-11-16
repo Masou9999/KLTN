@@ -29,6 +29,20 @@ await t('audio rejects extra fields and invalid mute flags', async () => {
   await assertFails(setDoc(audioRef('audioA'), { ...audio, music: 0 }));
 });
 
+await t('audio combat mute round trip and legacy replacement', async () => {
+  await assertSucceeds(setDoc(audioRef('audioA'), { ...audio, combat: 40, combatMuted: true }));
+  const saved = await assertSucceeds(getDoc(audioRef('audioA')));
+  if (saved.data().combat !== 40 || saved.data().combatMuted !== true) throw new Error('Lost combat mute');
+  await assertSucceeds(setDoc(audioRef('audioA'), { ...audio, combatMuted: false }));
+  await assertSucceeds(setDoc(audioRef('audioA'), audio));
+});
+await t('audio rejects invalid combat mute and other owner writes', async () => {
+  for (const combatMuted of ['true', 1, null])
+    await assertFails(setDoc(audioRef('audioA'), { ...audio, combatMuted }));
+  const foreign = doc(env.authenticatedContext('audioB').firestore(), 'users/audioA/settings/audio');
+  await assertFails(setDoc(foreign, { ...audio, combatMuted: true }));
+});
+
 const now = Date.now(), H = 3600e3, M = 60e3;
 const db = uid => env.authenticatedContext(uid).firestore();
 const zero = { coins: 0, silver: 0, schemaVersion: 1 };

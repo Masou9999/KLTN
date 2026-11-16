@@ -289,10 +289,11 @@ service cloud.firestore {
         }
         function validAudio() {
           let d = request.resource.data;
-          return d.keys().hasOnly(['music', 'ui', 'combat', 'musicMuted', 'uiMuted'])
+          return d.keys().hasOnly(['music', 'ui', 'combat', 'musicMuted', 'uiMuted', 'combatMuted'])
             && d.keys().hasAll(['music', 'ui', 'combat', 'musicMuted', 'uiMuted'])
             && level(d.music) && level(d.ui) && level(d.combat)
             && d.musicMuted is bool && d.uiMuted is bool
+            && (!('combatMuted' in d) || d.combatMuted is bool)
             && (d.music != 0 || d.musicMuted) && (d.ui != 0 || d.uiMuted);
         }
         allow read: if isOwner(uid);

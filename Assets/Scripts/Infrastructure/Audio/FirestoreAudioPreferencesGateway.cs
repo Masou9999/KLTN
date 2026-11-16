@@ -26,6 +26,7 @@ namespace KLTN.Infrastructure.Audio
                 combat = int.Parse((string)fields["combat"]["integerValue"]),
                 musicMuted = (bool)fields["musicMuted"]["booleanValue"],
                 uiMuted = (bool)fields["uiMuted"]["booleanValue"],
+                combatMuted = (bool?)fields["combatMuted"]?["booleanValue"] ?? false,
             };
             if (!value.IsValid()) throw new InvalidOperationException("Invalid audio settings");
             return value;
@@ -39,6 +40,7 @@ namespace KLTN.Infrastructure.Audio
                 ["music"] = value.music, ["ui"] = value.ui,
                 ["combat"] = value.combat, ["musicMuted"] = value.musicMuted,
                 ["uiMuted"] = value.uiMuted,
+                ["combatMuted"] = value.combatMuted,
             };
             JObject write = client.CreateWrite(Path(uid), fields);
             // Absolute replacement is safe for both first save and later updates.

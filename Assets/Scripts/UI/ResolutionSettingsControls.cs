@@ -6,54 +6,42 @@ using UnityEngine.UI;
 namespace KLTN.UI
 {
     /// <summary>Adds mutually exclusive resolution checkboxes to settings.</summary>
-    internal static class ResolutionSettingsControls
+    public static class ResolutionSettingsControls
     {
         #region Construction
 
         public static Toggle[] Build(Transform window, TMP_Text template,
             UnityAction<int> select)
         {
-            var windowRect = (RectTransform)window;
-            windowRect.sizeDelta += new Vector2(0, 120);
-            Move(window, "TitleText", 60);
-            foreach (string prefix in new[] { "Music", "UiSound", "SFX" })
-            {
-                Move(window, prefix + "Label", 40);
-                Move(window, prefix + "Slider", 40);
-            }
-            Move(window, "MusicMuteControl", -40);
-            Move(window, "SoundMuteControl", -40);
-            Move(window, "SaveAudioButton", -60);
-            Move(window, "CloseButton", -60);
-            Move(window, "SurrenderButton", -60);
-            Move(window, "AudioSaveStatus", -60);
+            ApplyLayout(window);
 
-            var row = new GameObject("ResolutionRow", typeof(RectTransform),
-                typeof(ToggleGroup));
-            row.transform.SetParent(window, false);
-            Place((RectTransform)row.transform, new Vector2(0, -65),
-                new Vector2(720, 44));
+            var row = Child(window, "ResolutionRow");
+            if (row.GetComponent<ToggleGroup>() == null) row.AddComponent<ToggleGroup>();
+            Place((RectTransform)row.transform, new Vector2(0, -116),
+                new Vector2(680, 44));
             var group = row.GetComponent<ToggleGroup>();
             group.allowSwitchOff = false;
-            Label(template, row.transform, "Độ phân giải", -285, 150);
+            TMP_Text heading = Label(template, row.transform, "Độ phân giải", 0, 540);
+            heading.alignment = TextAlignmentOptions.Center;
+            heading.rectTransform.anchoredPosition = new Vector2(0, 48);
             var toggles = new Toggle[WindowResolutionSettings.Count];
             for (int i = 0; i < toggles.Length; i++)
             {
                 int index = i;
-                var option = new GameObject("Resolution" + i, typeof(RectTransform),
-                    typeof(Image), typeof(Toggle));
-                option.transform.SetParent(row.transform, false);
+                var option = Child(row.transform, "Resolution" + i);
+                if (option.GetComponent<Image>() == null) option.AddComponent<Image>();
+                if (option.GetComponent<Toggle>() == null) option.AddComponent<Toggle>();
                 Place((RectTransform)option.transform,
-                    new Vector2(-95 + i * 170, 0), new Vector2(160, 44));
+                    new Vector2(-220 + i * 220, 0), new Vector2(180, 44));
                 option.GetComponent<Image>().color = Color.clear;
-                var box = new GameObject("Box", typeof(RectTransform), typeof(Image));
-                box.transform.SetParent(option.transform, false);
+                var box = Child(option.transform, "Box");
+                if (box.GetComponent<Image>() == null) box.AddComponent<Image>();
                 Place((RectTransform)box.transform, new Vector2(-64, 0),
                     new Vector2(26, 26));
                 box.GetComponent<Image>().color = new Color(0.85f, 0.68f, 0.4f);
-                var tick = new GameObject("Checkmark", typeof(RectTransform),
-                    typeof(ResolutionCheckmarkGraphic));
-                tick.transform.SetParent(box.transform, false);
+                var tick = Child(box.transform, "Checkmark");
+                if (tick.GetComponent<ResolutionCheckmarkGraphic>() == null)
+                    tick.AddComponent<ResolutionCheckmarkGraphic>();
                 Place((RectTransform)tick.transform, Vector2.zero, new Vector2(26, 26));
                 var mark = tick.GetComponent<ResolutionCheckmarkGraphic>();
                 mark.raycastTarget = false;
@@ -65,6 +53,7 @@ namespace KLTN.UI
                 toggle.graphic = mark;
                 toggle.SetIsOnWithoutNotify(i == WindowResolutionSettings.SavedIndex);
                 toggle.group = group;
+                toggle.onValueChanged = new Toggle.ToggleEvent();
                 toggle.onValueChanged.AddListener(on =>
                 {
                     if (on) select(index);
@@ -81,7 +70,9 @@ namespace KLTN.UI
         private static TMP_Text Label(TMP_Text template, Transform parent,
             string value, float x, float width)
         {
-            var text = Object.Instantiate(template, parent, false);
+            Transform existing = parent.Find("Label");
+            var text = existing != null ? existing.GetComponent<TMP_Text>()
+                : Object.Instantiate(template, parent, false);
             text.name = "Label";
             text.text = value;
             text.fontStyle = FontStyles.Normal;
@@ -95,11 +86,53 @@ namespace KLTN.UI
             return text;
         }
 
-        private static void Move(Transform window, string name, float y)
+        /// <summary>Uses one frame size for the surface and all four stretched edges.</summary>
+        public static void ApplyLayout(Transform window)
+        {
+            var panel = (RectTransform)window.parent;
+            panel.sizeDelta = new Vector2(900, 620);
+            var surface = (RectTransform)window;
+            surface.anchorMin = Vector2.zero;
+            surface.anchorMax = Vector2.one;
+            surface.offsetMin = surface.offsetMax = Vector2.zero;
+            var background = panel.GetComponent<Image>();
+            if (background != null) background.color = Color.clear;
+            foreach (string name in new[]
+                { "TopBorder", "BottomBorder", "LeftBorder", "RightBorder" })
+            {
+                if (!(panel.Find(name) is RectTransform edge)) continue;
+                bool horizontal = name == "TopBorder" || name == "BottomBorder";
+                float side = name == "TopBorder" || name == "RightBorder" ? 1f : 0f;
+                edge.anchorMin = horizontal ? new Vector2(0, side) : new Vector2(side, 0);
+                edge.anchorMax = horizontal ? new Vector2(1, side) : new Vector2(side, 1);
+                edge.anchoredPosition = Vector2.zero;
+                edge.sizeDelta = horizontal ? new Vector2(0, 3) : new Vector2(3, 0);
+                edge.GetComponent<Image>().raycastTarget = false;
+            }
+            if (window.Find("TitleText") is RectTransform title)
+                Place(title, new Vector2(0, 250), new Vector2(720, 65));
+            foreach (var row in new[]
+                { ("Music", 160f), ("UiSound", 88f), ("SFX", 16f) })
+            {
+                Position(window, row.Item1 + "MuteControl", -220, row.Item2);
+                Position(window, row.Item1 + "Slider", 70, row.Item2);
+            }
+        }
+
+        private static GameObject Child(Transform parent, string name)
+        {
+            Transform existing = parent.Find(name);
+            if (existing != null) return existing.gameObject;
+            var child = new GameObject(name, typeof(RectTransform));
+            child.transform.SetParent(parent, false);
+            return child;
+        }
+
+        private static void Position(Transform window, string name, float x, float y)
         {
             if (window.Find(name) is RectTransform rect)
             {
-                rect.anchoredPosition += new Vector2(0, y);
+                rect.anchoredPosition = new Vector2(x, y);
             }
         }
 

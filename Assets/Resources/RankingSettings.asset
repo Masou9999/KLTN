@@ -12,8 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 99efef6ec2731624da7f8b02e946d9eb, type: 3}
   m_Name: RankingSettings
   m_EditorClassIdentifier: Assembly-CSharp::KLTN.Game.Content.RankingSettings
-  seasonDurationHours: 24
+  seasonDurationHours: 168
   pointsLockMinutes: 30
-  scheduleCron: '*/5 * * * *'
+  scheduleCron: '0 * * * *'
   hostClientPointsEnabled: 1
   pageSize: 50

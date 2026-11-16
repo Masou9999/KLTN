@@ -2,6 +2,7 @@ public static class SceneNames
 {
     #region Scene Names
 
+    public const string LoginStateChecking = "LoginStateChecking";
     public const string Login = "LoginScene";
     public const string MainMenu = "MainMenu";
     public const string FindMatch = "FindMatch";

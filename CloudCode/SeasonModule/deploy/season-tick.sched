@@ -6,7 +6,7 @@
       "Type": "recurring",
       "Schedule": "0 * * * *",
       "PayloadVersion": 1,
-      "Payload": "{\"durationHours\": 24, \"lockMinutes\": 30}"
+      "Payload": "{\"durationHours\": 168, \"lockMinutes\": 30}"
     }
   }
 }

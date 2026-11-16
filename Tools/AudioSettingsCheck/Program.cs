@@ -118,6 +118,47 @@ class Program
         AudioVolumeSettings.RestorePreview(checkpoint);
         Check(AudioVolumeSettings.MusicVolume == .75f,
             "Old modal checkpoint cannot affect another account");
+        await AudioVolumeSettings.LoadAccountAsync("combat-test");
+        AudioVolumeSettings.SetSfxVolume(.4f);
+        await AudioVolumeSettings.SaveAsync();
+        checkpoint = AudioVolumeSettings.CapturePreview();
+        AudioVolumeSettings.SetSfxMuted(true);
+        Check(AudioVolumeSettings.SfxMuted && AudioVolumeSettings.SfxVolume == 0
+            && AudioVolumeSettings.MusicVolume == .75f
+            && AudioVolumeSettings.UiSoundVolume == .75f,
+            "Combat mute silences only combat");
+        AudioVolumeSettings.SetSfxMuted(false);
+        Check(AudioVolumeSettings.SfxVolume == .4f && !AudioVolumeSettings.HasChanges,
+            "Combat unmute restores selected volume and dirty state");
+        AudioVolumeSettings.SetSfxMuted(true);
+        AudioVolumeSettings.RestorePreview(checkpoint);
+        Check(!AudioVolumeSettings.SfxMuted && AudioVolumeSettings.SfxVolume == .4f,
+            "Close cancels combat mute preview");
+        AudioVolumeSettings.SetSfxMuted(true);
+        await AudioVolumeSettings.SaveAsync();
+        await AudioVolumeSettings.LoadAccountAsync("combat-test");
+        Check(AudioVolumeSettings.SfxMuted && AudioVolumeSettings.SfxVolume == 0,
+            "Saved combat mute survives reload");
+        AudioVolumeSettings.SetSfxMuted(false);
+        Check(AudioVolumeSettings.SfxVolume == .4f,
+            "Saved combat mute retains pre-mute volume");
+        AudioVolumeSettings.SetSfxVolume(0);
+        Check(AudioVolumeSettings.SfxMuted, "Zero combat uses muted icon");
+        AudioVolumeSettings.SetSfxMuted(false);
+        Check(AudioVolumeSettings.SfxVolume == .75f, "Unmute zero restores default");
+        AudioVolumeSettings.SetSfxMuted(true);
+        AudioVolumeSettings.SetSfxVolume(.6f);
+        Check(!AudioVolumeSettings.SfxMuted && AudioVolumeSettings.SfxVolume == .6f,
+            "Dragging combat slider above zero unmutes");
+        FirestoreAudioPreferencesGateway.Cloud["old-combat"] =
+            UnityEngine.JsonUtility.FromJson<AudioPreferences>(
+                "{\"music\":75,\"ui\":75,\"combat\":0,\"musicMuted\":false,\"uiMuted\":false}");
+        await AudioVolumeSettings.LoadAccountAsync("old-combat");
+        Check(AudioVolumeSettings.SfxMuted && !AudioVolumeSettings.HasChanges,
+            "Legacy zero-combat document loads muted without migration write");
+        await AudioVolumeSettings.LoadAccountAsync("fresh-combat");
+        Check(!AudioVolumeSettings.SfxMuted && AudioVolumeSettings.SfxVolume == .75f,
+            "Combat mute does not leak between accounts");
         Console.WriteLine($"{checks} checks passed");
     }
 }

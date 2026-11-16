@@ -40,14 +40,6 @@ public sealed class AppFlowManager : MonoBehaviour
         Debug.Log("AppFlowManager subscribed to authentication events.");
     }
 
-    private void Start()
-    {
-        if (AuthManager.Instance != null)
-        {
-            AuthManager.Instance.TryAutoLogin();
-        }
-    }
-
     private void OnDestroy()
     {
         if (Instance != this)
@@ -66,12 +58,14 @@ public sealed class AppFlowManager : MonoBehaviour
 
     private void LoadMainMenu()
     {
-        LoadScene(SceneNames.MainMenu);
+        if (SceneManager.GetActiveScene().name != SceneNames.LoginStateChecking)
+            LoadScene(SceneNames.MainMenu);
     }
 
     private void LoadLogin()
     {
-        LoadScene(SceneNames.Login);
+        if (SceneManager.GetActiveScene().name != SceneNames.LoginStateChecking)
+            LoadScene(SceneNames.Login);
     }
 
     private static void LoadScene(string sceneName)

@@ -3,6 +3,7 @@ using System;
 using System.Linq;
 using System.Reflection;
 using KLTN.Audio;
+using KLTN.UI;
 using TMPro;
 using UnityEditor;
 using UnityEditor.Events;
@@ -106,6 +107,36 @@ namespace KLTN.Game.Editor
             }
         }
 
+        /// <summary>Updates existing panels without rebuilding either scene's canvas.</summary>
+        [MenuItem("Tools/KLTN/Update Settings Audio Icons")]
+        public static void UpdateAudioIcons()
+        {
+            if (EditorApplication.isPlaying ||
+                !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
+            var previous = EditorSceneManager.GetSceneManagerSetup();
+            try
+            {
+                foreach (string name in new[] { "GameScene", "MainMenu" })
+                {
+                    Scene scene = Load(name);
+                    var controller = Find<GameSettingsUI>(scene);
+                    GameObject root = Get<GameObject>(controller, "settingsPanel");
+                    GameObject panel = root.name == "SettingsOverlay"
+                        ? root.transform.Find("SettingsPanel").gameObject : root;
+                    AddUiSoundSlider(panel);
+                    AddMuteButtons(panel);
+                    Wire(controller, panel, root);
+                    EditorSceneManager.MarkSceneDirty(scene);
+                    EditorSceneManager.SaveScene(scene);
+                }
+                Debug.Log("[SettingsAudioIcons] Updated both settings panels.");
+            }
+            finally
+            {
+                EditorSceneManager.RestoreSceneManagerSetup(previous);
+            }
+        }
+
         #endregion
 
         #region Scene Wiring
@@ -137,89 +168,63 @@ namespace KLTN.Game.Editor
             close.onClick = new Button.ButtonClickedEvent();
             Sound(close);
             UnityEventTools.AddPersistentListener(close.onClick, controller.CloseSettings);
+            controller.InitializeControls();
         }
 
         private static void AddUiSoundSlider(GameObject panel)
         {
             Transform window = panel.transform.Find("SettingsWindow");
-            var musicLabel = window.Find("MusicLabel").GetComponent<TMP_Text>();
-            var sfxLabel = window.Find("SFXLabel").GetComponent<TMP_Text>();
-            musicLabel.text = "Nhạc nền";
-            sfxLabel.text = "Âm thanh trận đấu";
-            Transform ui = window.Find("UiSoundSlider");
-            if (ui == null)
+            ResolutionSettingsControls.ApplyLayout(window);
+            if (window.Find("UiSoundSlider") == null)
             {
-                ui = Object.Instantiate(window.Find("SFXSlider"), window, false);
+                Transform ui = Object.Instantiate(window.Find("SFXSlider"), window, false);
                 ui.name = "UiSoundSlider";
             }
-            Transform label = window.Find("UiSoundLabel");
-            if (label == null)
-            {
-                label = Object.Instantiate(sfxLabel.transform, window, false);
-                label.name = "UiSoundLabel";
-            }
-            label.GetComponent<TMP_Text>().text = "Âm thanh giao diện";
             foreach (var row in new[]
-                { ("Music", 85f), ("UiSound", 30f), ("SFX", -25f) })
+                { ("Music", 160f), ("UiSound", 88f), ("SFX", 16f) })
             {
                 var slider = (RectTransform)window.Find(row.Item1 + "Slider");
-                slider.anchoredPosition = new Vector2(115, row.Item2);
-                var text = window.Find(row.Item1 + "Label").GetComponent<TMP_Text>();
-                text.rectTransform.anchoredPosition = new Vector2(-215, row.Item2);
-                text.rectTransform.sizeDelta = new Vector2(290, 45);
-                text.enableAutoSizing = true;
-                text.fontSizeMin = 21;
-                text.fontSizeMax = 24;
+                slider.anchoredPosition = new Vector2(70, row.Item2);
+                Transform label = window.Find(row.Item1 + "Label");
+                if (label != null) Object.DestroyImmediate(label.gameObject);
             }
-            ((RectTransform)window.Find("CloseButton")).anchoredPosition =
-                new Vector2(0, -175);
         }
 
         private static void AddMuteButtons(GameObject panel)
         {
             Transform window = panel.transform.Find("SettingsWindow");
-            TMP_FontAsset font = window.GetComponentInChildren<TMP_Text>(true).font;
-            foreach (bool music in new[] { true, false })
+            foreach (string name in new[] { "Music", "Sound", "UiSound", "SFX" })
             {
-                string prefix = music ? "Music" : "Sound";
-                Transform old = window.Find(prefix + "MuteControl");
-                if (old != null)
-                {
-                    Object.DestroyImmediate(old.gameObject);
-                }
-                var go = new GameObject(prefix + "MuteControl", typeof(RectTransform),
+                Transform old = window.Find(name + "MuteControl");
+                if (old != null) Object.DestroyImmediate(old.gameObject);
+            }
+            foreach (var row in new[]
+            {
+                ("Music", "background_music", "background_musicmuted", 160f),
+                ("UiSound", "ui_sound", "ui_sound_muted", 88f),
+                ("SFX", "sfx", "sfx_muted", 16f),
+            })
+            {
+                var go = new GameObject(row.Item1 + "MuteControl", typeof(RectTransform),
                     typeof(Image), typeof(Button), typeof(AudioMuteButton));
                 go.transform.SetParent(window, false);
                 var rect = (RectTransform)go.transform;
                 rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
-                rect.anchoredPosition = new Vector2(music ? -245 : 35, -105);
-                rect.sizeDelta = new Vector2(52, 52);
+                rect.anchoredPosition = new Vector2(-220, row.Item4);
+                rect.sizeDelta = new Vector2(64, 52);
                 var toggle = go.GetComponent<AudioMuteButton>();
                 var serialized = new SerializedObject(toggle);
-                serialized.FindProperty("controlsMusic").boolValue = music;
+                serialized.FindProperty("controlsMusic").boolValue = row.Item1 == "Music";
+                serialized.FindProperty("controlsCombat").boolValue = row.Item1 == "SFX";
                 serialized.ApplyModifiedPropertiesWithoutUndo();
-                Sprite on = Icon(prefix + "On");
+                Sprite on = Icon(row.Item2);
                 Set(toggle, "enabledIcon", on);
-                Set(toggle, "mutedIcon", Icon(prefix + "Off"));
-                go.GetComponent<Image>().sprite = on;
-                go.GetComponent<Image>().preserveAspect = true;
-                var button = go.GetComponent<Button>();
-                button.targetGraphic = go.GetComponent<Image>();
-                Sound(button);
-                var label = new GameObject("Label", typeof(RectTransform),
-                    typeof(TextMeshProUGUI));
-                label.transform.SetParent(go.transform, false);
-                var labelRect = (RectTransform)label.transform;
-                labelRect.anchorMin = labelRect.anchorMax = new Vector2(0.5f, 0.5f);
-                labelRect.anchoredPosition = new Vector2(150, 0);
-                labelRect.sizeDelta = new Vector2(225, 50);
-                var text = label.GetComponent<TextMeshProUGUI>();
-                text.font = font;
-                text.fontSize = 22;
-                text.text = music ? "Nhạc nền" : "Âm thanh giao diện";
-                text.color = Color.white;
-                text.alignment = TextAlignmentOptions.MidlineLeft;
-                text.raycastTarget = false;
+                Set(toggle, "mutedIcon", Icon(row.Item3));
+                var image = go.GetComponent<Image>();
+                image.sprite = on;
+                image.preserveAspect = true;
+                go.GetComponent<Button>().targetGraphic = image;
+                Sound(go.GetComponent<Button>());
             }
         }
 
@@ -264,7 +269,7 @@ namespace KLTN.Game.Editor
                         .Any(b => b.name == "SurrenderButton"),
                         "MainMenu contains a match-only action");
                 }
-                Require(panel.GetComponentsInChildren<AudioMuteButton>(true).Length == 2,
+                Require(panel.GetComponentsInChildren<AudioMuteButton>(true).Length == 3,
                     "Missing mute controls");
                 foreach (var transform in panel.GetComponentsInChildren<Transform>(true))
                 {
@@ -272,12 +277,7 @@ namespace KLTN.Game.Editor
                         transform.gameObject) == 0, "Missing script");
                 }
             }
-            float music = AudioVolumeSettings.MusicVolume;
-            float sfx = AudioVolumeSettings.SfxVolume;
-            float uiVolume = AudioVolumeSettings.UiSoundVolume;
-            bool hadUiVolume = PlayerPrefs.HasKey(AudioVolumeSettings.UiSoundVolumeKey);
-            bool musicMuted = AudioVolumeSettings.MusicMuted;
-            bool uiMuted = AudioVolumeSettings.UiSoundMuted;
+            var checkpoint = AudioVolumeSettings.CapturePreview();
             try
             {
                 Invoke(game, "OnEnable");
@@ -291,6 +291,14 @@ namespace KLTN.Game.Editor
                     Mathf.Approximately(Get<Slider>(game, "uiSoundSlider").value, 0.6f),
                     "Combat slider changed UI audio");
                 main.SetSFXVolume(0.2f);
+                AudioVolumeSettings.SetSfxMuted(true);
+                Require(Get<Slider>(main, "sfxSlider").value == 0
+                    && Get<AudioSource>(game, "sfxAudioSource").volume == 0
+                    && Mathf.Approximately(AudioVolumeSettings.UiSoundVolume, 0.6f),
+                    "Combat mute did not silence combat independently");
+                AudioVolumeSettings.SetSfxMuted(false);
+                Require(Mathf.Approximately(AudioVolumeSettings.SfxVolume, 0.2f),
+                    "Combat unmute did not restore volume");
                 game.SetUiSoundVolume(0f);
                 Require(AudioVolumeSettings.UiSoundMuted &&
                     Mathf.Approximately(AudioVolumeSettings.SfxVolume, 0.2f) &&
@@ -324,16 +332,7 @@ namespace KLTN.Game.Editor
             }
             finally
             {
-                AudioVolumeSettings.SetMusicVolume(music);
-                AudioVolumeSettings.SetMusicMuted(musicMuted);
-                AudioVolumeSettings.SetSfxVolume(sfx);
-                AudioVolumeSettings.SetUiSoundVolume(uiVolume);
-                AudioVolumeSettings.SetUiSoundMuted(uiMuted);
-                if (!hadUiVolume)
-                {
-                    PlayerPrefs.DeleteKey(AudioVolumeSettings.UiSoundVolumeKey);
-                    PlayerPrefs.Save();
-                }
+                AudioVolumeSettings.RestorePreview(checkpoint);
                 Invoke(game, "OnDisable");
                 Invoke(main, "OnDisable");
             }
@@ -390,9 +389,10 @@ namespace KLTN.Game.Editor
 
         private static Sprite Icon(string name)
         {
-            return AssetDatabase.LoadAllAssetsAtPath(
-                "Assets/ConMaConMa/UI/Menu/AudioIcons.png").OfType<Sprite>()
-                .First(sprite => sprite.name == name);
+            Sprite sprite = AssetDatabase.LoadAssetAtPath<Sprite>(
+                "Assets/Ui/Settings/AudioIcons/" + name + ".png");
+            Require(sprite != null, "Missing audio icon: " + name);
+            return sprite;
         }
 
         #endregion

@@ -131,13 +131,16 @@ public class GoogleAuthService : MonoBehaviour
                 // Mất mạng: giữ token đã lưu để lần sau thử lại thay vì bắt đăng nhập lại.
                 Debug.LogWarning("[GoogleAuth] Auto-login thất bại do mất kết nối, giữ phiên đã lưu.");
             }
-            else
-            {
-                Debug.Log("[GoogleAuth] Không thể auto-login, cần đăng nhập lại.");
-                ClearSavedTokens();
-            }
+            // A Firebase/UGS failure does not prove Google credentials are invalid.
+            // Retain them for the next launch; explicit sign-out still clears them.
         }
 
+        else
+        {
+            string refreshToken = PlayerPrefs.GetString(PREF_REFRESH_TOKEN, "");
+            if (!string.IsNullOrEmpty(refreshToken) && await TryRefreshAndSignIn(refreshToken))
+                return true;
+        }
         OnGoogleLoginFailed?.Invoke();
         return false;
     }

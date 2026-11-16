@@ -44,7 +44,8 @@ namespace KLTN.Audio
         public static bool HasChanges => !current.SameAs(saved);
         public static bool CanSave => userId != null && HasChanges && !IsSaving;
         public static float MusicVolume => current.music / 100f;
-        public static float SfxVolume => current.combat / 100f;
+        public static float SfxVolume => SfxMuted ? 0f : current.combat / 100f;
+        public static bool SfxMuted => current.combatMuted || current.combat == 0;
         public static float UiSoundVolume => current.ui / 100f;
         public static bool MusicMuted => current.musicMuted;
         public static bool UiSoundMuted => current.uiMuted;
@@ -203,6 +204,15 @@ namespace KLTN.Audio
         public static void SetSfxVolume(float volume)
         {
             current.combat = Snap(volume);
+            current.combatMuted = false;
+            NotifyPreview();
+        }
+
+        /// <summary>Mutes combat without discarding its selected volume.</summary>
+        public static void SetSfxMuted(bool muted)
+        {
+            if (!muted && current.combat == 0) current.combat = 75;
+            current.combatMuted = muted;
             NotifyPreview();
         }
 

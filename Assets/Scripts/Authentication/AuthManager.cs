@@ -242,14 +242,16 @@ public class AuthManager : MonoBehaviour
 
             // Exchange the Firebase identity for a UGS identity.
             bool ugsSuccess = await LoginFirebaseToUGS(result.IdToken);
-            if (!ugsSuccess) return false;
+            if (!ugsSuccess)
+            {
+                authService.Logout();
+                return false;
+            }
             Debug.Log("Xác thực Google -> Firebase -> UGS thành công!");
             PlayerPrefs.SetString(PREF_LOGIN_METHOD, "google");
             PlayerPrefs.Save();
-            if (await KLTN.Audio.AudioVolumeSettings.LoadAccountAsync(CurrentUserId))
-            {
-                OnLoginSuccess?.Invoke();
-            }
+            if (!await KLTN.Audio.AudioVolumeSettings.LoadAccountAsync(CurrentUserId)) return false;
+            OnLoginSuccess?.Invoke();
             return true;
         }
         catch (Exception ex)
@@ -291,62 +293,73 @@ public class AuthManager : MonoBehaviour
 
     #region Automatic Login
 
-    public async void TryAutoLogin()
-    {
-        string loginMethod = PlayerPrefs.GetString(PREF_LOGIN_METHOD, "");
+    private Task<bool> pendingAutoLogin;
 
-        if (loginMethod == "google" && GoogleAuthService.Instance != null)
+    public Task<bool> TryAutoLogin()
+    {
+        return pendingAutoLogin ??= RestoreSessionAsync();
+    }
+
+    private async Task<bool> RestoreSessionAsync()
+    {
+        bool success = false;
+        try
         {
-            Debug.Log("Bạn đang được đăng nhập lại với tài khoản Google...");
-            await GoogleAuthService.Instance.TryAutoLogin();
-        }
-        else if (loginMethod == "email")
-        {
-            string savedToken = PlayerPrefs.GetString(PREF_FIREBASE_REFRESH_TOKEN, "");
-            if (!string.IsNullOrEmpty(savedToken))
+            string method = PlayerPrefs.GetString(PREF_LOGIN_METHOD, "");
+            if (method == "google" && GoogleAuthService.Instance != null)
+                success = await GoogleAuthService.Instance.TryAutoLogin();
+            else if (method == "email")
             {
-                Debug.Log("Phát hiện phiên Email, tiến hành Auto-Login...");
-                await ProcessAutoLoginEmail(savedToken);
+                string token = PlayerPrefs.GetString(PREF_FIREBASE_REFRESH_TOKEN, "");
+                if (!string.IsNullOrEmpty(token)) success = await ProcessAutoLoginEmail(token);
             }
+            return success;
         }
-        else
+        catch (Exception exception)
         {
-            Debug.Log("Không có phiên đăng nhập cũ, yêu cầu đăng nhập thủ công.");
+            Debug.LogException(exception);
+            return false;
+        }
+        finally
+        {
+            // A failed UGS exchange must not leave a partially authenticated Firebase session.
+            // Preserve saved credentials on transient failures for the next launch.
+            if (!success)
+            {
+                authService?.Logout();
+                if (UnityServices.State == ServicesInitializationState.Initialized &&
+                    AuthenticationService.Instance.IsSignedIn)
+                    AuthenticationService.Instance.SignOut();
+                KLTN.Audio.AudioVolumeSettings.UseGuest();
+            }
         }
     }
 
-    private async Task ProcessAutoLoginEmail(string refreshToken)
+    private async Task<bool> ProcessAutoLoginEmail(string refreshToken)
     {
-        try
+        AuthResultData result = await authService.LoginWithRefreshTokenAsync(refreshToken);
+        if (!result.Success || string.IsNullOrEmpty(result.IdToken))
         {
-            AuthResultData result = await authService.LoginWithRefreshTokenAsync(refreshToken);
-
-            if (result.ErrorCode == "NETWORK_ERROR")
+            // Only discard credentials when the server explicitly rejects the saved session.
+            if (result.ErrorCode == "TOKEN_EXPIRED" || result.ErrorCode == "INVALID_REFRESH_TOKEN" ||
+                result.ErrorCode == "USER_DISABLED" || result.ErrorCode == "USER_NOT_FOUND")
             {
-                // Mất mạng không có nghĩa token hết hạn: giữ phiên đã lưu để lần sau thử lại.
-                Debug.LogWarning("Auto-Login Email thất bại do mất kết nối, giữ phiên đã lưu.");
-                return;
+                PlayerPrefs.DeleteKey(PREF_LOGIN_METHOD);
+                PlayerPrefs.DeleteKey(PREF_FIREBASE_REFRESH_TOKEN);
+                PlayerPrefs.Save();
             }
-
-            if (!result.Success || string.IsNullOrEmpty(result.IdToken))
-            {
-                Debug.LogWarning("Auto-Login Email thất bại (Token hết hạn), vui lòng đăng nhập lại.");
-                SignOut();
-                return;
-            }
-
-            bool ugsSuccess = await LoginFirebaseToUGS(result.IdToken);
-            if (!ugsSuccess) return;
-            Debug.Log("Auto-Login Email & UGS thành công!");
-            if (await KLTN.Audio.AudioVolumeSettings.LoadAccountAsync(CurrentUserId))
-            {
-                OnLoginSuccess?.Invoke();
-            }
+            return false;
         }
-        catch (Exception ex)
+
+        if (!string.IsNullOrEmpty(result.RefreshToken))
         {
-            Debug.LogError($"Lỗi hệ thống khi Auto Login Email: {ex.Message}");
+            PlayerPrefs.SetString(PREF_FIREBASE_REFRESH_TOKEN, result.RefreshToken);
+            PlayerPrefs.Save();
         }
+        if (!await LoginFirebaseToUGS(result.IdToken)) return false;
+        if (!await KLTN.Audio.AudioVolumeSettings.LoadAccountAsync(CurrentUserId)) return false;
+        OnLoginSuccess?.Invoke();
+        return true;
     }
 
     #endregion
@@ -388,6 +401,7 @@ public class AuthManager : MonoBehaviour
 
     public void SignOut()
     {
+        pendingAutoLogin = null;
         PlayerPrefs.DeleteKey(PREF_LOGIN_METHOD);
         PlayerPrefs.DeleteKey(PREF_FIREBASE_REFRESH_TOKEN);
         PlayerPrefs.Save();
@@ -396,7 +410,8 @@ public class AuthManager : MonoBehaviour
         authService?.Logout();
 
         // Sign out of Unity Gaming Services.
-        if (AuthenticationService.Instance.IsSignedIn) { AuthenticationService.Instance.SignOut(); }
+        if (UnityServices.State == ServicesInitializationState.Initialized &&
+            AuthenticationService.Instance.IsSignedIn) { AuthenticationService.Instance.SignOut(); }
 
         if (GoogleAuthService.Instance != null) { GoogleAuthService.Instance.ClearSession(); }
 

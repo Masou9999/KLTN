@@ -12,6 +12,8 @@ namespace KLTN.Audio
         #region Serialized Fields
 
         [SerializeField] private bool controlsMusic;
+        // Defaults to false so existing Login music/UI buttons retain their channel.
+        [SerializeField] private bool controlsCombat;
         [SerializeField] private Sprite enabledIcon;
         [SerializeField] private Sprite mutedIcon;
 
@@ -38,7 +40,11 @@ namespace KLTN.Audio
 
         private void Toggle()
         {
-            if (controlsMusic)
+            if (controlsCombat)
+            {
+                AudioVolumeSettings.SetSfxMuted(!AudioVolumeSettings.SfxMuted);
+            }
+            else if (controlsMusic)
             {
                 AudioVolumeSettings.SetMusicMuted(!AudioVolumeSettings.MusicMuted);
             }
@@ -50,8 +56,9 @@ namespace KLTN.Audio
 
         private void Refresh()
         {
-            bool muted = controlsMusic
-                ? AudioVolumeSettings.MusicMuted : AudioVolumeSettings.UiSoundMuted;
+            bool muted = controlsCombat ? AudioVolumeSettings.SfxMuted
+                : controlsMusic ? AudioVolumeSettings.MusicMuted
+                : AudioVolumeSettings.UiSoundMuted;
             GetComponent<Image>().sprite = muted ? mutedIcon : enabledIcon;
         }
 
