@@ -180,9 +180,14 @@ namespace KLTN.Game.Domain
 
             PlayerState player = state.Player(attackerSeat);
 
-            var candidates = new List<CardInstance>(player.Graveyard);
-
-            candidates.Sort((left, right) => left.InstanceId.CompareTo(right.InstanceId));
+            // A death remains eligible even when a spell revives its original instance.
+            // Snapshot the history so each recorded death is considered once per attack.
+            var candidates = new List<DeathRecord>(state.RoundHistory.AllDeaths);
+            candidates.Sort((left, right) =>
+            {
+                int order = left.CardInstanceId.CompareTo(right.CardInstanceId);
+                return order != 0 ? order : left.Sequence.CompareTo(right.Sequence);
+            });
 
             var events = new List<GameEvent>();
 
@@ -197,11 +202,17 @@ namespace KLTN.Game.Domain
 
                 while (candidateIndex < candidates.Count)
                 {
-                    CardInstance candidate = candidates[candidateIndex++];
+                    DeathRecord death = candidates[candidateIndex++];
+
+                    if (death.Owner != attackerSeat
+                        || state.RoundHistory.HasJoinedAttack(death))
+                    {
+                        continue;
+                    }
 
                     if (
                         !definitionsById.TryGetValue(
-                            candidate.DefinitionId,
+                            death.DefinitionId,
                             out CardDefinition definition
                         )
                     )
@@ -221,16 +232,27 @@ namespace KLTN.Game.Domain
                         continue;
                     }
 
-                    bool revived = player.TryReviveCardToBoardForTriggeredAttack(
-                        candidate,
-                        definition,
-                        slotIndex
-                    );
-
-                    if (!revived)
+                    CardInstance candidate = player.FindCardAnywhere(death.CardInstanceId);
+                    if (candidate != null && candidate.Zone == CardZone.Graveyard)
                     {
-                        continue;
+                        if (!player.TryReviveCardToBoardForTriggeredAttack(
+                            candidate, definition, slotIndex))
+                        {
+                            continue;
+                        }
                     }
+                    else
+                    {
+                        candidate = player.TryCreateDeathCopyForAttack(
+                            state.AllocateCardInstanceId(), definition, slotIndex
+                        );
+                        if (candidate == null)
+                        {
+                            continue;
+                        }
+                    }
+
+                    state.RoundHistory.ConsumeAttackDeath(death);
 
                     ReviveStatCalculator.ApplyDeathScaling(
                         state,

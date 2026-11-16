@@ -13,9 +13,7 @@ MonoBehaviour:
   m_Name: MaDa
   m_EditorClassIdentifier: Assembly-CSharp::CMCMProductions.Card
   cardName: Ma Da
-  rulesText: "Kh\xF4ng th\u1EC3 ch\u1EB7n. Ph\xF9 du. Khi m\u1ED9t \u0111\u1ED3ng
-    minh Ph\xF9 du t\u1EA5n c\xF4ng, h\u1ED3i sinh t\xF4i \u0111\u1EC3 c\xF9ng t\u1EA5n
-    c\xF4ng."
+  rulesText: "Không thể chặn. Phù du. Last Breath: Khi một đồng minh Phù du tấn công, hồi sinh tôi để cùng tấn công. Hiệu ứng vẫn tồn tại nếu tôi được hồi sinh trước đó."
   cardType: 01000000
   health: 1
   damage: 3

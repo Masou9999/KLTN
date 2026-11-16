@@ -300,6 +300,31 @@ namespace KLTN.Game.Domain
             );
         }
 
+        /// <summary>
+        /// Materializes a recorded death whose original instance has already revived.
+        /// Triggered attacks bypass roster capacity, but never board slot capacity.
+        /// </summary>
+        internal CardInstance TryCreateDeathCopyForAttack(
+            ulong instanceId,
+            CardDefinition definition,
+            int slotIndex
+        )
+        {
+            if (slotIndex < 0 || slotIndex >= MatchState.BoardSlotCount
+                || Board.Count >= MatchState.BoardSlotCount
+                || FindBoardCard(slotIndex) != null)
+            {
+                return null;
+            }
+
+            var copy = new CardInstance(
+                instanceId, definition.Id, Seat, CardZone.Board, definition.BaseHealth
+            );
+            copy.MoveTo(CardZone.Board, slotIndex);
+            Board.Add(copy);
+            return copy;
+        }
+
         private bool TryReviveCardToBoard(
             CardInstance card,
             CardDefinition definition,

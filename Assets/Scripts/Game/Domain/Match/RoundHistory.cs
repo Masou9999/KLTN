@@ -53,6 +53,8 @@ namespace KLTN.Game.Domain
 
         private readonly List<DeathRecord> allDeaths = new List<DeathRecord>();
 
+        private readonly HashSet<ulong> consumedAttackDeaths = new HashSet<ulong>();
+
         private readonly HashSet<AbilityUseKey> usedAbilities =
             new HashSet<AbilityUseKey>();
 
@@ -66,6 +68,20 @@ namespace KLTN.Game.Domain
         public IReadOnlyList<DeathRecord> CurrentRoundDeaths => currentRoundDeaths;
         public IReadOnlyList<DeathRecord> PreviousRoundDeaths => previousRoundDeaths;
         public IReadOnlyList<DeathRecord> AllDeaths => allDeaths;
+
+        public bool HasJoinedAttack(DeathRecord death)
+        {
+            return consumedAttackDeaths.Contains(death.Sequence);
+        }
+
+        /// <summary>
+        /// Consumes one death only after its unit successfully joins an attack.
+        /// Ordinary revival and round transitions do not consume this entitlement.
+        /// </summary>
+        internal void ConsumeAttackDeath(DeathRecord death)
+        {
+            consumedAttackDeaths.Add(death.Sequence);
+        }
 
         #endregion
 

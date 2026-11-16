@@ -158,8 +158,9 @@ namespace KLTN.Game.Editor
                 3,
                 2,
                 UnitKeyword.CannotBlock | UnitKeyword.Ephemeral,
-                "Không thể chặn. Phù du. Khi một đồng minh "
-                    + "Phù du tấn công, hồi sinh tôi để cùng tấn công.",
+                "Không thể chặn. Phù du. Last Breath: Khi một đồng minh "
+                    + "Phù du tấn công, hồi sinh tôi để cùng tấn công. "
+                    + "Hiệu ứng vẫn tồn tại nếu tôi được hồi sinh trước đó.",
                 Passive(joinsAttackFromGraveyard: true, requiresEphemeralAttacker: true)
             );
 
