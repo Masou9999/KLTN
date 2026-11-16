@@ -1,11 +1,12 @@
 using KLTN.Audio;
+using KLTN.UI;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 /// <summary>
-/// Shares persisted audio settings between menu and match settings panels.
+/// Shares audio and device-local resolution controls between menu and match panels.
 /// </summary>
 public class GameSettingsUI : MonoBehaviour
 {
@@ -30,15 +31,25 @@ public class GameSettingsUI : MonoBehaviour
     private AudioVolumeSettings.PreviewCheckpoint previewCheckpoint;
     private TMP_Text saveLabel;
     private TMP_Text saveStatus;
+    private Toggle[] resolutionToggles;
+    private int selectedResolution;
+    private string resolutionStatus;
 
     #region Unity Lifecycle
 
     private void Awake()
     {
         BuildSaveControls();
+        selectedResolution = WindowResolutionSettings.SavedIndex;
+        if (closeButton != null)
+        {
+            resolutionToggles = ResolutionSettingsControls.Build(
+                closeButton.transform.parent, saveLabel, SelectResolution);
+        }
+        Refresh();
     }
 
-    /// <summary>Builds matching save controls using the scene's existing button style.</summary>
+    /// <summary>Builds save controls using the scene's existing button style.</summary>
     private void BuildSaveControls()
     {
         if (settingsPanel == null) return;
@@ -95,7 +106,22 @@ public class GameSettingsUI : MonoBehaviour
 
     private async void SaveAudio()
     {
+        if (AudioVolumeSettings.IsSaving) return;
+        if (selectedResolution != WindowResolutionSettings.SavedIndex)
+        {
+            WindowResolutionSettings.Save(selectedResolution);
+            resolutionStatus = "Đã lưu độ phân giải trên máy.";
+        }
         await AudioVolumeSettings.SaveAsync();
+        if (this != null) Refresh();
+    }
+
+    private void SelectResolution(int index)
+    {
+        selectedResolution = index;
+        resolutionStatus = null;
+        UIClickManager.Instance?.PlayClick();
+        Refresh();
     }
 
 
@@ -119,6 +145,8 @@ public class GameSettingsUI : MonoBehaviour
         if (previewCheckpoint == null)
         {
             previewCheckpoint = AudioVolumeSettings.CapturePreview();
+            selectedResolution = WindowResolutionSettings.SavedIndex;
+            resolutionStatus = null;
         }
         Refresh();
         if (menuGroup != null)
@@ -134,6 +162,8 @@ public class GameSettingsUI : MonoBehaviour
         if (AudioVolumeSettings.IsSaving) return;
         AudioVolumeSettings.RestorePreview(previewCheckpoint);
         previewCheckpoint = null;
+        selectedResolution = WindowResolutionSettings.SavedIndex;
+        resolutionStatus = null;
         settingsPanel.SetActive(false);
         if (menuGroup != null)
         {
@@ -166,15 +196,28 @@ public class GameSettingsUI : MonoBehaviour
 
     private void Refresh()
     {
+        bool resolutionChanged =
+            selectedResolution != WindowResolutionSettings.SavedIndex;
+        if (resolutionToggles != null)
+        {
+            for (int i = 0; i < resolutionToggles.Length; i++)
+            {
+                resolutionToggles[i].SetIsOnWithoutNotify(i == selectedResolution);
+                resolutionToggles[i].interactable = !AudioVolumeSettings.IsSaving
+                    && WindowResolutionSettings.FitsDisplay(i);
+            }
+        }
         if (closeButton != null)
         {
             closeButton.interactable = !AudioVolumeSettings.IsSaving;
         }
         if (saveButton != null)
         {
-            saveButton.interactable = AudioVolumeSettings.CanSave;
+            saveButton.interactable = !AudioVolumeSettings.IsSaving
+                && (AudioVolumeSettings.CanSave || resolutionChanged);
             saveLabel.text = AudioVolumeSettings.IsSaving ? "Đang lưu…" : "Lưu";
-            saveStatus.text = AudioVolumeSettings.Status
+            saveStatus.text = resolutionChanged ? "Có thay đổi chưa lưu"
+                : AudioVolumeSettings.Status ?? resolutionStatus
                 ?? (AudioVolumeSettings.HasChanges ? "Có thay đổi chưa lưu" : "");
         }
         // Show the effective music level without losing the pre-mute saved level.
