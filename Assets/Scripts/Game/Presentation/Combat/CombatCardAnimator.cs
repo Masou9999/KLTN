@@ -7,11 +7,14 @@ namespace KLTN.Game.Presentation
     [RequireComponent(typeof(RectTransform))]
     public sealed class CombatCardAnimator : MonoBehaviour
     {
+        
         #region Component References
 
         private RectTransform rectTransform;
+        private CardShadowVFX cardShadowVFX;
 
         #endregion
+
 
         #region Runtime State
 
@@ -38,10 +41,13 @@ namespace KLTN.Game.Presentation
 
         #region Unity Lifecycle
 
-        private void Awake()
-        {
-            rectTransform = GetComponent<RectTransform>();
-        }
+        
+private void Awake()
+{
+    rectTransform = GetComponent<RectTransform>();
+    cardShadowVFX = GetComponent<CardShadowVFX>();
+}
+
 
         #endregion
 
@@ -67,9 +73,14 @@ namespace KLTN.Game.Presentation
 
             retreatWorldPosition = homeWorldPosition + retreatDirection * retreatDistance;
 
-            rectTransform.SetParent(animationLayer, true);
-            rectTransform.SetAsLastSibling();
-            prepared = true;
+            
+rectTransform.SetParent(animationLayer, true);
+rectTransform.SetAsLastSibling();
+prepared = true;
+
+// Bật bóng khi lá bài bắt đầu hoạt ảnh chiến đấu.
+cardShadowVFX?.ShowFixedShadow();
+
         }
 
         #endregion
@@ -158,8 +169,13 @@ namespace KLTN.Game.Presentation
                 rectTransform.position = homeWorldPosition;
             }
 
-            prepared = false;
-            isSelfCard = false;
+            
+prepared = false;
+isSelfCard = false;
+
+// Tắt bóng khi hoạt ảnh chiến đấu kết thúc.
+cardShadowVFX?.HideShadow();
+
         }
 
         #endregion

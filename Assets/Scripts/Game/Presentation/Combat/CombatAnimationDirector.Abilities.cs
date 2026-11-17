@@ -498,15 +498,30 @@ namespace KLTN.Game.Presentation
                 : CardCenter(source);
 
             yield return PlayAbilityCastPulse(source);
-            yield return PlayAbilityProjectile(
-                sourcePosition,
-                targetPosition,
-                AbilityColor((EffectKind)effect.effectKind)
-            );
+            if (effect.abilityId == "vong_nhi_ally_death")
+{
+    if (vfxPresenter != null)
+    {
+        yield return vfxPresenter.PlayVongNhiSoulBlast(
+            sourcePosition,
+            targetPosition
+        );
+    }
 
-            PlayAbilityHitSfx();
-            vfxPresenter?.PlayNexusHit(targetPosition, targetIsSelf);
-            yield return PlayAbilityImpact(targetPosition);
+    PlayAbilityHitSfx();
+}
+else
+{
+    yield return PlayAbilityProjectile(
+        sourcePosition,
+        targetPosition,
+        AbilityColor((EffectKind)effect.effectKind)
+    );
+
+    PlayAbilityHitSfx();
+    vfxPresenter?.PlayNexusHit(targetPosition, targetIsSelf);
+    yield return PlayAbilityImpact(targetPosition);
+}
 
             if (feedback != null)
             {

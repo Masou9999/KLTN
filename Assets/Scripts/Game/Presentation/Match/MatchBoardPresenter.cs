@@ -231,6 +231,7 @@ namespace KLTN.Game.Presentation
                 if (isSelectionSource)
                 {
                     CenterAbilitySelectionSource(view);
+                    view.GetComponent<CardShadowVFX>()?.ShowFixedShadow();
                 }
                 else if (
                     !string.IsNullOrWhiteSpace(dto.instanceId)
@@ -736,6 +737,7 @@ namespace KLTN.Game.Presentation
                 {
                     existing.SetPending(false);
                     existing.SetInteractableVisual(true);
+                    existing.GetComponent<CardShadowVFX>()?.ShowFixedShadow();
                     return existing;
                 }
 
@@ -816,6 +818,7 @@ namespace KLTN.Game.Presentation
             {
                 CenterAbilitySelectionSource(prepared);
                 prepared.SetPending(false);
+                prepared.GetComponent<CardShadowVFX>()?.ShowFixedShadow();
             }
 
             prepared.SetInteractableVisual(true);

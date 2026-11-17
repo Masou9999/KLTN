@@ -51,6 +51,17 @@ namespace KLTN.Game.Presentation
         [SerializeField]
         private ParticleSystem slideEffectPrefab;
 
+        [Header("Vong Nhi VFX")]
+[SerializeField]
+private GameObject vongNhiSoulOrbPrefab;
+
+[SerializeField]
+private GameObject vongNhiSoulBlastPrefab;
+
+[Min(0.01f)]
+[SerializeField]
+private float vongNhiSoulOrbScale = 3f;
+
         [Header("Scale")]
         [Min(0.01f)]
         [SerializeField]
@@ -192,6 +203,73 @@ namespace KLTN.Game.Presentation
         {
             Spawn(deathDustPrefab, overlayWorldPosition, 0f, deathDustScale);
         }
+
+        public void PlayVongNhiSoulOrb(Vector3 overlayWorldPosition)
+{
+    
+    if (vongNhiSoulOrbPrefab == null)
+    {
+        return;
+    }
+
+    if (!initialized ||
+        !TryConvertPosition(overlayWorldPosition, out Vector3 vfxPosition))
+    {
+        return;
+    }
+
+    GameObject soulOrb = Instantiate(
+        vongNhiSoulOrbPrefab,
+        vfxPosition,
+        Quaternion.identity,
+        effectRoot
+    );
+
+    soulOrb.transform.localScale = Vector3.one * vongNhiSoulOrbScale;
+
+    SetLayerRecursively(soulOrb, effectLayer);
+
+    Destroy(soulOrb, 2f);
+}
+public IEnumerator PlayVongNhiSoulBlast(
+    Vector3 startWorldPosition,
+    Vector3 targetWorldPosition
+)
+{
+    if (vongNhiSoulBlastPrefab == null)
+    {
+        yield break;
+    }
+
+    if (!initialized ||
+        !TryConvertPosition(startWorldPosition, out Vector3 startVfxPosition))
+    {
+        yield break;
+    }
+    if (!TryConvertPosition(
+    targetWorldPosition,
+    out Vector3 targetVfxPosition))
+{
+    yield break;
+}
+GameObject soulBlast = Instantiate(
+    vongNhiSoulBlastPrefab,
+    startVfxPosition,
+    Quaternion.identity,
+    effectRoot
+);
+SetLayerRecursively(soulBlast, effectLayer);
+float duration = 0.36f;
+float elapsed = 0f;
+while (elapsed < duration)
+{
+    elapsed += Time.unscaledDeltaTime;
+    soulBlast.transform.position = Vector3.Lerp(startVfxPosition, targetVfxPosition, Mathf.Clamp01(elapsed / duration));
+    yield return null;
+}
+PlayVongNhiSoulOrb(targetWorldPosition);
+Destroy(soulBlast, 0.4f);
+}
 
         #endregion
 

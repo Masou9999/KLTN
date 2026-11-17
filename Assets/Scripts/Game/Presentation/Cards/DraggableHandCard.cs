@@ -123,6 +123,34 @@ namespace KLTN.Game.Presentation
 
             dragging = true;
             dropAccepted = false;
+            
+
+if (homeLocation == CardVisualLocation.Hand)
+{
+    SummonZoneHighlightController summonGlow =
+        FindAnyObjectByType<SummonZoneHighlightController>();
+
+    summonGlow?.ShowEffects();
+
+    // Bật bóng khi bắt đầu kéo bài từ Hand.
+    CardShadowVFX shadow = GetComponent<CardShadowVFX>();
+    shadow?.UpdateDynamicShadow(0f);
+}
+
+
+else if (homeLocation == CardVisualLocation.Reserve)
+{
+    CombatZoneHighlightController combatGlow =
+        FindAnyObjectByType<CombatZoneHighlightController>();
+
+    combatGlow?.ShowEffects();
+
+    // Bật bóng khi kéo quái thú từ Reserve.
+    CardShadowVFX shadow = GetComponent<CardShadowVFX>();
+    shadow?.ShowFixedShadow();
+}
+
+
             transform.SetParent(dragLayer, false);
             transform.SetAsLastSibling();
             rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
@@ -132,15 +160,34 @@ namespace KLTN.Game.Presentation
             MoveToPointer(eventData);
         }
 
-        public void OnDrag(PointerEventData eventData)
-        {
-            if (!dragging)
-            {
-                return;
-            }
+        
+public void OnDrag(PointerEventData eventData)
+{
+    if (!dragging)
+    {
+        return;
+    }
 
-            MoveToPointer(eventData);
+    MoveToPointer(eventData);
+
+    if (homeLocation == CardVisualLocation.Hand)
+    {
+        CardShadowVFX shadow = GetComponent<CardShadowVFX>();
+
+        if (shadow != null)
+        {
+            float progress = Mathf.Clamp01(
+                Vector2.Distance(
+                    eventData.pressPosition,
+                    eventData.position
+                ) / 500f
+            );
+
+            shadow.UpdateDynamicShadow(progress);
         }
+    }
+}
+
 
         public void OnEndDrag(PointerEventData eventData)
         {
@@ -149,8 +196,37 @@ namespace KLTN.Game.Presentation
                 return;
             }
 
-            canvasGroup.blocksRaycasts = true;
-            dragging = false;
+            
+canvasGroup.blocksRaycasts = true;
+dragging = false;
+
+// Tắt bóng khi kết thúc kéo bài từ Reserve.
+
+// Tắt bóng khi kết thúc kéo bài từ Hand hoặc Reserve.
+if (homeLocation == CardVisualLocation.Hand ||
+    homeLocation == CardVisualLocation.Reserve)
+{
+    CardShadowVFX shadow = GetComponent<CardShadowVFX>();
+    shadow?.HideShadow();
+}
+
+
+            
+if (homeLocation == CardVisualLocation.Hand)
+{
+    SummonZoneHighlightController summonGlow =
+        FindAnyObjectByType<SummonZoneHighlightController>();
+
+    summonGlow?.HideEffects();
+}
+else if (homeLocation == CardVisualLocation.Reserve)
+{
+    CombatZoneHighlightController combatGlow =
+        FindAnyObjectByType<CombatZoneHighlightController>();
+
+    combatGlow?.HideEffects();
+}
+
 
             if (dropAccepted)
             {
