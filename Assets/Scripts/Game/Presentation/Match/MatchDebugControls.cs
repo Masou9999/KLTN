@@ -4,6 +4,7 @@ using KLTN.Game.Networking;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using DG.Tweening;
 
 namespace KLTN.Game.Presentation
 {
@@ -47,6 +48,11 @@ namespace KLTN.Game.Presentation
         private string[] pendingAbilitySecondaryTargets = Array.Empty<string>();
 
         private bool pendingAbilitySelectionComplete;
+
+        private RectTransform localStatusContainer;
+        private CanvasGroup localStatusCanvasGroup;
+        private Sequence localStatusSequence;
+        private float localStatusBaseY;
 
         #endregion
 
@@ -99,6 +105,8 @@ namespace KLTN.Game.Presentation
 
         private void OnDisable()
         {
+            localStatusSequence?.Kill();
+
             if (projection != null)
             {
                 projection.SnapshotChanged -= OnSnapshotChanged;
