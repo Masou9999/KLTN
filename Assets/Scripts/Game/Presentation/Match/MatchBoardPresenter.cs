@@ -6,6 +6,7 @@ using KLTN.Game.Content;
 using KLTN.Game.Domain;
 using KLTN.Game.Networking;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace KLTN.Game.Presentation
 {
@@ -95,6 +96,13 @@ namespace KLTN.Game.Presentation
         [SerializeField]
         private float drawShowcaseSpacing = 250f;
 
+        [Header("Ability Selection Movement")]
+        [SerializeField]
+        private float abilityFlyToCenterDuration = 0.38f;
+
+        [SerializeField]
+        private float abilityReturnToReserveDuration = 0.32f;
+
         #endregion
 
         #region Runtime State
@@ -114,6 +122,12 @@ namespace KLTN.Game.Presentation
         private readonly List<GameObject> activeDrawAnimationObjects = new List<GameObject>();
 
         private int lastSeenRoundNumber = -1;
+
+        private string lastAnimatedSelectionRequestId;
+        private Vector3 capturedSelectionStartWorldPos;
+        private bool hasCapturedSelectionStartPos;
+        private bool shouldAnimateCurrentSelectionSource;
+        private NetworkCardVisual currentSelectionSourceView;
 
         #endregion
 
@@ -155,6 +169,7 @@ namespace KLTN.Game.Presentation
 
         private void Render(MatchSnapshotDto snapshot)
         {
+            CaptureSelectionSourceStartState(snapshot);
             ClearViews();
 
             if (
@@ -189,6 +204,7 @@ namespace KLTN.Game.Presentation
                 canDrag: snapshot.viewerCanDeclareAttack || snapshot.viewerCanDeclareBlock,
                 isOpponent: false
             );
+            TriggerPendingSelectionMoveToCenter();
 
             RenderReserve(snapshot.opponent.reserve, opponentReserveRoot, false, true);
             RenderBoard(snapshot.self.board, selfBoardSlots, false);
@@ -232,6 +248,7 @@ namespace KLTN.Game.Presentation
                 {
                     CenterAbilitySelectionSource(view);
                     view.GetComponent<CardShadowVFX>()?.ShowFixedShadow();
+                    currentSelectionSourceView = view;
                 }
                 else if (
                     !string.IsNullOrWhiteSpace(dto.instanceId)
@@ -723,6 +740,26 @@ namespace KLTN.Game.Presentation
             bool centerNewSource = false
         )
         {
+            return PrepareAbilitySource(
+                card,
+                ownerSeat,
+                viewerSeat,
+                zone,
+                centerNewSource,
+                out _
+            );
+        }
+        public NetworkCardVisual PrepareAbilitySource(
+            CardViewDto card,
+            int ownerSeat,
+            int viewerSeat,
+            int zone,
+            bool centerNewSource,
+            out bool createdAtCenter
+        )
+        {
+            createdAtCenter = false;
+
             if (card == null || string.IsNullOrWhiteSpace(card.instanceId))
             {
                 return null;
@@ -819,10 +856,428 @@ namespace KLTN.Game.Presentation
                 CenterAbilitySelectionSource(prepared);
                 prepared.SetPending(false);
                 prepared.GetComponent<CardShadowVFX>()?.ShowFixedShadow();
+                createdAtCenter = true;
             }
 
             prepared.SetInteractableVisual(true);
             return prepared;
+        }
+
+        private void CaptureSelectionSourceStartState(MatchSnapshotDto snapshot)
+        {
+            shouldAnimateCurrentSelectionSource = false;
+            currentSelectionSourceView = null;
+
+            if (
+                snapshot == null
+                || !snapshot.viewerMustSelectAbilityTargets
+                || snapshot.pendingAbilitySelection == null
+                || string.IsNullOrWhiteSpace(snapshot.pendingAbilitySelection.sourceCardInstanceId)
+            )
+            {
+                lastAnimatedSelectionRequestId = null;
+                hasCapturedSelectionStartPos = false;
+                return;
+            }
+
+            string requestId = snapshot.pendingAbilitySelection.requestId;
+            if (string.Equals(lastAnimatedSelectionRequestId, requestId, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            lastAnimatedSelectionRequestId = requestId;
+            shouldAnimateCurrentSelectionSource = true;
+            hasCapturedSelectionStartPos = false;
+
+            string sourceId = snapshot.pendingAbilitySelection.sourceCardInstanceId;
+            if (
+                TryGetFaceUpVisual(sourceId, out NetworkCardVisual existingView)
+                && existingView != null
+                && existingView.transform.parent != selfHandRoot
+            )
+            {
+                capturedSelectionStartWorldPos = existingView.transform.position;
+                hasCapturedSelectionStartPos = true;
+            }
+        }
+
+        private void TriggerPendingSelectionMoveToCenter()
+        {
+            if (!shouldAnimateCurrentSelectionSource || currentSelectionSourceView == null)
+            {
+                return;
+            }
+
+            shouldAnimateCurrentSelectionSource = false;
+            GetReserveLayoutMetrics(
+                currentSelectionSourceView,
+                out Vector2 reserveSize,
+                out float reserveScaleRatio
+            );
+
+            Vector3 startWorldPos = hasCapturedSelectionStartPos
+                ? capturedSelectionStartWorldPos
+                : CalculateReserveSlotWorldPosition(selfReserveRoot, reserveSize);
+
+            PlayMoveToCenterSequence(
+                currentSelectionSourceView,
+                startWorldPos,
+                reserveScaleRatio,
+                () => FaceUpViewsRendered?.Invoke()
+            );
+        }
+
+        public IEnumerator AnimateAbilitySourceMoveToCenter(
+            NetworkCardVisual sourceView,
+            int ownerSeat,
+            int viewerSeat
+        )
+        {
+            if (
+                sourceView == null
+                || abilitySelectionSourceRoot == null
+                || sourceView.transform.parent != abilitySelectionSourceRoot
+            )
+            {
+                yield break;
+            }
+
+            RectTransform reserveRoot = ownerSeat == viewerSeat
+                ? selfReserveRoot
+                : opponentReserveRoot;
+
+            if (reserveRoot == null)
+            {
+                yield break;
+            }
+
+            GetReserveLayoutMetrics(
+                sourceView,
+                out Vector2 reserveSize,
+                out float reserveScaleRatio
+            );
+
+            Vector3 startWorldPos = CalculateReserveSlotWorldPosition(reserveRoot, reserveSize);
+            Sequence seq = PlayMoveToCenterSequence(sourceView, startWorldPos, reserveScaleRatio);
+
+            if (seq != null)
+            {
+                yield return seq.WaitForCompletion();
+            }
+        }
+
+        public void IgnoreCardInReserveLayout(NetworkCardVisual targetView)
+        {
+            if (targetView == null)
+            {
+                return;
+            }
+
+            Transform parent = targetView.transform.parent;
+            if (parent != selfReserveRoot && parent != opponentReserveRoot)
+            {
+                return;
+            }
+
+            LayoutElement element = targetView.GetComponent<LayoutElement>();
+            if (element != null)
+            {
+                element.ignoreLayout = true;
+            }
+
+            if (parent is RectTransform reserveRect)
+            {
+                LayoutRebuilder.ForceRebuildLayoutImmediate(reserveRect);
+            }
+        }
+
+        public IEnumerator AnimateAbilitySourceReturnToReserve(
+            CardViewDto sourceCard,
+            int ownerSeat,
+            int viewerSeat,
+            CardViewDto[] authoritativeReserve = null
+        )
+        {
+            if (
+                sourceCard == null
+                || string.IsNullOrWhiteSpace(sourceCard.instanceId)
+                || !TryGetFaceUpVisual(sourceCard.instanceId, out NetworkCardVisual sourceView)
+                || sourceView == null
+            )
+            {
+                yield break;
+            }
+
+            if (
+                abilitySelectionSourceRoot == null
+                || sourceView.transform.parent != abilitySelectionSourceRoot
+            )
+            {
+                yield break;
+            }
+
+            RectTransform reserveRoot = ownerSeat == viewerSeat
+                ? selfReserveRoot
+                : opponentReserveRoot;
+
+            if (reserveRoot == null || !(sourceView.transform is RectTransform sourceRect))
+            {
+                yield break;
+            }
+
+            GetReserveLayoutMetrics(
+                sourceView,
+                out Vector2 reserveSize,
+                out float reserveScaleRatio
+            );
+
+            int targetSiblingIndex = ResolveReserveInsertionSiblingIndex(
+                reserveRoot,
+                sourceCard.instanceId,
+                authoritativeReserve
+            );
+
+            RectTransform placeholderRect = CreateReserveSlotPlaceholder(reserveRoot, reserveSize);
+            if (targetSiblingIndex >= 0 && targetSiblingIndex < reserveRoot.childCount)
+            {
+                placeholderRect.SetSiblingIndex(targetSiblingIndex);
+            }
+
+            LayoutRebuilder.ForceRebuildLayoutImmediate(reserveRoot);
+            Vector3 targetWorldPos = placeholderRect.TransformPoint(placeholderRect.rect.center);
+
+            sourceRect.DOKill();
+            Sequence returnSeq = DOTween.Sequence();
+            returnSeq.Join(
+                sourceRect.DOMove(targetWorldPos, abilityReturnToReserveDuration).SetEase(Ease.InOutCubic)
+            );
+            returnSeq.Join(
+                sourceRect.DOScale(Vector3.one * reserveScaleRatio, abilityReturnToReserveDuration).SetEase(Ease.InOutQuad)
+            );
+
+            yield return returnSeq.WaitForCompletion();
+
+            int dockSiblingIndex = -1;
+            if (placeholderRect != null)
+            {
+                dockSiblingIndex = placeholderRect.GetSiblingIndex();
+                placeholderRect.SetParent(null, false);
+                placeholderRect.gameObject.SetActive(false);
+                Destroy(placeholderRect.gameObject);
+            }
+
+            if (sourceView != null && reserveRoot != null)
+            {
+                DockSourceCardIntoReserve(sourceView, reserveRoot, dockSiblingIndex);
+            }
+        }
+
+        private int ResolveReserveInsertionSiblingIndex(
+            RectTransform reserveRoot,
+            string sourceInstanceId,
+            CardViewDto[] authoritativeReserve
+        )
+        {
+            if (
+                reserveRoot == null
+                || string.IsNullOrWhiteSpace(sourceInstanceId)
+                || authoritativeReserve == null
+            )
+            {
+                return -1;
+            }
+
+            int sourceIndex = -1;
+            for (int i = 0; i < authoritativeReserve.Length; i++)
+            {
+                if (
+                    authoritativeReserve[i] != null
+                    && string.Equals(
+                        authoritativeReserve[i].instanceId,
+                        sourceInstanceId,
+                        StringComparison.Ordinal
+                    )
+                )
+                {
+                    sourceIndex = i;
+                    break;
+                }
+            }
+
+            if (sourceIndex < 0)
+            {
+                return -1;
+            }
+
+            for (int i = sourceIndex + 1; i < authoritativeReserve.Length; i++)
+            {
+                string nextId = authoritativeReserve[i]?.instanceId;
+                if (
+                    !string.IsNullOrWhiteSpace(nextId)
+                    && TryGetFaceUpVisual(nextId, out NetworkCardVisual nextView)
+                    && nextView != null
+                    && nextView.transform.parent == reserveRoot
+                )
+                {
+                    LayoutElement element = nextView.GetComponent<LayoutElement>();
+                    if (element == null || !element.ignoreLayout)
+                    {
+                        return nextView.transform.GetSiblingIndex();
+                    }
+                }
+            }
+
+            return -1;
+        }
+
+        private void DockSourceCardIntoReserve(
+            NetworkCardVisual sourceView,
+            RectTransform reserveRoot,
+            int siblingIndex = -1
+        )
+        {
+            sourceView.transform.SetParent(reserveRoot, false);
+
+            if (siblingIndex >= 0 && siblingIndex < reserveRoot.childCount)
+            {
+                sourceView.transform.SetSiblingIndex(siblingIndex);
+            }
+
+            CardVisualLayout layout = sourceView.GetComponent<CardVisualLayout>();
+            if (layout != null)
+            {
+                layout.Apply(CardVisualLocation.Reserve);
+            }
+
+            DraggableHandCard draggable = sourceView.GetComponent<DraggableHandCard>();
+            if (draggable != null)
+            {
+                draggable.Configure(false, dragLayer, CardVisualLocation.Reserve);
+            }
+
+            sourceView.SetPending(false);
+            sourceView.SetInteractableVisual(true);
+            LayoutRebuilder.ForceRebuildLayoutImmediate(reserveRoot);
+        }
+
+        private static Vector3 CalculateReserveSlotWorldPosition(
+            RectTransform reserveRoot,
+            Vector2 reserveSize
+        )
+        {
+            if (reserveRoot == null)
+            {
+                return Vector3.zero;
+            }
+
+            Canvas.ForceUpdateCanvases();
+            RectTransform placeholderRect = CreateReserveSlotPlaceholder(reserveRoot, reserveSize);
+            LayoutRebuilder.ForceRebuildLayoutImmediate(reserveRoot);
+
+            Vector3 slotWorldPos = placeholderRect.TransformPoint(placeholderRect.rect.center);
+
+            placeholderRect.SetParent(null, false);
+            placeholderRect.gameObject.SetActive(false);
+            Destroy(placeholderRect.gameObject);
+            LayoutRebuilder.ForceRebuildLayoutImmediate(reserveRoot);
+
+            return slotWorldPos;
+        }
+
+        private Sequence PlayMoveToCenterSequence(
+            NetworkCardVisual view,
+            Vector3 startWorldPos,
+            float startScale,
+            Action onComplete = null
+        )
+        {
+            if (view == null || !(view.transform is RectTransform rect))
+            {
+                onComplete?.Invoke();
+                return null;
+            }
+
+            rect.DOKill();
+            rect.position = startWorldPos;
+            rect.localScale = Vector3.one * startScale;
+
+            Sequence seq = DOTween.Sequence();
+            seq.Join(rect.DOLocalMove(Vector3.zero, abilityFlyToCenterDuration).SetEase(Ease.OutCubic));
+            seq.Join(rect.DOScale(Vector3.one, abilityFlyToCenterDuration).SetEase(Ease.OutBack, 1.08f));
+
+            if (onComplete != null)
+            {
+                seq.OnComplete(() => onComplete.Invoke());
+            }
+
+            return seq;
+        }
+
+        private static void GetReserveLayoutMetrics(
+            NetworkCardVisual view,
+            out Vector2 reserveSize,
+            out float reserveScaleRatio
+        )
+        {
+            reserveSize = new Vector2(150f, 210f);
+            reserveScaleRatio = 0.75f;
+
+            if (view == null || !(view.transform is RectTransform rect))
+            {
+                return;
+            }
+
+            CardVisualLayout layout = view.GetComponent<CardVisualLayout>();
+            if (layout == null)
+            {
+                return;
+            }
+
+            CardVisualLocation originalLocation = layout.CurrentLocation;
+
+            layout.Apply(CardVisualLocation.Reserve);
+            reserveSize = rect.rect.size;
+
+            layout.Apply(CardVisualLocation.AbilitySelection);
+            Vector2 selectionSize = rect.rect.size;
+
+            if (selectionSize.x > 0f)
+            {
+                reserveScaleRatio = reserveSize.x / selectionSize.x;
+            }
+
+            if (originalLocation != CardVisualLocation.AbilitySelection)
+            {
+                layout.Apply(originalLocation);
+            }
+        }
+
+        private static RectTransform CreateReserveSlotPlaceholder(
+            RectTransform reserveRoot,
+            Vector2 reserveSize
+        )
+        {
+            var placeholderObj = new GameObject(
+                "ReserveSlotPlaceholder",
+                typeof(RectTransform),
+                typeof(LayoutElement)
+            );
+            RectTransform placeholderRect = placeholderObj.GetComponent<RectTransform>();
+            placeholderRect.SetParent(reserveRoot, false);
+            placeholderRect.anchorMin = new Vector2(0.5f, 0.5f);
+            placeholderRect.anchorMax = new Vector2(0.5f, 0.5f);
+            placeholderRect.pivot = new Vector2(0.5f, 0.5f);
+            placeholderRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, reserveSize.x);
+            placeholderRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, reserveSize.y);
+
+            LayoutElement element = placeholderObj.GetComponent<LayoutElement>();
+            element.preferredWidth = reserveSize.x;
+            element.preferredHeight = reserveSize.y;
+            element.flexibleWidth = 0f;
+            element.flexibleHeight = 0f;
+
+            return placeholderRect;
         }
 
         /// <summary>
@@ -1058,6 +1513,7 @@ namespace KLTN.Game.Presentation
             {
                 if (spawnedView != null)
                 {
+                    spawnedView.transform.DOKill();
                     spawnedView.SetActive(false);
                     Destroy(spawnedView);
                 }
