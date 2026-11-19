@@ -99,7 +99,26 @@ namespace KLTN.Game.Presentation
                     yield return AnimateBatSwarm(effect, paired ? heal : null, viewerSeat);
                     if (paired) i++;
                 }
-                else yield return AnimateAbilityEffect(effect, viewerSeat, reserveCanDrag);
+                else
+                {
+                    yield return AnimateAbilityEffect(effect, viewerSeat, reserveCanDrag);
+                }
+                bool isLastEventForAbility =
+                    i + 1 >= events.Length || !BelongsToSameAbility(effect, events[i + 1]);
+
+                if (isLastEventForAbility && effect.source != null)
+                {
+                    CardViewDto[] finalReserve = effect.sourceOwner == viewerSeat
+                        ? update.snapshot?.self?.reserve
+                        : update.snapshot?.opponent?.reserve;
+
+                    yield return boardPresenter.AnimateAbilitySourceReturnToReserve(
+                        effect.source,
+                        effect.sourceOwner,
+                        viewerSeat,
+                        finalReserve
+                    );
+                }
             }
 
             if (transitionPending)
@@ -170,6 +189,22 @@ namespace KLTN.Game.Presentation
                 && first.source?.instanceId == second.source?.instanceId;
         }
 
+        private static bool IsTargetedAbilityFromReserve(AbilityResolutionEventDto effect)
+        {
+            if (effect == null || effect.isDeathOnly || effect.hasNexusTarget)
+            {
+                return false;
+            }
+
+            if (effect.source == null || effect.sourceZone != (int)CardZone.Reserve)
+            {
+                return false;
+            }
+
+            return effect.targetBefore != null
+                || (EffectKind)effect.effectKind == EffectKind.Revive;
+        }
+
         private IEnumerator AnimateAbilityEffect(
             AbilityResolutionEventDto effect,
             int viewerSeat,
@@ -184,13 +219,25 @@ namespace KLTN.Game.Presentation
                 yield break;
             }
 
+            bool shouldCenterSource = IsTargetedAbilityFromReserve(effect);
+
             NetworkCardVisual source = boardPresenter.PrepareAbilitySource(
                 effect.source,
                 effect.sourceOwner,
                 viewerSeat,
                 effect.sourceZone,
-                centerNewSource: true
+                shouldCenterSource,
+                out bool createdAtCenter
             );
+
+            if (createdAtCenter && source != null)
+            {
+                yield return boardPresenter.AnimateAbilitySourceMoveToCenter(
+                    source,
+                    effect.sourceOwner,
+                    viewerSeat
+                );
+            }
 
             if (effect.hasNexusTarget)
             {
@@ -236,8 +283,7 @@ namespace KLTN.Game.Presentation
                 : CardCenter(source);
 
             FeastEffectProfile feast = ResolveFeastProfile(effect);
-            if (feast != null && source != null
-                && ResolveWaterDeath(target.DefinitionId) == null)
+            if (feast != null && source != null)
             {
                 target.GetComponent<CardDeathFeedback>()?.ClearTargetPreviewCrack();
                 if (feastView == null)
@@ -247,6 +293,7 @@ namespace KLTN.Game.Presentation
                     feastView = viewObject.GetComponent<FeastEffectView>();
                 }
                 yield return feastView.Play(feast, animationLayer, source.CardRect, target.CardRect, sfxAudioSource);
+                boardPresenter.IgnoreCardInReserveLayout(target);
                 // Transformation replaces the generic kill/shatter presentation only.
                 // Subsequent death-trigger events still replay in authoritative order.
                 yield break;
@@ -259,8 +306,13 @@ namespace KLTN.Game.Presentation
             if (spirit != null && source != null)
             {
                 target.GetComponent<CardDeathFeedback>()?.ClearTargetPreviewCrack();
-                yield return GetSpiritView().PlayKill(spirit, animationLayer, source.CardRect,
-                    target.CardRect, sfxAudioSource);
+                yield return GetSpiritView().PlayKill(
+                    spirit,
+                    animationLayer,
+                    source.CardRect,
+                    target.CardRect,
+                    sfxAudioSource
+                );
             }
             else if (bonk != null)
             {
@@ -321,7 +373,7 @@ namespace KLTN.Game.Presentation
             if (killed)
             {
                 yield return PlayCardDeath(target, effect.targetBefore.instanceId);
-
+                boardPresenter.IgnoreCardInReserveLayout(target);
                 yield break;
             }
 
@@ -545,8 +597,18 @@ else
                 effect.sourceOwner,
                 viewerSeat,
                 effect.sourceZone,
-                centerNewSource: true
+                centerNewSource: true,
+                out bool createdAtCenter
             );
+
+            if (createdAtCenter && source != null)
+            {
+                yield return boardPresenter.AnimateAbilitySourceMoveToCenter(
+                    source,
+                    effect.sourceOwner,
+                    viewerSeat
+                );
+            }
 
             NetworkCardVisual revived = boardPresenter.PrepareRevivedCard(
                 effect.targetAfter,

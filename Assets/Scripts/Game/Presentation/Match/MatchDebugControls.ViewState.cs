@@ -4,6 +4,7 @@ using KLTN.Game.Networking;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using DG.Tweening;
 
 namespace KLTN.Game.Presentation
 {
@@ -391,10 +392,101 @@ namespace KLTN.Game.Presentation
 
         private void SetLocalStatus(string message)
         {
-            if (localStatusLabel != null)
+            if (localStatusLabel == null)
             {
-                localStatusLabel.text = message;
+                return;
             }
+
+            if (localStatusCanvasGroup == null)
+            {
+                localStatusContainer = localStatusLabel.transform.parent as RectTransform;
+                if (localStatusContainer == null)
+                {
+                    localStatusContainer = localStatusLabel.rectTransform;
+                }
+
+                localStatusCanvasGroup = localStatusContainer.GetComponent<CanvasGroup>();
+                if (localStatusCanvasGroup == null)
+                {
+                    localStatusCanvasGroup = localStatusContainer.gameObject.AddComponent<CanvasGroup>();
+                }
+
+                localStatusCanvasGroup.interactable = false;
+                localStatusCanvasGroup.blocksRaycasts = false;
+                localStatusCanvasGroup.alpha = 0f;
+                localStatusBaseY = localStatusContainer.anchoredPosition.y;
+            }
+
+            localStatusSequence?.Kill();
+            bool isVisible = localStatusCanvasGroup.alpha > 0.01f;
+
+            if (string.IsNullOrWhiteSpace(message))
+            {
+                if (!isVisible)
+                {
+                    localStatusLabel.text = string.Empty;
+                    return;
+                }
+
+                localStatusSequence = DOTween
+                    .Sequence()
+                    .Append(localStatusCanvasGroup.DOFade(0f, 0.18f).SetEase(Ease.InQuad))
+                    .Join(localStatusContainer.DOScale(0.75f, 0.18f).SetEase(Ease.InBack))
+                    .Join(
+                        localStatusContainer
+                            .DOAnchorPosY(localStatusBaseY - 20f, 0.18f)
+                            .SetEase(Ease.InQuad)
+                    )
+                    .OnComplete(() => localStatusLabel.text = string.Empty);
+
+                return;
+            }
+
+            localStatusLabel.text = message;
+            localStatusSequence = DOTween.Sequence();
+
+            if (!isVisible)
+            {
+                localStatusCanvasGroup.alpha = 0f;
+                localStatusContainer.localScale = new Vector3(0.65f, 0.65f, 1f);
+                localStatusContainer.anchoredPosition = new Vector2(
+                    localStatusContainer.anchoredPosition.x,
+                    localStatusBaseY - 20f
+                );
+
+                localStatusSequence
+                    .Join(localStatusCanvasGroup.DOFade(1f, 0.12f).SetEase(Ease.OutQuad))
+                    .Join(localStatusContainer.DOScale(1f, 0.22f).SetEase(Ease.OutBack))
+                    .Join(
+                        localStatusContainer
+                            .DOAnchorPosY(localStatusBaseY, 0.22f)
+                            .SetEase(Ease.OutCubic)
+                    );
+            }
+            else
+            {
+                localStatusCanvasGroup.alpha = 1f;
+                localStatusContainer.localScale = Vector3.one;
+                localStatusContainer.anchoredPosition = new Vector2(
+                    localStatusContainer.anchoredPosition.x,
+                    localStatusBaseY
+                );
+
+                localStatusSequence
+                    .Append(localStatusContainer.DOScale(1.06f, 0.06f).SetEase(Ease.OutQuad))
+                    .Append(localStatusContainer.DOScale(1f, 0.08f).SetEase(Ease.InOutQuad));
+            }
+
+            localStatusSequence
+                .AppendInterval(2.0f)
+                .Append(localStatusCanvasGroup.DOFade(0f, 0.18f).SetEase(Ease.InQuad))
+                .Join(localStatusContainer.DOScale(0.75f, 0.18f).SetEase(Ease.InBack))
+                .Join(
+                    localStatusContainer
+                        .DOAnchorPosY(localStatusBaseY - 20f, 0.18f)
+                        .SetEase(Ease.InQuad)
+                )
+                .OnComplete(() => localStatusLabel.text = string.Empty);
         }
 
         #endregion
