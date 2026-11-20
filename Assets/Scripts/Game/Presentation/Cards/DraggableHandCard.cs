@@ -127,11 +127,6 @@ namespace KLTN.Game.Presentation
 
 if (homeLocation == CardVisualLocation.Hand)
 {
-    SummonZoneHighlightController summonGlow =
-        FindAnyObjectByType<SummonZoneHighlightController>();
-
-    summonGlow?.ShowEffects();
-
     // Bật bóng khi bắt đầu kéo bài từ Hand.
     CardShadowVFX shadow = GetComponent<CardShadowVFX>();
     shadow?.UpdateDynamicShadow(0f);

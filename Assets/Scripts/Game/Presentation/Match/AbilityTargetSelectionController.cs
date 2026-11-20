@@ -184,7 +184,8 @@ private void ApplySnapshot(MatchSnapshotDto snapshot)
         targetLinks?.SetLinks(null, null, null);
     }
 
-    skillTargetGlow?.ShowEffects();
+    // Target feedback belongs to individual cards and links, not the board zone.
+    skillTargetGlow?.HideEffects();
 
     SanitizeSelections();
     RefreshPresentation();
