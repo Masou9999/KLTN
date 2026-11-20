@@ -103,6 +103,16 @@ namespace KLTN.Game.Presentation
         [SerializeField]
         private float abilityReturnToReserveDuration = 0.32f;
 
+        [SerializeField]
+        private float abilityReturnToHandDuration = 0.32f;
+
+        [Header("Combat Return Movement")]
+        [SerializeField]
+        private float combatReturnToReserveDuration = 0.35f;
+
+        [SerializeField]
+        private float combatReturnToReserveStagger = 0.06f;
+
         #endregion
 
         #region Runtime State
@@ -117,6 +127,9 @@ namespace KLTN.Game.Presentation
 
         private readonly HashSet<string> knownHandCardIds = new HashSet<string>(StringComparer.Ordinal);
         private readonly HashSet<string> animatingDrawCardIds = new HashSet<string>(StringComparer.Ordinal);
+        private readonly HashSet<string> pendingDrawSlotIgnoreIds = new HashSet<string>(StringComparer.Ordinal);
+        private readonly HashSet<string> previousReserveVisualIds = new HashSet<string>(StringComparer.Ordinal);
+        private bool hasPreviousReserveSnapshot;
         private readonly Dictionary<string, (float alpha, bool blocksRaycasts)> savedDrawCardCanvasStates =
             new Dictionary<string, (float alpha, bool blocksRaycasts)>(StringComparer.Ordinal);
         private readonly List<GameObject> activeDrawAnimationObjects = new List<GameObject>();
@@ -128,6 +141,10 @@ namespace KLTN.Game.Presentation
         private bool hasCapturedSelectionStartPos;
         private bool shouldAnimateCurrentSelectionSource;
         private NetworkCardVisual currentSelectionSourceView;
+        private string activeSelectionSourceCardId;
+        private CardViewDto pendingCancelledSelectionCard;
+        private Vector3 cancelledSelectionStartWorldPos;
+        private Vector3 cancelledSelectionStartScale = Vector3.one;
 
         #endregion
 
@@ -170,6 +187,7 @@ namespace KLTN.Game.Presentation
         private void Render(MatchSnapshotDto snapshot)
         {
             CaptureSelectionSourceStartState(snapshot);
+            CaptureCurrentReserveVisualIds(snapshot);
             ClearViews();
 
             if (
@@ -205,6 +223,7 @@ namespace KLTN.Game.Presentation
                 isOpponent: false
             );
             TriggerPendingSelectionMoveToCenter();
+            TriggerPendingSelectionReturnToHand();
 
             RenderReserve(snapshot.opponent.reserve, opponentReserveRoot, false, true);
             RenderBoard(snapshot.self.board, selfBoardSlots, false);
@@ -249,6 +268,7 @@ namespace KLTN.Game.Presentation
                     CenterAbilitySelectionSource(view);
                     view.GetComponent<CardShadowVFX>()?.ShowFixedShadow();
                     currentSelectionSourceView = view;
+                    activeSelectionSourceCardId = dto.instanceId;
                 }
                 else if (
                     !string.IsNullOrWhiteSpace(dto.instanceId)
@@ -273,6 +293,7 @@ namespace KLTN.Game.Presentation
                 lastSeenRoundNumber = 0;
                 knownHandCardIds.Clear();
                 animatingDrawCardIds.Clear();
+                pendingDrawSlotIgnoreIds.Clear();
                 savedDrawCardCanvasStates.Clear();
 
                 if (snapshot.self?.hand != null)
@@ -323,6 +344,7 @@ namespace KLTN.Game.Presentation
                 if (knownHandCardIds.Add(dto.instanceId))
                 {
                     animatingDrawCardIds.Add(dto.instanceId);
+                    pendingDrawSlotIgnoreIds.Add(dto.instanceId);
                     if (drawnCards == null)
                     {
                         drawnCards = new List<CardViewDto>();
@@ -347,12 +369,36 @@ namespace KLTN.Game.Presentation
             savedDrawCardCanvasStates[instanceId] = (cardGroup.alpha, cardGroup.blocksRaycasts);
             cardGroup.alpha = 0f;
             cardGroup.blocksRaycasts = false;
+
+            if (!string.IsNullOrWhiteSpace(instanceId) && pendingDrawSlotIgnoreIds.Contains(instanceId))
+            {
+                LayoutElement layoutElement = view.GetComponent<LayoutElement>();
+                if (layoutElement != null)
+                {
+                    layoutElement.ignoreLayout = true;
+                }
+            }
         }
 
         private void RevealRealHandCardAfterDraw(string instanceId)
         {
-            if (TryGetFaceUpVisual(instanceId, out NetworkCardVisual realHandView) && realHandView != null)
+            pendingDrawSlotIgnoreIds.Remove(instanceId);
+
+            NetworkCardVisual realHandView;
+            if (TryGetFaceUpVisual(instanceId, out realHandView) && realHandView != null)
             {
+                LayoutElement layoutElement = realHandView.GetComponent<LayoutElement>();
+                if (layoutElement != null)
+                {
+                    layoutElement.ignoreLayout = false;
+                }
+
+                CardVisualLayout visualLayout = realHandView.GetComponent<CardVisualLayout>();
+                if (visualLayout != null)
+                {
+                    visualLayout.Apply(CardVisualLocation.Hand);
+                }
+
                 CanvasGroup cardGroup = realHandView.GetComponent<CanvasGroup>();
                 if (cardGroup != null)
                 {
@@ -400,6 +446,8 @@ namespace KLTN.Game.Presentation
                 }
                 yield break;
             }
+
+            StartHandSlotExpansionForDraw(drawnCards);
 
             Vector3 startWorldPos = selfDeckSpawnPoint != null
                 ? selfDeckSpawnPoint.position
@@ -535,9 +583,174 @@ namespace KLTN.Game.Presentation
 
             activeDrawAnimationObjects.Clear();
             animatingDrawCardIds.Clear();
+            pendingDrawSlotIgnoreIds.Clear();
+            previousReserveVisualIds.Clear();
+            hasPreviousReserveSnapshot = false;
             savedDrawCardCanvasStates.Clear();
             knownHandCardIds.Clear();
             lastSeenRoundNumber = -1;
+            activeSelectionSourceCardId = null;
+            pendingCancelledSelectionCard = null;
+        }
+
+        private void CaptureCurrentReserveVisualIds(MatchSnapshotDto snapshot)
+        {
+            previousReserveVisualIds.Clear();
+
+            if (snapshot == null || snapshot.roundNumber <= 0 || lastSeenRoundNumber <= 0)
+            {
+                hasPreviousReserveSnapshot = false;
+                return;
+            }
+
+            hasPreviousReserveSnapshot = true;
+
+            foreach (KeyValuePair<string, NetworkCardVisual> pair in faceUpViewsById)
+            {
+                NetworkCardVisual view = pair.Value;
+                if (view == null || string.IsNullOrWhiteSpace(pair.Key))
+                {
+                    continue;
+                }
+
+                Transform parent = view.transform.parent;
+                if (parent == selfReserveRoot || parent == opponentReserveRoot)
+                {
+                    previousReserveVisualIds.Add(pair.Key);
+                }
+            }
+        }
+
+        private void StartHandSlotExpansionForDraw(List<CardViewDto> drawnCards)
+        {
+            if (drawnCards == null || selfHandRoot == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < drawnCards.Count; i++)
+            {
+                CardViewDto dto = drawnCards[i];
+                if (dto == null || string.IsNullOrWhiteSpace(dto.instanceId))
+                {
+                    continue;
+                }
+
+                pendingDrawSlotIgnoreIds.Remove(dto.instanceId);
+
+                NetworkCardVisual realHandView;
+                if (TryGetFaceUpVisual(dto.instanceId, out realHandView) && realHandView != null)
+                {
+                    StartSlotExpansionTween(realHandView, selfHandRoot, 0.35f);
+                }
+            }
+        }
+
+        private static Tween StartSlotExpansionTween(
+            NetworkCardVisual cardView,
+            RectTransform parentRoot,
+            float duration
+        )
+        {
+            if (cardView == null || parentRoot == null)
+            {
+                return null;
+            }
+
+            LayoutElement layoutElement = cardView.GetComponent<LayoutElement>();
+            RectTransform cardRect = cardView.transform as RectTransform;
+            if (layoutElement == null || cardRect == null)
+            {
+                return null;
+            }
+
+            layoutElement.ignoreLayout = false;
+
+            float targetWidth = layoutElement.preferredWidth > 0f
+                ? layoutElement.preferredWidth
+                : cardRect.rect.width;
+            if (targetWidth <= 0f)
+            {
+                targetWidth = 150f;
+            }
+
+            float startWidth = 0f;
+            HorizontalLayoutGroup layoutGroup = parentRoot.GetComponent<HorizontalLayoutGroup>();
+            if (layoutGroup != null && layoutGroup.spacing < 0f)
+            {
+                startWidth = -layoutGroup.spacing;
+            }
+
+            float currentWidth = startWidth;
+            layoutElement.preferredWidth = startWidth;
+            cardRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, startWidth);
+            LayoutRebuilder.ForceRebuildLayoutImmediate(parentRoot);
+
+            return DOTween
+                .To(
+                    () => currentWidth,
+                    w =>
+                    {
+                        currentWidth = w;
+                        if (layoutElement == null || cardRect == null)
+                        {
+                            return;
+                        }
+
+                        layoutElement.preferredWidth = w;
+                        cardRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, w);
+                        if (parentRoot != null)
+                        {
+                            LayoutRebuilder.ForceRebuildLayoutImmediate(parentRoot);
+                        }
+                    },
+                    targetWidth,
+                    Mathf.Max(0.05f, duration)
+                )
+                .SetEase(Ease.OutCubic)
+                .SetTarget(cardRect)
+                .SetLink(cardView.gameObject)
+                .OnComplete(() =>
+                {
+                    if (layoutElement != null)
+                    {
+                        layoutElement.preferredWidth = targetWidth;
+                    }
+                    if (cardRect != null)
+                    {
+                        cardRect.SetSizeWithCurrentAnchors(
+                            RectTransform.Axis.Horizontal,
+                            targetWidth
+                        );
+                    }
+                    if (parentRoot != null)
+                    {
+                        LayoutRebuilder.ForceRebuildLayoutImmediate(parentRoot);
+                    }
+                });
+        }
+
+        public IEnumerator AnimateReserveSlotExpansionForCard(
+            NetworkCardVisual revivedView,
+            float duration = 0.26f
+        )
+        {
+            if (revivedView == null)
+            {
+                yield break;
+            }
+
+            RectTransform parentRoot = revivedView.transform.parent as RectTransform;
+            if (parentRoot == null || parentRoot.childCount <= 1)
+            {
+                yield break;
+            }
+
+            Tween expandTween = StartSlotExpansionTween(revivedView, parentRoot, duration);
+            if (expandTween != null)
+            {
+                yield return expandTween.WaitForCompletion();
+            }
         }
 
         #endregion
@@ -620,7 +833,24 @@ namespace KLTN.Game.Presentation
 
             foreach (CardViewDto dto in cards)
             {
-                CreateFaceUpCard(dto, reserveRoot, canDrag, CardVisualLocation.Reserve, isOpponent);
+                NetworkCardVisual view = CreateFaceUpCard(
+                    dto,
+                    reserveRoot,
+                    canDrag,
+                    CardVisualLocation.Reserve,
+                    isOpponent
+                );
+
+                if (
+                    hasPreviousReserveSnapshot
+                    && dto != null
+                    && !string.IsNullOrWhiteSpace(dto.instanceId)
+                    && !previousReserveVisualIds.Contains(dto.instanceId)
+                    && reserveRoot.childCount > 1
+                )
+                {
+                    StartSlotExpansionTween(view, reserveRoot, 0.25f);
+                }
             }
         }
 
@@ -944,14 +1174,38 @@ namespace KLTN.Game.Presentation
         private void CaptureSelectionSourceStartState(MatchSnapshotDto snapshot)
         {
             shouldAnimateCurrentSelectionSource = false;
-            currentSelectionSourceView = null;
+            pendingCancelledSelectionCard = null;
 
+            string nextSourceId = null;
             if (
-                snapshot == null
-                || !snapshot.viewerMustSelectAbilityTargets
-                || snapshot.pendingAbilitySelection == null
-                || string.IsNullOrWhiteSpace(snapshot.pendingAbilitySelection.sourceCardInstanceId)
+                snapshot != null
+                && snapshot.viewerMustSelectAbilityTargets
+                && snapshot.pendingAbilitySelection != null
+                && !string.IsNullOrWhiteSpace(snapshot.pendingAbilitySelection.sourceCardInstanceId)
             )
+            {
+                nextSourceId = snapshot.pendingAbilitySelection.sourceCardInstanceId;
+            }
+
+            CardViewDto cancelledCardDto = FindSelfHandCard(snapshot, activeSelectionSourceCardId);
+            if (
+                cancelledCardDto != null
+                && !string.Equals(activeSelectionSourceCardId, nextSourceId, StringComparison.Ordinal)
+                && currentSelectionSourceView != null
+                && abilitySelectionSourceRoot != null
+                && currentSelectionSourceView.transform.parent == abilitySelectionSourceRoot
+            )
+            {
+                pendingCancelledSelectionCard = cancelledCardDto;
+                cancelledSelectionStartWorldPos = currentSelectionSourceView.transform.position;
+                cancelledSelectionStartScale = currentSelectionSourceView.transform.localScale;
+                animatingDrawCardIds.Add(cancelledCardDto.instanceId);
+            }
+
+            currentSelectionSourceView = null;
+            activeSelectionSourceCardId = null;
+
+            if (string.IsNullOrWhiteSpace(nextSourceId))
             {
                 lastAnimatedSelectionRequestId = null;
                 hasCapturedSelectionStartPos = false;
@@ -968,9 +1222,9 @@ namespace KLTN.Game.Presentation
             shouldAnimateCurrentSelectionSource = true;
             hasCapturedSelectionStartPos = false;
 
-            string sourceId = snapshot.pendingAbilitySelection.sourceCardInstanceId;
+            NetworkCardVisual existingView;
             if (
-                TryGetFaceUpVisual(sourceId, out NetworkCardVisual existingView)
+                TryGetFaceUpVisual(nextSourceId, out existingView)
                 && existingView != null
                 && existingView.transform.parent != selfHandRoot
             )
@@ -978,6 +1232,169 @@ namespace KLTN.Game.Presentation
                 capturedSelectionStartWorldPos = existingView.transform.position;
                 hasCapturedSelectionStartPos = true;
             }
+        }
+
+        private static CardViewDto FindSelfHandCard(
+            MatchSnapshotDto snapshot,
+            string instanceId
+        )
+        {
+            if (
+                snapshot?.self?.hand == null
+                || string.IsNullOrWhiteSpace(instanceId)
+            )
+            {
+                return null;
+            }
+
+            foreach (CardViewDto card in snapshot.self.hand)
+            {
+                if (
+                    card != null
+                    && string.Equals(card.instanceId, instanceId, StringComparison.Ordinal)
+                )
+                {
+                    return card;
+                }
+            }
+
+            return null;
+        }
+
+        private void TriggerPendingSelectionReturnToHand()
+        {
+            if (pendingCancelledSelectionCard == null)
+            {
+                return;
+            }
+
+            CardViewDto cancelledCard = pendingCancelledSelectionCard;
+            pendingCancelledSelectionCard = null;
+            string instanceId = cancelledCard.instanceId;
+
+            RectTransform animationParent = dragLayer != null
+                ? dragLayer
+                : selfHandRoot != null
+                    ? selfHandRoot.root as RectTransform
+                    : transform as RectTransform;
+
+            if (animationParent == null || cardPrefab == null || selfHandRoot == null)
+            {
+                if (!string.IsNullOrWhiteSpace(instanceId))
+                {
+                    animatingDrawCardIds.Remove(instanceId);
+                    RevealRealHandCardAfterDraw(instanceId);
+                }
+                return;
+            }
+
+            Canvas.ForceUpdateCanvases();
+            LayoutRebuilder.ForceRebuildLayoutImmediate(selfHandRoot);
+
+            Vector3 targetHandWorldPos = selfHandRoot.position;
+            NetworkCardVisual realHandView;
+            if (
+                !string.IsNullOrWhiteSpace(instanceId)
+                && TryGetFaceUpVisual(instanceId, out realHandView)
+                && realHandView != null
+            )
+            {
+                targetHandWorldPos = realHandView.transform.position;
+                if (selfHandRoot.childCount > 1)
+                {
+                    StartSlotExpansionTween(
+                        realHandView,
+                        selfHandRoot,
+                        abilityReturnToHandDuration * 0.85f
+                    );
+                }
+            }
+
+            NetworkCardVisual tempCard = Instantiate(cardPrefab, animationParent);
+            activeDrawAnimationObjects.Add(tempCard.gameObject);
+
+            Canvas tempCanvas = tempCard.GetComponent<Canvas>();
+            if (tempCanvas == null)
+            {
+                tempCanvas = tempCard.gameObject.AddComponent<Canvas>();
+            }
+            MatchSorting.Apply(tempCanvas, MatchSorting.CardMotion, drawSortingOrder);
+
+            CardVisualLayout layout = tempCard.GetComponent<CardVisualLayout>();
+            float handScaleRatio = 0.75f;
+            if (layout != null)
+            {
+                handScaleRatio = GetHandScaleRatio(tempCard, layout);
+                layout.Apply(CardVisualLocation.AbilitySelection);
+            }
+
+            tempCard.BindFaceUp(cancelledCard, FindArtwork(cancelledCard.definitionId));
+            tempCard.SetOwnerPerspective(false);
+            tempCard.SetPending(false);
+            tempCard.SetInteractableVisual(true);
+
+            DraggableHandCard dragScript = tempCard.GetComponent<DraggableHandCard>();
+            if (dragScript != null)
+            {
+                Destroy(dragScript);
+            }
+
+            CanvasGroup tempGroup = tempCard.GetComponent<CanvasGroup>();
+            if (tempGroup == null)
+            {
+                tempGroup = tempCard.gameObject.AddComponent<CanvasGroup>();
+            }
+            tempGroup.alpha = 1f;
+            tempGroup.blocksRaycasts = false;
+
+            RectTransform tempRect = tempCard.GetComponent<RectTransform>();
+            tempRect.anchorMin = new Vector2(0.5f, 0.5f);
+            tempRect.anchorMax = new Vector2(0.5f, 0.5f);
+            tempRect.pivot = new Vector2(0.5f, 0.5f);
+            tempRect.position = cancelledSelectionStartWorldPos;
+            tempRect.localScale = cancelledSelectionStartScale;
+            tempRect.localRotation = Quaternion.identity;
+
+            Sequence returnSeq = DOTween.Sequence();
+            returnSeq.SetTarget(tempRect).SetLink(tempCard.gameObject);
+            returnSeq.Join(
+                tempRect.DOMove(targetHandWorldPos, abilityReturnToHandDuration).SetEase(Ease.InOutCubic)
+            );
+            returnSeq.Join(
+                tempRect.DOScale(Vector3.one * handScaleRatio, abilityReturnToHandDuration).SetEase(Ease.InOutQuad)
+            );
+
+            returnSeq.OnComplete(() =>
+            {
+                if (!string.IsNullOrWhiteSpace(instanceId))
+                {
+                    animatingDrawCardIds.Remove(instanceId);
+                    RevealRealHandCardAfterDraw(instanceId);
+                }
+
+                if (tempCard != null)
+                {
+                    tempCard.transform.DOKill();
+                    activeDrawAnimationObjects.Remove(tempCard.gameObject);
+                    Destroy(tempCard.gameObject);
+                }
+            });
+        }
+
+        private static float GetHandScaleRatio(NetworkCardVisual view, CardVisualLayout layout)
+        {
+            if (view == null || layout == null || !(view.transform is RectTransform rect))
+            {
+                return 0.75f;
+            }
+
+            layout.Apply(CardVisualLocation.Hand);
+            Vector2 handSize = rect.rect.size;
+
+            layout.Apply(CardVisualLocation.AbilitySelection);
+            Vector2 selectionSize = rect.rect.size;
+
+            return selectionSize.x > 0f ? handSize.x / selectionSize.x : 0.75f;
         }
 
         private void TriggerPendingSelectionMoveToCenter()
@@ -1135,6 +1552,243 @@ namespace KLTN.Game.Presentation
             if (sourceView != null && reserveRoot != null)
             {
                 DockSourceCardIntoReserve(sourceView, reserveRoot, dockSiblingIndex);
+            }
+        }
+
+        private struct CombatSurvivorReturnPlan
+        {
+            public NetworkCardVisual view;
+            public RectTransform cardRect;
+            public RectTransform reserveRoot;
+            public RectTransform placeholderRect;
+            public float scaleRatio;
+        }
+
+        public IEnumerator AnimateCombatSurvivorsReturnToReserve(
+            IReadOnlyList<ResolvedCardDto> survivors,
+            int viewerSeat,
+            MatchSnapshotDto postCombatSnapshot,
+            RectTransform motionLayer = null
+        )
+        {
+            if (survivors == null || survivors.Count == 0)
+            {
+                yield break;
+            }
+
+            var plans = new List<CombatSurvivorReturnPlan>(survivors.Count);
+            bool hasSelfSurvivor = false;
+            bool hasOpponentSurvivor = false;
+
+            for (int i = 0; i < survivors.Count; i++)
+            {
+                ResolvedCardDto survivor = survivors[i];
+                if (
+                    survivor?.cardBefore == null
+                    || string.IsNullOrWhiteSpace(survivor.cardBefore.instanceId)
+                    || survivor.died
+                    || survivor.diedFromEphemeral
+                    || survivor.healthAfter <= 0
+                )
+                {
+                    continue;
+                }
+
+                string definitionId = survivor.cardBefore.definitionId;
+                if (
+                    string.Equals(definitionId, "MaDa", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(definitionId, "MaLai", StringComparison.OrdinalIgnoreCase)
+                )
+                {
+                    continue;
+                }
+
+                NetworkCardVisual cardView;
+                if (
+                    !TryGetFaceUpVisual(survivor.cardBefore.instanceId, out cardView)
+                    || cardView == null
+                )
+                {
+                    continue;
+                }
+
+                RectTransform cardRect = cardView.transform as RectTransform;
+                if (cardRect == null)
+                {
+                    continue;
+                }
+
+                bool isSelf = survivor.seat == viewerSeat;
+                RectTransform reserveRoot = isSelf ? selfReserveRoot : opponentReserveRoot;
+                if (reserveRoot == null || cardView.transform.parent == reserveRoot)
+                {
+                    continue;
+                }
+
+                Vector2 reserveSize;
+                float scaleRatio;
+                GetBoardToReserveLayoutMetrics(cardView, out reserveSize, out scaleRatio);
+
+                CardViewDto[] authoritativeReserve = isSelf
+                    ? postCombatSnapshot?.self?.reserve
+                    : postCombatSnapshot?.opponent?.reserve;
+
+                int targetSiblingIndex = ResolveReserveInsertionSiblingIndex(
+                    reserveRoot,
+                    survivor.cardBefore.instanceId,
+                    authoritativeReserve
+                );
+
+                RectTransform placeholderRect = CreateReserveSlotPlaceholder(reserveRoot, reserveSize);
+                spawnedViews.Add(placeholderRect.gameObject);
+
+                if (targetSiblingIndex >= 0 && targetSiblingIndex < reserveRoot.childCount)
+                {
+                    placeholderRect.SetSiblingIndex(targetSiblingIndex);
+                }
+
+                if (isSelf)
+                {
+                    hasSelfSurvivor = true;
+                }
+                else
+                {
+                    hasOpponentSurvivor = true;
+                }
+
+                plans.Add(
+                    new CombatSurvivorReturnPlan
+                    {
+                        view = cardView,
+                        cardRect = cardRect,
+                        reserveRoot = reserveRoot,
+                        placeholderRect = placeholderRect,
+                        scaleRatio = scaleRatio,
+                    }
+                );
+            }
+
+            if (plans.Count == 0)
+            {
+                yield break;
+            }
+
+            Canvas.ForceUpdateCanvases();
+            if (hasSelfSurvivor && selfReserveRoot != null)
+            {
+                LayoutRebuilder.ForceRebuildLayoutImmediate(selfReserveRoot);
+            }
+            if (hasOpponentSurvivor && opponentReserveRoot != null)
+            {
+                LayoutRebuilder.ForceRebuildLayoutImmediate(opponentReserveRoot);
+            }
+
+            RectTransform effectiveMotionLayer = motionLayer != null ? motionLayer : dragLayer;
+            Sequence masterSeq = DOTween.Sequence();
+
+            for (int i = 0; i < plans.Count; i++)
+            {
+                CombatSurvivorReturnPlan plan = plans[i];
+                if (plan.cardRect == null || plan.placeholderRect == null)
+                {
+                    continue;
+                }
+
+                Vector3 targetWorldPos = plan.placeholderRect.TransformPoint(
+                    plan.placeholderRect.rect.center
+                );
+
+                plan.cardRect.DOKill();
+
+                if (effectiveMotionLayer != null)
+                {
+                    plan.cardRect.SetParent(effectiveMotionLayer, true);
+                    plan.cardRect.SetAsLastSibling();
+                }
+
+                plan.view.GetComponent<CardShadowVFX>()?.ShowFixedShadow();
+
+                float delay = i * Mathf.Max(0f, combatReturnToReserveStagger);
+                masterSeq.Insert(
+                    delay,
+                    plan.cardRect.DOMove(targetWorldPos, combatReturnToReserveDuration)
+                        .SetEase(Ease.InOutCubic)
+                );
+                masterSeq.Insert(
+                    delay,
+                    plan.cardRect.DOScale(
+                        Vector3.one * plan.scaleRatio,
+                        combatReturnToReserveDuration
+                    ).SetEase(Ease.InOutQuad)
+                );
+            }
+
+            yield return masterSeq.WaitForCompletion();
+
+            for (int i = 0; i < plans.Count; i++)
+            {
+                CombatSurvivorReturnPlan plan = plans[i];
+                int dockSiblingIndex = -1;
+
+                if (plan.placeholderRect != null)
+                {
+                    dockSiblingIndex = plan.placeholderRect.GetSiblingIndex();
+                    spawnedViews.Remove(plan.placeholderRect.gameObject);
+                    plan.placeholderRect.SetParent(null, false);
+                    plan.placeholderRect.gameObject.SetActive(false);
+                    Destroy(plan.placeholderRect.gameObject);
+                }
+
+                if (plan.view != null && plan.reserveRoot != null)
+                {
+                    plan.view.GetComponent<CardShadowVFX>()?.HideShadow();
+                    DockSourceCardIntoReserve(plan.view, plan.reserveRoot, dockSiblingIndex);
+                }
+            }
+        }
+
+        private static void GetBoardToReserveLayoutMetrics(
+            NetworkCardVisual view,
+            out Vector2 reserveSize,
+            out float boardToReserveScaleRatio
+        )
+        {
+            reserveSize = new Vector2(150f, 210f);
+            boardToReserveScaleRatio = 0.6f;
+
+            if (view == null)
+            {
+                return;
+            }
+
+            RectTransform rect = view.transform as RectTransform;
+            if (rect == null)
+            {
+                return;
+            }
+
+            CardVisualLayout layout = view.GetComponent<CardVisualLayout>();
+            if (layout == null)
+            {
+                return;
+            }
+
+            CardVisualLocation originalLocation = layout.CurrentLocation;
+
+            layout.Apply(CardVisualLocation.Reserve);
+            reserveSize = rect.rect.size;
+
+            layout.Apply(CardVisualLocation.Board);
+            Vector2 boardSize = rect.rect.size;
+
+            if (boardSize.x > 0f)
+            {
+                boardToReserveScaleRatio = reserveSize.x / boardSize.x;
+            }
+
+            if (originalLocation != CardVisualLocation.Board)
+            {
+                layout.Apply(originalLocation);
             }
         }
 
@@ -1634,6 +2288,7 @@ namespace KLTN.Game.Presentation
                 {
                     spawnedView.transform.DOKill();
                     spawnedView.SetActive(false);
+                    spawnedView.transform.SetParent(null, false);
                     Destroy(spawnedView);
                 }
             }

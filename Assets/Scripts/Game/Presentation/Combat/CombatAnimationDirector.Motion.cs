@@ -55,11 +55,86 @@ namespace KLTN.Game.Presentation
             RestorePreparedCards();
             ResetFeedbackViews();
 
+            yield return AnimateSurvivingCombatCardsReturnToReserve(update);
+
             activeDeathFeedbacks.Clear();
             pendingDeathsById.Clear();
 
             // MatchResultPresenter observes the authoritative snapshot applied after
             // both combat and ability animations by ProcessUpdates.
+        }
+
+        private IEnumerator AnimateSurvivingCombatCardsReturnToReserve(MatchUpdateDto update)
+        {
+            if (boardPresenter == null || update?.resolution?.steps == null)
+            {
+                yield break;
+            }
+
+            int viewerSeat = update.snapshot != null ? update.snapshot.viewerSeat : 0;
+            var survivingCards = new List<ResolvedCardDto>();
+
+            for (int i = 0; i < update.resolution.steps.Length; i++)
+            {
+                CombatStepDto step = update.resolution.steps[i];
+                if (step == null)
+                {
+                    continue;
+                }
+
+                if (ShouldReturnToReserveAfterCombat(step.hostCard))
+                {
+                    survivingCards.Add(step.hostCard);
+                }
+
+                if (ShouldReturnToReserveAfterCombat(step.guestCard))
+                {
+                    survivingCards.Add(step.guestCard);
+                }
+            }
+
+            if (survivingCards.Count == 0)
+            {
+                yield break;
+            }
+
+            yield return boardPresenter.AnimateCombatSurvivorsReturnToReserve(
+                survivingCards,
+                viewerSeat,
+                update.snapshot,
+                animationLayer
+            );
+        }
+
+        private bool ShouldReturnToReserveAfterCombat(ResolvedCardDto card)
+        {
+            if (!HasResolvedCard(card))
+            {
+                return false;
+            }
+
+            if (card.died || card.diedFromEphemeral || card.healthAfter <= 0)
+            {
+                return false;
+            }
+
+            string instanceId = card.cardBefore.instanceId;
+            if (pendingDeathsById.ContainsKey(instanceId))
+            {
+                return false;
+            }
+
+            string definitionId = card.cardBefore.definitionId;
+            if (
+                string.Equals(definitionId, "MaDa", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(definitionId, "MaLai", StringComparison.OrdinalIgnoreCase)
+                || ResolveWaterDeath(definitionId) != null
+            )
+            {
+                return false;
+            }
+
+            return true;
         }
 
         private IEnumerator AnimateRoundTransition(MatchUpdateDto update)
