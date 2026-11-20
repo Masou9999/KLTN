@@ -4,6 +4,16 @@
 #
 .utmp/
 .agents/
+# Local AI tooling: machine-specific setup, installed skills, and generated graphs
+/.codex/
+/.serena/
+/.ua/
+/graphify-out/
+/.graphifyignore
+/.graphifyrc
+/AGENTS.md
+/RTK.md
+/sgconfig.yml
 Tools/
 /[Ll]ibrary/
 /[Tt]emp/
@@ -13,6 +23,9 @@ Tools/
 /[Ll]ogs/
 /[Uu]ser[Ss]ettings/
 *.log
+
+# Unity code coverage reports
+/[Cc]ode[Cc]overage/
 
 # MemoryCaptures can get excessive in size.
 # They also could contain extremely sensitive data
