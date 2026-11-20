@@ -78,6 +78,7 @@ namespace KLTN.Game.Networking
                     new AbilityResolutionEventDto
                     {
                         sequence = effect.Sequence,
+                        executionId = effect.ExecutionId,
                         abilityId = effect.AbilityId,
                         effectKind = (int)effect.Kind,
                         isRoundStartPassive = effect.IsRoundStartPassive,

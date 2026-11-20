@@ -42,7 +42,10 @@ namespace KLTN.Game.Networking
             hasAcceptedRevision = true;
 
             updates.Enqueue(update);
+            AbilityPresentationTrace.Record(update, "enqueue", queueDepth: updates.Count);
+            AbilityPresentationTrace.Record(update, "dispatch-begin");
             UpdateAvailable?.Invoke();
+            AbilityPresentationTrace.Record(update, "dispatch-end");
         }
 
         public bool TryDequeue(out MatchUpdateDto update)
@@ -54,6 +57,7 @@ namespace KLTN.Game.Networking
             }
 
             update = updates.Dequeue();
+            AbilityPresentationTrace.Record(update, "dequeue", queueDepth: updates.Count);
             return true;
         }
 

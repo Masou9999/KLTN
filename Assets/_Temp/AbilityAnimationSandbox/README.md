@@ -165,3 +165,44 @@ checks centered charge, populated charge cells, sprite explosion, no aftermath,
 kill/revive, source cutoff/tail drain, reset during charge/stream/tail and sound
 cleanup. Results: `Logs/ThienLinhCaiSpirit/result.txt`. Visually inspect frame
 alignment, continuous stream-to-circle motion and both viewer perspectives.
+
+### Source staging and Host/Client timing
+
+Ma Trành now moves an existing local Reserve visual to the same center used by
+the newly revealed opponent visual, after the authoritative summon resolves.
+Preparation preserves the actual position, rotation and world size. A source
+already centered for target selection does not fly again. One preparation is
+shared by consecutive effects of the same ability/source; return to Reserve
+uses the final authoritative order after the last effect.
+
+Newly revealed opponent sources start at the consumed hand back in Draw, preserving
+its world position, size and rotation, then move to center, play the skill and return
+to Reserve. If the back is unavailable, they start at the opponent hand root. Existing
+Reserve visuals and already-centered selection sources retain their current pose.
+The staging validator also checks Draw origin, exactly one consumed back, repeated
+preparation, missing-back fallback and existing opponent Reserve sources. These new
+checks are compile-verified only: the 19 November 2026 batch attempt still exits 198
+without a valid Unity Editor license. Verify the actual commit/target-selection flow
+from both Host and Client perspectives in a licensed Editor before signing off visuals.
+
+Host-local match update RPC delivery is deferred using NGO `DeferLocal`. This
+prevents local animation setup from running inside the server's send loop before
+the remaining viewer update has been sent. It does not synchronize VFX clocks or
+prove that the reported full-duration delay is resolved. Two-Editor Host/Client
+verification is still required; Unity batch remains blocked by license exit 198.
+
+Run **Tools > KLTN > Temporary > Validate Ability Source Staging (Play Mode)**
+in the offline sandbox. It tests both viewer perspectives with three, one and
+zero enemy targets (at most two bites), source pose preservation, one staging,
+unchanged target parent, and final Reserve placement. Batch entry without
+`-quit`: `KLTN.Sandbox.Editor.AbilitySourceStagingValidation.RunBatch`.
+Output: `Logs/AbilitySync/source-staging-result.txt`. This validator has been
+compiled but has not been executed in native Unity. It is not a two-client
+network timing test and does not save or rebuild the scene.
+
+For the timing report, enable **Tools > KLTN > Temporary > Trace Ability
+Presentation** in both Editors after entering Play Mode. Reproduce Thiên Linh
+Cái/Ma Đói alongside Ông Kẹ/Thần Trùng, swap the committing side, then save both
+Editor logs and disable tracing. Traces are development-only and off by default;
+they omit player/card/target identities and payloads. See
+`Tools/AbilitySyncCheck/README.md` for the log comparison command and limitations.

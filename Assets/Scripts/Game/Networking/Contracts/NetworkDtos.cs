@@ -243,6 +243,7 @@ namespace KLTN.Game.Networking
     public sealed class AbilityResolutionEventDto
     {
         public long sequence;
+        public long executionId;
         public string abilityId;
         public int effectKind;
         public bool isRoundStartPassive;

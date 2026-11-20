@@ -34,6 +34,8 @@ namespace KLTN.Game.Networking
             }
 
             MatchTurnClockRegistry.MarkSubmitted(CurrentDecisionId);
+            AbilityPresentationTrace.RecordSnapshot(
+                MatchProjectionRegistry.Current.Current, "request-send");
             SubmitSummonUnitRpc(nextLocalCommandId++, CurrentDecisionId, parsedId);
 
             return true;
@@ -174,6 +176,8 @@ namespace KLTN.Game.Networking
             }
 
             MatchTurnClockRegistry.MarkSubmitted(CurrentDecisionId);
+            AbilityPresentationTrace.RecordSnapshot(
+                MatchProjectionRegistry.Current.Current, "request-send");
             SubmitAbilitySelectionRpc(
                 nextLocalCommandId++,
                 CurrentDecisionId,

@@ -66,6 +66,7 @@ namespace KLTN.Game.Presentation
 
             AbilityResolutionEventDto[] events = update.abilityResolution.events;
             bool transitionPending = HasRoundTransition(update);
+            NetworkCardVisual abilitySource = null;
 
             for (int i = 0; i < events.Length; i++)
             {
@@ -87,8 +88,36 @@ namespace KLTN.Game.Presentation
                 if (i == 0 || !BelongsToSameAbility(events[i - 1], effect))
                 {
                     PrepareAbilityLethalPreviews(events, i, viewerSeat);
+                    bool centerSource = false;
+                    for (int j = i; j < events.Length
+                        && BelongsToSameAbility(effect, events[j]); j++)
+                    {
+                        centerSource |= IsTargetedAbilityFromReserve(events[j]);
+                    }
+                    AbilityPresentationTrace.Record(update, "stage-begin", effect, i);
+                    if (IsSpiritSummon(effect)
+                        && effect.sourceZone == (int)CardZone.Reserve)
+                    {
+                        // Stage newly revealed opponent summons in Reserve as well,
+                        // before reusing the existing move-to-center animation.
+                        boardPresenter.PrepareAbilitySource(effect.source,
+                            effect.sourceOwner, viewerSeat, effect.sourceZone);
+                        Canvas.ForceUpdateCanvases();
+                    }
+                    abilitySource = boardPresenter.PrepareAbilitySource(
+                        effect.source, effect.sourceOwner, viewerSeat, effect.sourceZone,
+                        centerSource, out bool requiresCenterMove);
+                    if (requiresCenterMove && abilitySource != null)
+                    {
+                        AbilityPresentationTrace.Record(update, "move-begin", effect, i);
+                        yield return boardPresenter.AnimateAbilitySourceMoveToCenter(
+                            abilitySource, effect.sourceOwner, viewerSeat);
+                        AbilityPresentationTrace.Record(update, "move-end", effect, i);
+                    }
+                    AbilityPresentationTrace.Record(update, "stage-end", effect, i);
                 }
 
+                AbilityPresentationTrace.Record(update, "effect-begin", effect, i);
                 if (batProfile == null) batProfile = Resources.Load<BatSwarmProfile>("VFX/MaCangSungBats");
                 if (batProfile != null && batProfile.IsUsable && effect.abilityId == batProfile.abilityId
                     && effect.hasNexusTarget && (EffectKind)effect.effectKind == EffectKind.Damage)
@@ -101,23 +130,27 @@ namespace KLTN.Game.Presentation
                 }
                 else
                 {
-                    yield return AnimateAbilityEffect(effect, viewerSeat, reserveCanDrag);
+                    yield return AnimateAbilityEffect(effect, abilitySource, viewerSeat, reserveCanDrag);
                 }
+                AbilityPresentationTrace.Record(update, "effect-end", effect, i);
                 bool isLastEventForAbility =
                     i + 1 >= events.Length || !BelongsToSameAbility(effect, events[i + 1]);
 
-                if (isLastEventForAbility && effect.source != null)
+                if (isLastEventForAbility && effect.source != null
+                    && effect.sourceZone == (int)CardZone.Reserve)
                 {
                     CardViewDto[] finalReserve = effect.sourceOwner == viewerSeat
                         ? update.snapshot?.self?.reserve
                         : update.snapshot?.opponent?.reserve;
 
+                    AbilityPresentationTrace.Record(update, "return-begin", effect, i);
                     yield return boardPresenter.AnimateAbilitySourceReturnToReserve(
                         effect.source,
                         effect.sourceOwner,
                         viewerSeat,
                         finalReserve
                     );
+                    AbilityPresentationTrace.Record(update, "return-end", effect, i);
                 }
             }
 
@@ -185,6 +218,7 @@ namespace KLTN.Game.Presentation
         {
             return first != null
                 && second != null
+                && first.executionId == second.executionId
                 && first.abilityId == second.abilityId
                 && first.source?.instanceId == second.source?.instanceId;
         }
@@ -202,11 +236,19 @@ namespace KLTN.Game.Presentation
             }
 
             return effect.targetBefore != null
-                || (EffectKind)effect.effectKind == EffectKind.Revive;
+                || (EffectKind)effect.effectKind == EffectKind.Revive
+                || (EffectKind)effect.effectKind == EffectKind.Copy;
+        }
+
+        private static bool IsSpiritSummon(AbilityResolutionEventDto effect)
+        {
+            return effect.abilityId == "ma_co_summon"
+                || effect.abilityId == "linh_mieu_summon";
         }
 
         private IEnumerator AnimateAbilityEffect(
             AbilityResolutionEventDto effect,
+            NetworkCardVisual source,
             int viewerSeat,
             bool reserveCanDrag
         )
@@ -216,34 +258,14 @@ namespace KLTN.Game.Presentation
             if (kind == EffectKind.Copy
                 && effect.targetZoneAfter == (int)CardZone.DrawHand)
             {
-                yield return AnimateAbilityCopy(effect, viewerSeat);
+                yield return AnimateAbilityCopy(effect, source, viewerSeat);
                 yield break;
             }
 
             if (kind == EffectKind.Revive && effect.targetAfter != null)
             {
-                yield return AnimateAbilityRevive(effect, viewerSeat, reserveCanDrag);
+                yield return AnimateAbilityRevive(effect, source, viewerSeat, reserveCanDrag);
                 yield break;
-            }
-
-            bool shouldCenterSource = IsTargetedAbilityFromReserve(effect);
-
-            NetworkCardVisual source = boardPresenter.PrepareAbilitySource(
-                effect.source,
-                effect.sourceOwner,
-                viewerSeat,
-                effect.sourceZone,
-                shouldCenterSource,
-                out bool createdAtCenter
-            );
-
-            if (createdAtCenter && source != null)
-            {
-                yield return boardPresenter.AnimateAbilitySourceMoveToCenter(
-                    source,
-                    effect.sourceOwner,
-                    viewerSeat
-                );
             }
 
             if (effect.hasNexusTarget)
@@ -289,7 +311,9 @@ namespace KLTN.Game.Presentation
                 ? targetPosition + Vector3.down * 100f
                 : CardCenter(source);
 
+            AbilityPresentationTrace.Record(currentUpdate, "feast-profile-begin", effect);
             FeastEffectProfile feast = ResolveFeastProfile(effect);
+            AbilityPresentationTrace.Record(currentUpdate, "feast-profile-end", effect);
             if (feast != null && source != null)
             {
                 target.GetComponent<CardDeathFeedback>()?.ClearTargetPreviewCrack();
@@ -299,17 +323,22 @@ namespace KLTN.Game.Presentation
                     viewObject.transform.SetParent(animationLayer, false);
                     feastView = viewObject.GetComponent<FeastEffectView>();
                 }
+                AbilityPresentationTrace.Record(currentUpdate, "vfx-begin", effect);
                 yield return feastView.Play(feast, animationLayer, source.CardRect, target.CardRect, sfxAudioSource);
+                AbilityPresentationTrace.Record(currentUpdate, "vfx-end", effect);
                 boardPresenter.IgnoreCardInReserveLayout(target);
                 // Transformation replaces the generic kill/shatter presentation only.
                 // Subsequent death-trigger events still replay in authoritative order.
                 yield break;
             }
 
+            AbilityPresentationTrace.Record(currentUpdate, "profiles-begin", effect);
             LightningEffectProfile lightning = ResolveLightningProfile(effect);
             BiteEffectProfile bite = ResolveBiteProfile(effect);
             BonkEffectProfile bonk = ResolveBonkProfile(effect);
             SpiritSpellProfile spirit = ResolveSpiritProfile(effect);
+            AbilityPresentationTrace.Record(currentUpdate, "profiles-end", effect);
+            AbilityPresentationTrace.Record(currentUpdate, "vfx-begin", effect);
             if (spirit != null && source != null)
             {
                 target.GetComponent<CardDeathFeedback>()?.ClearTargetPreviewCrack();
@@ -375,6 +404,7 @@ namespace KLTN.Game.Presentation
                 yield return PlayAbilityImpact(targetPosition);
             }
 
+            AbilityPresentationTrace.Record(currentUpdate, "vfx-end", effect);
             bool killed = IsAbilityDeath(effect);
 
             if (killed)
@@ -599,27 +629,10 @@ else
             }
         }
 
+        /// <summary>Reconstructs a copy in hand without moving it into the roster.</summary>
         private IEnumerator AnimateAbilityCopy(
-            AbilityResolutionEventDto effect, int viewerSeat)
+            AbilityResolutionEventDto effect, NetworkCardVisual source, int viewerSeat)
         {
-            NetworkCardVisual source = boardPresenter.PrepareAbilitySource(
-                effect.source,
-                effect.sourceOwner,
-                viewerSeat,
-                effect.sourceZone,
-                centerNewSource: true,
-                out bool createdAtCenter
-            );
-
-            if (createdAtCenter && source != null)
-            {
-                yield return boardPresenter.AnimateAbilitySourceMoveToCenter(
-                    source,
-                    effect.sourceOwner,
-                    viewerSeat
-                );
-            }
-
             NetworkCardVisual copy = boardPresenter.PrepareCopiedHandCard(
                 effect.targetAfter, effect.targetOwner, viewerSeat);
             if (copy == null) yield break;
@@ -629,6 +642,7 @@ else
             activeReviveFeedbacks.Add(feedback);
             try
             {
+                AbilityPresentationTrace.Record(currentUpdate, "vfx-begin", effect);
                 SpiritSpellProfile spirit = ResolveSpiritProfile(effect);
                 if (spirit != null && source != null)
                 {
@@ -639,6 +653,7 @@ else
                 {
                     yield return feedback.Play(copy, 0, 0, abilityReviveDuration, 1f);
                 }
+                AbilityPresentationTrace.Record(currentUpdate, "vfx-end", effect);
             }
             finally
             {
@@ -649,28 +664,11 @@ else
 
         private IEnumerator AnimateAbilityRevive(
             AbilityResolutionEventDto effect,
+            NetworkCardVisual source,
             int viewerSeat,
             bool reserveCanDrag
         )
         {
-            NetworkCardVisual source = boardPresenter.PrepareAbilitySource(
-                effect.source,
-                effect.sourceOwner,
-                viewerSeat,
-                effect.sourceZone,
-                centerNewSource: true,
-                out bool createdAtCenter
-            );
-
-            if (createdAtCenter && source != null)
-            {
-                yield return boardPresenter.AnimateAbilitySourceMoveToCenter(
-                    source,
-                    effect.sourceOwner,
-                    viewerSeat
-                );
-            }
-
             NetworkCardVisual revived = boardPresenter.PrepareRevivedCard(
                 effect.targetAfter,
                 effect.targetOwner,
@@ -702,8 +700,10 @@ else
                 activeReviveFeedbacks.Add(spiritFeedback);
                 try
                 {
+                    AbilityPresentationTrace.Record(currentUpdate, "vfx-begin", effect);
                     yield return GetSpiritView().PlayRevive(spirit, animationLayer, source.CardRect, revived,
                         spiritFeedback, effect.reviveDamageBonus, effect.reviveHealthBonus, restingAlpha, sfxAudioSource);
+                    AbilityPresentationTrace.Record(currentUpdate, "vfx-end", effect);
                 }
                 finally
                 {

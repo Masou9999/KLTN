@@ -48,6 +48,8 @@ namespace KLTN.Game.Domain
         public string JournalContext { get; }
         public EffectDuration Duration { get; }
         public long Sequence { get; }
+        /// <summary>One effect-list invocation; zero for standalone passive notifications.</summary>
+        public long ExecutionId { get; }
         public string AbilityId { get; }
         public EffectKind Kind { get; }
         public AbilityCardState Source { get; }
@@ -72,12 +74,14 @@ namespace KLTN.Game.Domain
             bool isRoundStartPassive = false,
             string journalContext = "",
             EffectDuration duration = EffectDuration.Permanent,
-            bool isDeathOnly = false
+            bool isDeathOnly = false,
+            long executionId = 0
         )
         {
             JournalContext = journalContext;
             Duration = duration;
             Sequence = sequence;
+            ExecutionId = executionId;
             AbilityId = abilityId;
             Kind = kind;
             Source = source;

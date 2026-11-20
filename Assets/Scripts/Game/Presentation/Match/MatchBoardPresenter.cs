@@ -737,7 +737,7 @@ namespace KLTN.Game.Presentation
             int ownerSeat,
             int viewerSeat,
             int zone,
-            bool centerNewSource = false
+            bool centerReserveSource = false
         )
         {
             return PrepareAbilitySource(
@@ -745,20 +745,26 @@ namespace KLTN.Game.Presentation
                 ownerSeat,
                 viewerSeat,
                 zone,
-                centerNewSource,
+                centerReserveSource,
                 out _
             );
         }
+        /// <summary>
+        /// Stages an existing source at its visible pose before center movement.
+        /// Newly revealed opponent sources depart from the consumed Draw hand back.
+        /// Already centered sources are reused without restarting their movement.
+        /// Targets use centerReserveSource=false and keep their zone parent.
+        /// </summary>
         public NetworkCardVisual PrepareAbilitySource(
             CardViewDto card,
             int ownerSeat,
             int viewerSeat,
             int zone,
-            bool centerNewSource,
-            out bool createdAtCenter
+            bool centerReserveSource,
+            out bool requiresCenterMove
         )
         {
-            createdAtCenter = false;
+            requiresCenterMove = false;
 
             if (card == null || string.IsNullOrWhiteSpace(card.instanceId))
             {
@@ -775,6 +781,41 @@ namespace KLTN.Game.Presentation
                     existing.SetPending(false);
                     existing.SetInteractableVisual(true);
                     existing.GetComponent<CardShadowVFX>()?.ShowFixedShadow();
+                    return existing;
+                }
+
+                if (centerReserveSource && zone == (int)CardZone.Reserve
+                    && abilitySelectionSourceRoot != null
+                    && existing.transform is RectTransform existingRect)
+                {
+                    // Preserve the actual staged pose, including parent scale, before
+                    // changing layout. The local card already occupies its Reserve slot.
+                    existingRect.DOKill();
+                    Vector3 center = existingRect.TransformPoint(existingRect.rect.center);
+                    float width = existingRect.TransformVector(
+                        Vector3.right * existingRect.rect.width).magnitude;
+                    float height = existingRect.TransformVector(
+                        Vector3.up * existingRect.rect.height).magnitude;
+                    Quaternion rotation = existingRect.rotation;
+                    existingRect.SetParent(abilitySelectionSourceRoot, true);
+                    existing.GetComponent<CardVisualLayout>()?.Apply(
+                        CardVisualLocation.AbilitySelection);
+                    CenterAbilitySelectionSource(existing);
+                    existingRect.rotation = rotation;
+                    existingRect.localScale = Vector3.one;
+                    float unitWidth = existingRect.TransformVector(Vector3.right).magnitude;
+                    float unitHeight = existingRect.TransformVector(Vector3.up).magnitude;
+                    existingRect.localScale = new Vector3(
+                        width / Mathf.Max(0.001f, existingRect.rect.width * unitWidth),
+                        height / Mathf.Max(0.001f, existingRect.rect.height * unitHeight),
+                        1f);
+                    existingRect.position = center;
+                    existing.GetComponent<DraggableHandCard>()?.Configure(
+                        false, dragLayer, CardVisualLocation.AbilitySelection);
+                    existing.SetPending(false);
+                    existing.SetInteractableVisual(true);
+                    existing.GetComponent<CardShadowVFX>()?.ShowFixedShadow();
+                    requiresCenterMove = true;
                     return existing;
                 }
 
@@ -820,7 +861,7 @@ namespace KLTN.Game.Presentation
                 return existing;
             }
 
-            bool placeAtCenter = centerNewSource
+            bool placeAtCenter = centerReserveSource
                 && zone == (int)CardZone.Reserve
                 && abilitySelectionSourceRoot != null;
             RectTransform parent = placeAtCenter
@@ -838,10 +879,9 @@ namespace KLTN.Game.Presentation
                     ? CardVisualLocation.Board
                     : CardVisualLocation.Reserve;
 
-            if (ownerSeat != viewerSeat && zone == (int)CardZone.Reserve)
-            {
-                RemoveOneOpponentHandBack();
-            }
+            bool revealOpponentHand = ownerSeat != viewerSeat
+                && zone == (int)CardZone.Reserve;
+            var handPose = revealOpponentHand ? RemoveOneOpponentHandBack() : null;
 
             NetworkCardVisual prepared = CreateFaceUpCard(
                 card,
@@ -856,7 +896,39 @@ namespace KLTN.Game.Presentation
                 CenterAbilitySelectionSource(prepared);
                 prepared.SetPending(false);
                 prepared.GetComponent<CardShadowVFX>()?.ShowFixedShadow();
-                createdAtCenter = true;
+                GetReserveLayoutMetrics(prepared,
+                    out Vector2 reserveSize, out float reserveScale);
+                prepared.CardRect.localScale = Vector3.one * reserveScale;
+                if (revealOpponentHand)
+                {
+                    // sourceZone describes the resolved gameplay state. A newly
+                    // revealed opponent source visually departs from Draw instead.
+                    RectTransform rect = prepared.CardRect;
+                    if (handPose.HasValue)
+                    {
+                        var pose = handPose.Value;
+                        rect.rotation = pose.rotation;
+                        rect.localScale = Vector3.one;
+                        float unitWidth = rect.TransformVector(Vector3.right).magnitude;
+                        float unitHeight = rect.TransformVector(Vector3.up).magnitude;
+                        rect.localScale = new Vector3(
+                            pose.size.x / Mathf.Max(0.001f, rect.rect.width * unitWidth),
+                            pose.size.y / Mathf.Max(0.001f, rect.rect.height * unitHeight),
+                            1f);
+                        rect.position = pose.center;
+                    }
+                    else if (opponentHandRoot != null)
+                    {
+                        rect.position = opponentHandRoot.TransformPoint(
+                            opponentHandRoot.rect.center);
+                    }
+                }
+                else
+                {
+                    prepared.CardRect.position = CalculateReserveSlotWorldPosition(
+                        selfReserveRoot, reserveSize);
+                }
+                requiresCenterMove = true;
             }
 
             prepared.SetInteractableVisual(true);
@@ -934,37 +1006,24 @@ namespace KLTN.Game.Presentation
             int viewerSeat
         )
         {
-            if (
-                sourceView == null
-                || abilitySelectionSourceRoot == null
-                || sourceView.transform.parent != abilitySelectionSourceRoot
-            )
+            if (sourceView == null || abilitySelectionSourceRoot == null
+                || sourceView.transform.parent != abilitySelectionSourceRoot)
             {
                 yield break;
             }
 
-            RectTransform reserveRoot = ownerSeat == viewerSeat
-                ? selfReserveRoot
-                : opponentReserveRoot;
-
-            if (reserveRoot == null)
-            {
-                yield break;
-            }
-
-            GetReserveLayoutMetrics(
-                sourceView,
-                out Vector2 reserveSize,
-                out float reserveScaleRatio
-            );
-
-            Vector3 startWorldPos = CalculateReserveSlotWorldPosition(reserveRoot, reserveSize);
-            Sequence seq = PlayMoveToCenterSequence(sourceView, startWorldPos, reserveScaleRatio);
-
-            if (seq != null)
-            {
-                yield return seq.WaitForCompletion();
-            }
+            // Preparation has already preserved the existing source's exact pose or
+            // positioned a newly revealed opponent source at its Draw pose.
+            RectTransform rect = sourceView.CardRect;
+            rect.DOKill();
+            Sequence seq = DOTween.Sequence();
+            seq.Join(rect.DOLocalMove(Vector3.zero, abilityFlyToCenterDuration)
+                .SetEase(Ease.OutCubic));
+            seq.Join(rect.DOScale(Vector3.one, abilityFlyToCenterDuration)
+                .SetEase(Ease.OutBack, 1.08f));
+            seq.Join(rect.DOLocalRotate(Vector3.zero, abilityFlyToCenterDuration)
+                .SetEase(Ease.OutCubic));
+            yield return seq.WaitForCompletion();
         }
 
         public void IgnoreCardInReserveLayout(NetworkCardVisual targetView)
@@ -1281,8 +1340,9 @@ namespace KLTN.Game.Presentation
         }
 
         /// <summary>
-        /// Creates a new reserve view even when an earlier view of the same card has
-        /// just shattered. The old view stays intact until this update finishes.
+        /// Materializes a confirmed copy in its owner's hand. Hidden copies use only
+        /// a card back; visible copies are excluded from the next snapshot's draw flight.
+        /// Views share the usual snapshot/reset cleanup lifecycle.
         /// </summary>
         public NetworkCardVisual PrepareCopiedHandCard(
             CardViewDto card, int ownerSeat, int viewerSeat)
@@ -1320,6 +1380,10 @@ namespace KLTN.Game.Presentation
             return view;
         }
 
+        /// <summary>
+        /// Creates a new reserve view even when an earlier view of the same card has
+        /// just shattered. The old view stays intact until this update finishes.
+        /// </summary>
         public NetworkCardVisual PrepareRevivedCard(
             CardViewDto card,
             int ownerSeat,
@@ -1486,7 +1550,8 @@ namespace KLTN.Game.Presentation
             view.SetInteractableVisual(true);
         }
 
-        private void RemoveOneOpponentHandBack()
+        private (Vector3 center, Vector2 size, Quaternion rotation)?
+            RemoveOneOpponentHandBack()
         {
             for (int i = opponentHandBacks.Count - 1; i >= 0; i--)
             {
@@ -1498,11 +1563,20 @@ namespace KLTN.Game.Presentation
                     continue;
                 }
 
+                // Capture the visible Draw pose before removing it from layout.
+                RectTransform rect = (RectTransform)cardBackObject.transform;
+                Vector3 center = rect.TransformPoint(rect.rect.center);
+                Vector2 size = new Vector2(
+                    rect.TransformVector(Vector3.right * rect.rect.width).magnitude,
+                    rect.TransformVector(Vector3.up * rect.rect.height).magnitude);
+                Quaternion rotation = rect.rotation;
                 spawnedViews.Remove(cardBackObject);
                 cardBackObject.SetActive(false);
                 Destroy(cardBackObject);
-                return;
+                return (center, size, rotation);
             }
+
+            return null;
         }
 
         #endregion

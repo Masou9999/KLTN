@@ -255,10 +255,12 @@ namespace KLTN.Game.Networking
                     + $"Target={targetClientId}, JsonLength={json.Length}."
             );
 
+            AbilityPresentationTrace.Record(update, "publish-send-begin");
             ReceiveMatchUpdateRpc(
                 json,
                 RpcTarget.Single(targetClientId, RpcTargetUse.Temp)
             );
+            AbilityPresentationTrace.Record(update, "publish-send-end");
         }
 
         private MatchSnapshotDto BuildSnapshot(MatchSession session, SeatId viewerSeat)
@@ -286,7 +288,9 @@ namespace KLTN.Game.Networking
             return snapshot;
         }
 
-        [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
+        // Finish publishing both viewers before the host starts local presentation.
+        [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server,
+            DeferLocal = true)]
         private void ReceiveMatchUpdateRpc(string json, RpcParams rpcParams = default)
         {
             Debug.Log(
@@ -303,6 +307,7 @@ namespace KLTN.Game.Networking
             }
 
             hasReceivedSnapshot = true;
+            AbilityPresentationTrace.Record(update, "receive");
             MatchTurnClockRegistry.Apply(update.snapshot.turnClock, acknowledgesSubmission: true);
             MatchUpdateInboxRegistry.Current.Enqueue(update);
 

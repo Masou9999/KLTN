@@ -51,6 +51,7 @@ namespace KLTN.Game.Domain
         private ulong nextAbilitySelectionRequestId = 1;
         private ulong nextGeneratedCardInstanceId = 1;
         private long nextAbilityResolutionSequence = 1;
+        private long nextAbilityExecutionId = 1;
         private readonly List<AbilityResolutionEvent> pendingAbilityResolutionEvents =
             new List<AbilityResolutionEvent>();
         public PendingAbilitySelection PendingSelection { get; private set; }
@@ -58,6 +59,9 @@ namespace KLTN.Game.Domain
         #endregion
 
         #region Ability Resolution Publication
+
+        /// <summary>Allocates a match-local identity for one complete effect-list execution.</summary>
+        internal long NextAbilityExecutionId() => nextAbilityExecutionId++;
 
         public long NextAbilityResolutionSequence()
         {

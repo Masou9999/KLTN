@@ -267,6 +267,7 @@ namespace KLTN.Game.Domain.Tests
             Assert.AreEqual(CardZone.DrawHand, resolution.Events[0].TargetAfter.Zone);
             Assert.AreEqual(copy.InstanceId, resolution.Events[0].TargetAfter.InstanceId);
             Assert.IsNull(resolution.Events[0].TargetBefore);
+            Assert.Greater(resolution.Events[0].ExecutionId, 0);
         }
 
         [Test]

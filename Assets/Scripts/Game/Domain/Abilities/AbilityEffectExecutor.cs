@@ -13,6 +13,7 @@ namespace KLTN.Game.Domain
 
         private readonly IReadOnlyDictionary<string, CardDefinition> definitionsById;
         private readonly IRandomSource random;
+        private long currentExecutionId;
 
         #endregion
 
@@ -44,31 +45,27 @@ namespace KLTN.Game.Domain
             AbilityTargetSelection selection
         )
         {
-            if (state == null)
-            {
-                throw new ArgumentNullException(nameof(state));
-            }
-
+            if (state == null) throw new ArgumentNullException(nameof(state));
             if (triggeredAbility == null)
-            {
                 throw new ArgumentNullException(nameof(triggeredAbility));
-            }
 
             var emittedEvents = new List<GameEvent>();
-
-            foreach (EffectDefinition effect in triggeredAbility.Ability.Effects)
+            long previousExecutionId = currentExecutionId;
+            currentExecutionId = state.NextAbilityExecutionId();
+            try
             {
-                ExecuteEffect(state, triggeredAbility, selection, effect, emittedEvents);
-
-                GameEventBatch deathEvents = MoveDeadCardsAndBuildEvents(state);
-
-                foreach (GameEvent deathEvent in deathEvents.Events)
+                foreach (EffectDefinition effect in triggeredAbility.Ability.Effects)
                 {
-                    emittedEvents.Add(deathEvent);
+                    ExecuteEffect(state, triggeredAbility, selection, effect, emittedEvents);
+                    GameEventBatch deaths = MoveDeadCardsAndBuildEvents(state);
+                    foreach (GameEvent death in deaths.Events) emittedEvents.Add(death);
                 }
+                return new GameEventBatch(emittedEvents);
             }
-
-            return new GameEventBatch(emittedEvents);
+            finally
+            {
+                currentExecutionId = previousExecutionId;
+            }
         }
 
         private void ExecuteEffect(

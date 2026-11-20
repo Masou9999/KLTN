@@ -85,8 +85,18 @@ namespace KLTN.Game.Presentation
             bool shouldShowYourTurn =
                 isOwnTurn && (!hasSnapshot || !wasOwnTurn || roundChanged);
 
+            // A cancellable Play selection temporarily disables normal actions without
+            // ending the current turn. Returning from it must not replay the turn banner.
+            bool continuingOwnTurnSelection =
+                wasOwnTurn
+                && snapshot.roundNumber == previousRoundNumber
+                && snapshot.activeSeat == snapshot.viewerSeat
+                && snapshot.viewerMustSelectAbilityTargets
+                && snapshot.pendingAbilitySelection != null
+                && snapshot.pendingAbilitySelection.canCancel;
+
             hasSnapshot = true;
-            wasOwnTurn = isOwnTurn;
+            wasOwnTurn = isOwnTurn || continuingOwnTurnSelection;
             lastRoundNumber = snapshot.roundNumber;
 
             if (!shouldShowFirstRound && !shouldShowYourTurn)

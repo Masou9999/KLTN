@@ -239,6 +239,7 @@ private static void SetCombatAnimating(bool isAnimating)
                         yield return AnimateAbilityResolution(currentUpdate);
                     }
 
+                    AbilityPresentationTrace.Record(currentUpdate, "projection");
                     projection.Apply(currentUpdate.snapshot);
                 }
                 finally

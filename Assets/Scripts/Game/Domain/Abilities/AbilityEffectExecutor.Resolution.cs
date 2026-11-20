@@ -41,7 +41,8 @@ namespace KLTN.Game.Domain
                     CaptureSource(state, triggeredAbility),
                     before,
                     after,
-                    journalContext: JournalContext(state, triggeredAbility)
+                    journalContext: JournalContext(state, triggeredAbility),
+                    executionId: currentExecutionId
                 )
             );
         }
@@ -72,7 +73,8 @@ namespace KLTN.Game.Domain
                     targetOwner,
                     healthBefore,
                     healthAfter,
-                    journalContext: JournalContext(state, triggeredAbility)
+                    journalContext: JournalContext(state, triggeredAbility),
+                    executionId: currentExecutionId
                 )
             );
         }
