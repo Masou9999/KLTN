@@ -20,6 +20,7 @@ namespace KLTN.CloudCode.MatchServer
         /// <summary>"ok" or why the player was refused (unknown_match, bad_token, not_in_match, ...).</summary>
         [JsonProperty("reason")] public string Reason { get; set; }
 
+        [JsonProperty("profile")] public PublicMatchProfile Profile { get; set; }
         [JsonProperty("uid")] public string Uid { get; set; }
         [JsonProperty("username")] public string Username { get; set; }
         [JsonProperty("ownedCardIds")] public string[] OwnedCardIds { get; set; } = Array.Empty<string>();

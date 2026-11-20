@@ -27,7 +27,7 @@ namespace KLTN.Game.Networking
 
         private void BeginListenRegistration(MatchSession session)
         {
-            if (MatchServerContext.IsDedicated || !session.IsRanked) return;
+            if (MatchServerContext.IsDedicated) return;
             var registration = new ListenRegistration();
             RuntimeOf(session).Listen = registration;
             registration.Ready = RegisterListenHostAsync(session, registration);
@@ -41,11 +41,12 @@ namespace KLTN.Game.Networking
             {
                 registration.HostPlayerId = ListenMatchClient.PlayerId;
                 await ListenMatchClient.RegisterAsync(
-                    session.MatchId, registration.HostPlayerId, cancellationToken);
+                    session.MatchId, registration.HostPlayerId, cancellationToken, session.IsRanked);
                 cancellationToken.ThrowIfCancellationRequested();
                 if (this == null || !IsSpawned) return;
                 registration.HostReady = true;
                 InviteListenGuest(session);
+                _ = LoadListenProfilesAsync(session, registration, cancellationToken);
             }
             catch (OperationCanceledException) { }
             catch (Exception)
@@ -64,28 +65,28 @@ namespace KLTN.Game.Networking
             foreach (ulong clientId in session.ConnectionsOf(SeatId.Guest))
             {
                 if (NetworkObject.IsNetworkVisibleTo(clientId))
-                    RegisterListenGuestRpc(session.MatchId, registration.HostPlayerId,
+                    RegisterListenGuestRpc(session.MatchId, registration.HostPlayerId, session.IsRanked,
                         RpcTarget.Single(clientId, RpcTargetUse.Temp));
             }
         }
 
         [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
         private void RegisterListenGuestRpc(
-            string matchId, string hostPlayerId, RpcParams rpcParams = default)
+            string matchId, string hostPlayerId, bool ranked, RpcParams rpcParams = default)
         {
             if (joiningListenMatch == matchId) return;
             joiningListenMatch = matchId;
-            _ = RegisterListenGuestAsync(matchId, hostPlayerId);
+            _ = RegisterListenGuestAsync(matchId, hostPlayerId, ranked);
         }
 
-        private async Task RegisterListenGuestAsync(string matchId, string hostPlayerId)
+        private async Task RegisterListenGuestAsync(string matchId, string hostPlayerId, bool ranked)
         {
             CancellationToken cancellationToken = listenLifetime.Token;
             string playerId = null;
             try
             {
                 playerId = await ListenMatchClient.RegisterAsync(
-                    matchId, hostPlayerId, cancellationToken);
+                    matchId, hostPlayerId, cancellationToken, ranked);
             }
             catch (Exception)
             {

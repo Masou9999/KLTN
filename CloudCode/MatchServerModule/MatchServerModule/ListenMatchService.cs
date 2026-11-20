@@ -11,7 +11,7 @@ namespace KLTN.CloudCode.MatchServer
         public static async Task<string> RegisterAsync(
             FirestoreAdmin firestore, IPlayerIdentityLookup lookup, string projectId,
             string playerId, string accessToken, string matchId, string hostPlayerId,
-            long nowUtcMs)
+            long nowUtcMs, bool ranked = true)
         {
             ValidateId(matchId);
             if (string.IsNullOrEmpty(playerId) || string.IsNullOrEmpty(hostPlayerId))
@@ -39,7 +39,7 @@ namespace KLTN.CloudCode.MatchServer
                                 ["mode"] = FirestoreAdmin.String("listen"),
                                 ["hostPlayerId"] = FirestoreAdmin.String(playerId),
                                 ["players"] = FirestoreAdmin.StringArray(new[] { playerId }),
-                                ["ranked"] = FirestoreAdmin.Boolean(true),
+                                ["ranked"] = FirestoreAdmin.Boolean(ranked),
                                 ["createdAt"] = FirestoreAdmin.Timestamp(nowUtcMs),
                             }, exists: false) });
                         return playerId;
@@ -47,6 +47,8 @@ namespace KLTN.CloudCode.MatchServer
 
                     JsonObject fields = FirestoreAdmin.Fields(match);
                     CheckHost(fields, hostPlayerId);
+                    if (FirestoreAdmin.GetBool(fields, "ranked") != ranked)
+                        throw new MatchRejectedException("ranked_mode_mismatch");
                     var players = FirestoreAdmin.GetStrings(fields, "players");
                     if (players.Contains(playerId)) return playerId;
                     if (FirestoreAdmin.Has(fields, "reportedAt") || players.Count != 1)
@@ -73,6 +75,8 @@ namespace KLTN.CloudCode.MatchServer
             (JsonObject match, _) = await firestore.GetAsync(MatchRecords.MatchPath(matchId));
             JsonObject fields = FirestoreAdmin.Fields(match);
             CheckHost(fields, callerPlayerId);
+            if (!FirestoreAdmin.GetBool(fields, "ranked"))
+                throw new MatchRejectedException("unranked_match");
             var players = FirestoreAdmin.GetStrings(fields, "players");
             if (players.Count != 2 || players[0] != callerPlayerId)
                 throw new MatchRejectedException("players_not_registered");
@@ -89,6 +93,27 @@ namespace KLTN.CloudCode.MatchServer
                 RoundNumber = roundNumber,
                 MatchStartedUtcMs = FirestoreAdmin.ParseTimestamp(fields["createdAt"]),
             }, callerPlayerId, nowUtcMs);
+        }
+
+        /// <summary>Only the authenticated host can fetch its registered pair's profiles.</summary>
+        public static async Task<ListenProfilesResult> GetProfilesAsync(
+            FirestoreAdmin firestore, string callerPlayerId, string matchId,
+            long nowUtcMs)
+        {
+            ValidateId(matchId);
+            var (match, _) = await firestore.GetAsync(MatchRecords.MatchPath(matchId));
+            var fields = FirestoreAdmin.Fields(match);
+            CheckHost(fields, callerPlayerId);
+            var players = FirestoreAdmin.GetStrings(fields, "players");
+            if (players.Count != 2 || players[0] != callerPlayerId)
+                throw new MatchRejectedException("players_not_registered");
+            return new ListenProfilesResult
+            {
+                Host = await PublicMatchProfile.ReadAsync(firestore,
+                    await PlayerDirectory.GetUidAsync(firestore, players[0]), nowUtcMs),
+                Guest = await PublicMatchProfile.ReadAsync(firestore,
+                    await PlayerDirectory.GetUidAsync(firestore, players[1]), nowUtcMs),
+            };
         }
 
         internal static void CheckHost(JsonObject fields, string playerId)

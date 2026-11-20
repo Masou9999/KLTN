@@ -230,6 +230,31 @@ namespace KLTN.CloudCode.MatchServer
                 DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
         }
 
+        /// <summary>Registers profile-only matches without enabling rewards.</summary>
+        [CloudCodeFunction("RegisterUnrankedListenMatch")]
+        public async Task<string> RegisterUnrankedListenMatch(
+            IExecutionContext context, string matchId, string hostPlayerId)
+        {
+            if (string.IsNullOrEmpty(context.PlayerId))
+                throw new InvalidOperationException("A signed-in player is required.");
+            return await ListenMatchService.RegisterAsync(
+                await FirestoreAsync(context), lookup, context.ProjectId,
+                context.PlayerId, context.AccessToken, matchId, hostPlayerId,
+                DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), ranked: false);
+        }
+
+        /// <summary>Returns only public profile fields to the registered listen host.</summary>
+        [CloudCodeFunction("GetListenMatchProfiles")]
+        public async Task<ListenProfilesResult> GetListenMatchProfiles(
+            IExecutionContext context, string matchId)
+        {
+            if (string.IsNullOrEmpty(context.PlayerId))
+                throw new InvalidOperationException("A signed-in player is required.");
+            return await ListenMatchService.GetProfilesAsync(
+                await FirestoreAsync(context), context.PlayerId, matchId,
+                DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+        }
+
         #region Helpers
 
         private static void RequireServer(IExecutionContext context, string function)

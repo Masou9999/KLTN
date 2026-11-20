@@ -146,6 +146,8 @@ namespace KLTN.Game.Networking
             public Coroutine LoadoutTimeoutCoroutine;
             public bool LoadoutTimeoutElapsed;
             public ListenRegistration Listen;
+            public readonly Dictionary<SeatId, PlayerProfileDto> Profiles =
+                new Dictionary<SeatId, PlayerProfileDto>();
         }
 
         private MatchRuntime RuntimeOf(MatchSession session)

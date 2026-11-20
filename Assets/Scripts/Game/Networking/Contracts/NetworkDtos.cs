@@ -38,6 +38,7 @@ namespace KLTN.Game.Networking
         public int seat;
         public string displayName;
         public bool connected;
+        public PlayerProfileDto profile;
 
         #endregion
 

@@ -133,6 +133,8 @@ class P
         ReportResultResponse again = await MatchService.ReportAsync(fs, Rep("m1", token, "GuestWon", null, 9, T - 4 * M), now + M);
         Check(again.AlreadyReported && again.Players[0].Coins == 75 && again.Players[0].Result == "win", "repeated report returns the stored settlement (alreadyReported)");
         Check(await Coins("u1") == (75, 1) && await Coins("u2") == (125, 0), "repeated report pays nothing twice");
+        Check(a1.Profile.Username == "user000001" && a1.Profile.Points == 0
+            && a1.Profile.SeasonId == 1, "dedicated admission includes verified public profile");
         Check((await Admit("m1", token, "p1", good)).Reason == "match_finished", "finished match admits nobody");
 
         // Concurrent duplicate reports: exactly one settles.
@@ -323,6 +325,42 @@ class P
         await NewMatch(dedicated, at);
         Check(await Throws(() => Join(dedicated, "p1", at), "not_listen_host"), "listen cannot register over dedicated allocation");
         Check(await Throws(() => Report(dedicated, "p1", at), "not_listen_host"), "listen endpoint cannot settle dedicated match");
+
+        // Profile-only registration must never change rewards or trust a supplied rank.
+        string casual = MatchRecords.NewMatchId();
+        Task<string> Casual(string player, bool ranked = false) =>
+            ListenMatchService.RegisterAsync(fs, lookup, Project, player, "tok",
+                casual, "p1", at, ranked);
+        await Casual("p1");
+        Check(await Throws(() => ListenMatchService.GetProfilesAsync(fs, "p1", casual, at),
+            "players_not_registered"), "profiles wait for authenticated pair");
+        await Casual("p2");
+        await Put("seasons/50/entries/u1", Row("user000001", 60, 0, 0));
+        await Put("seasons/50/entries/u2", Row("user000002", 420, 0, 0));
+        var profiles = await ListenMatchService.GetProfilesAsync(fs, "p1", casual, at);
+        Check(profiles.Host.Username == "user000001" && profiles.Host.Points == 60
+            && profiles.Guest.Username == "user000002" && profiles.Guest.Points == 420
+            && profiles.Guest.SeasonId == 50, "profiles use backend points in host/guest order");
+        var properties = typeof(PublicMatchProfile).GetProperties()
+            .Select(p => p.Name).OrderBy(n => n).ToArray();
+        Check(string.Join(",", properties) == "Points,SeasonId,Username",
+            "public profile allowlist excludes account IDs, wallets and cards");
+        Check(await Throws(() => ListenMatchService.GetProfilesAsync(fs, "p3", casual, at),
+            "not_listen_host"), "outsider cannot read another match profiles");
+        Check(await Throws(() => ListenMatchService.GetProfilesAsync(fs, "p2", casual, at),
+            "not_listen_host"), "guest cannot impersonate profile-fetching host");
+        Check(await Throws(() => ListenMatchService.GetProfilesAsync(fs, "p1", dedicated, at),
+            "not_listen_host"), "listen profile endpoint cannot cross into dedicated match");
+        Check(await Throws(() => Casual("p1", true), "ranked_mode_mismatch"),
+            "profile-only registration cannot be upgraded to ranked");
+        wallet = await Coins("u1");
+        Check(await Throws(() => Report(casual, "p1", at + 90000), "unranked_match"),
+            "profile-only match cannot award currency or points");
+        Check(await Coins("u1") == wallet, "profile reads leave wallet unchanged");
+        Check(await Casual("p2") == "p2", "profile-only reconnect preserves roster");
+        var noSeason = await PublicMatchProfile.ReadAsync(fs, "u1", at - 120000);
+        Check(noSeason.SeasonId == 0 && noSeason.Points == -1,
+            "no active season is unavailable, not fabricated Bronze zero");
     }
 
     static async Task<string> NewMatch(string id, long createdAt)

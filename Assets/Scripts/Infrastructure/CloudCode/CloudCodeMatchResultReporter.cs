@@ -124,7 +124,8 @@ namespace KLTN.Infrastructure.CloudCode
                 output.Value<string>("uid"),
                 output.Value<string>("username"),
                 owned,
-                output.Value<int?>("tier") ?? 0
+                output.Value<int?>("tier") ?? 0,
+                output["profile"]?.ToObject<KLTN.Game.Networking.PlayerProfileDto>()
             );
         }
 

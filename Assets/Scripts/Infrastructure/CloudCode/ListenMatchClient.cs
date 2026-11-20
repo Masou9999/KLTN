@@ -17,13 +17,24 @@ namespace KLTN.Infrastructure.CloudCode
         public static string PlayerId => AuthenticationService.Instance.PlayerId;
 
         public static Task<string> RegisterAsync(
-            string matchId, string hostPlayerId, CancellationToken cancellationToken)
+            string matchId, string hostPlayerId, CancellationToken cancellationToken,
+            bool ranked = true)
         {
-            return CallAsync<string>("RegisterListenMatch", new Dictionary<string, object>
+            return CallAsync<string>(ranked ? "RegisterListenMatch"
+                : "RegisterUnrankedListenMatch", new Dictionary<string, object>
             {
                 ["matchId"] = matchId,
                 ["hostPlayerId"] = hostPlayerId,
             }, cancellationToken);
+        }
+
+        /// <summary>Fetches a backend-verified roster; no client-supplied rank is accepted.</summary>
+        public static Task<JObject> GetProfilesAsync(
+            string matchId, CancellationToken cancellationToken)
+        {
+            return CallAsync<JObject>("GetListenMatchProfiles",
+                new Dictionary<string, object> { ["matchId"] = matchId },
+                cancellationToken);
         }
 
         public static async Task<MatchSettlementResult> ReportAsync(

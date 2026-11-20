@@ -13,6 +13,7 @@ namespace KLTN.Infrastructure.CloudCode
         public string PlayerId { get; }
         public string Uid { get; }
         public string Username { get; }
+        public KLTN.Game.Networking.PlayerProfileDto Profile { get; }
 
         /// <summary>Verified owned card IDs; null when the backend did not verify them (unranked).</summary>
         public IReadOnlyList<string> OwnedCardIds { get; }
@@ -25,7 +26,8 @@ namespace KLTN.Infrastructure.CloudCode
             string uid = null,
             string username = null,
             IReadOnlyList<string> ownedCardIds = null,
-            int tier = 0
+            int tier = 0,
+            KLTN.Game.Networking.PlayerProfileDto profile = null
         )
         {
             Admitted = admitted;
@@ -35,6 +37,7 @@ namespace KLTN.Infrastructure.CloudCode
             Username = username;
             OwnedCardIds = ownedCardIds;
             Tier = tier;
+            Profile = profile;
         }
 
         public static PlayerAdmission Reject(string playerId, string reason)

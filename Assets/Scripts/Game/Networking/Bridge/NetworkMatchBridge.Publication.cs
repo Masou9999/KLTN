@@ -265,31 +265,22 @@ namespace KLTN.Game.Networking
         {
             SeatId opponentSeat = viewerSeat.Opponent();
             bool opponentConnected = session.HasConnectedSeat(opponentSeat);
-
             MatchSnapshotDto snapshot;
-
             if (!session.IsStarted || snapshotBuilder == null)
             {
                 snapshot = MatchSnapshotBuilder.BuildWaiting(
-                    viewerSeat,
-                    opponentConnected,
-                    session.Revision
-                );
+                    viewerSeat, opponentConnected, session.Revision);
             }
             else
             {
                 snapshot = snapshotBuilder.Build(
-                    session.State,
-                    viewerSeat,
-                    opponentConnected,
-                    session.Revision
-                );
-
-                snapshot.matchId = session.MatchId;
+                    session.State, viewerSeat, opponentConnected, session.Revision);
                 snapshot.isRanked = session.IsRanked;
                 snapshot.matchStartedUtcMs = session.StartedUtcMs;
             }
-
+            snapshot.matchId = session.MatchId;
+            ApplyPublicProfile(session, viewerSeat, snapshot.self);
+            ApplyPublicProfile(session, opponentSeat, snapshot.opponent);
             ApplyConnectionState(session, snapshot, viewerSeat);
             snapshot.turnClock = BuildTurnClock(session, viewerSeat);
             return snapshot;

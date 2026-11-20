@@ -96,16 +96,18 @@ namespace KLTN.CloudCode.MatchServer
             }
 
             List<JsonObject> cards = await firestore.ListAsync($"users/{uid}/ownedCards");
-            (RankTier tier, _) = await SeasonDocuments.TierAsync(firestore, uid, nowUtcMs);
+            PublicMatchProfile profile = await PublicMatchProfile.ReadAsync(
+                firestore, uid, nowUtcMs);
 
             return new AdmitResult
             {
                 Admitted = true,
+                Profile = profile,
                 Reason = "ok",
                 Uid = uid,
                 Username = FirestoreAdmin.GetString(FirestoreAdmin.Fields(user), "username") ?? string.Empty,
                 OwnedCardIds = cards.Select(FirestoreAdmin.DocumentId).OrderBy(id => id, StringComparer.Ordinal).ToArray(),
-                Tier = (int)tier,
+                Tier = (int)RankPolicy.TierFor(profile.Points),
             };
         }
 
