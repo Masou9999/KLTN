@@ -111,45 +111,105 @@ namespace KLTN.Game.Networking
 
         #region Listen Settlement
 
+        private static CancellationTokenSource applicationLifetime;
+
+        /// <summary>
+        /// Cancelled only when the application quits. A finished listen match keeps
+        /// reporting after the host leaves the scene (the result skip button), because
+        /// only the registered host can settle it and nobody else would retry.
+        /// </summary>
+        private static CancellationToken ApplicationLifetime
+        {
+            get
+            {
+                if (applicationLifetime == null)
+                {
+                    applicationLifetime = new CancellationTokenSource();
+                    Application.quitting += applicationLifetime.Cancel;
+                }
+                return applicationLifetime.Token;
+            }
+        }
+
+        /// <summary>
+        /// Reports a finished listen match to Cloud Code and forwards each seat's result.
+        /// The report itself survives bridge despawn; only publication needs the bridge.
+        /// Retries reuse the match ID, so a lost response cannot pay twice.
+        /// </summary>
         private async Task SettleListenAsync(MatchSession session)
         {
-            CancellationToken cancellationToken = listenLifetime.Token;
+            CancellationToken cancellationToken = ApplicationLifetime;
+            // Captured now: the session may be torn down while the report is in flight.
+            string matchId = session.MatchId;
+            MatchOutcome outcome = session.State.Outcome;
+            SeatId? surrenderedSeat = session.State.SurrenderedSeat;
+            int roundNumber = session.State.RoundNumber;
             try
             {
                 ListenRegistration registration = RuntimeOf(session).Listen;
                 if (registration == null) throw new InvalidOperationException();
                 await registration.Ready;
-                cancellationToken.ThrowIfCancellationRequested();
-                InviteListenGuest(session);
+                if (IsBridgeAlive()) InviteListenGuest(session);
                 if (!registration.HostReady) throw new InvalidOperationException();
-                await Task.WhenAny(registration.Guest.Task, Task.Delay(55000, cancellationToken));
-                cancellationToken.ThrowIfCancellationRequested();
                 // The guest may disconnect after backend registration but before its ACK.
                 // The backend roster remains authoritative even when that ACK was lost.
-                // A closed host never initiates settlement; there is no backend forfeit timer.
-                if (this == null || !IsSpawned || !IsServer) return;
+                await Task.WhenAny(registration.Guest.Task,
+                    Task.Delay(55000, cancellationToken));
+                cancellationToken.ThrowIfCancellationRequested();
                 MatchSettlementResult result = await ListenMatchClient.ReportAsync(
-                    session.MatchId, session.State.Outcome,
-                    session.State.SurrenderedSeat, session.State.RoundNumber, cancellationToken);
-                if (this == null || !IsSpawned || !IsServer) return;
+                    matchId, outcome, surrenderedSeat, roundNumber, cancellationToken);
+                if (!IsBridgeAlive())
+                {
+                    if (result.Success) await RefreshLocalStandingAsync();
+                    return;
+                }
                 if (!result.Success)
                 {
                     PublishSettlementToAll(session, MatchSettlementState.Failed, result.Message);
                     return;
                 }
-                PublishSeat(session, SeatId.Host, Build(session.MatchId, result.For(registration.HostPlayerId)));
+                PublishSeat(session, SeatId.Host,
+                    Build(matchId, result.For(registration.HostPlayerId)));
                 PlayerSettlement guest = null;
                 foreach (PlayerSettlement player in result.Players)
                 {
                     if (player.PlayerId != registration.HostPlayerId) guest = player;
                 }
-                PublishSeat(session, SeatId.Guest, Build(session.MatchId, guest));
+                PublishSeat(session, SeatId.Guest, Build(matchId, guest));
             }
-            catch (Exception)
+            catch (Exception exception)
             {
-                if (!cancellationToken.IsCancellationRequested && this != null && IsSpawned && IsServer)
+                if (cancellationToken.IsCancellationRequested) return;
+                if (IsBridgeAlive())
                     PublishSettlementToAll(session, MatchSettlementState.Failed,
                         "Không thể xác thực hoặc lưu kết quả trận. Vui lòng kiểm tra kết nối.");
+                else
+                    Debug.LogWarning(
+                        $"[Settlement] Detached listen report failed: {exception.Message}");
+            }
+        }
+
+        private bool IsBridgeAlive()
+        {
+            return this != null && IsSpawned && IsServer;
+        }
+
+        /// <summary>
+        /// Re-reads the wallet and season row after a report that finished once the
+        /// host had already left the match, so the main menu shows the new values.
+        /// </summary>
+        private static async Task RefreshLocalStandingAsync()
+        {
+            try
+            {
+                var profiles = KLTN.Infrastructure.Economy.PlayerProfileService.Instance;
+                if (profiles != null) await profiles.EnsureLoadedAsync(forceReload: true);
+                var leaderboard = KLTN.Infrastructure.Ranking.LeaderboardService.Instance;
+                if (leaderboard != null) await leaderboard.GetMyCurrentTierAsync();
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning($"[Settlement] Could not refresh standing: {exception.Message}");
             }
         }
 
