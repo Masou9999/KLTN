@@ -708,9 +708,6 @@ else
                 yield break;
             }
 
-            Canvas.ForceUpdateCanvases();
-            Vector3 position = CardCenter(revived);
-
             CanvasGroup group = revived.GetComponent<CanvasGroup>();
             float restingAlpha = group != null ? group.alpha : 1f;
 
@@ -718,6 +715,11 @@ else
             {
                 group.alpha = 0f;
             }
+
+            yield return boardPresenter.AnimateReserveSlotExpansionForCard(revived);
+
+            Canvas.ForceUpdateCanvases();
+            Vector3 position = CardCenter(revived);
 
             SpiritSpellProfile spirit = ResolveSpiritProfile(effect);
             if (spirit != null && source != null)

@@ -1,3 +1,4 @@
+using DG.Tweening;
 using KLTN.Game.Networking;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -49,6 +50,14 @@ namespace KLTN.Game.Presentation
         private bool canDrag;
         private bool dragging;
         private bool dropAccepted;
+        private RectTransform homePlaceholder;
+        private LayoutElement homePlaceholderLayout;
+        private Tween placeholderWidthTween;
+        private Tween slotExpandTween;
+        private Tween returnToHomeTween;
+
+        private const float ReturnToHomeDuration = 0.18f;
+        private const float SlotTransitionDuration = 0.22f;
 
         #endregion
 
@@ -69,6 +78,18 @@ namespace KLTN.Game.Presentation
             canvasGroup = GetComponent<CanvasGroup>();
             visual = GetComponent<NetworkCardVisual>();
             visualLayout = GetComponent<CardVisualLayout>();
+        }
+
+        private void OnDisable()
+        {
+            KillActiveTweens();
+            DestroyHomePlaceholderImmediate();
+        }
+
+        private void OnDestroy()
+        {
+            KillActiveTweens();
+            DestroyHomePlaceholderImmediate();
         }
 
         #endregion
@@ -116,35 +137,45 @@ namespace KLTN.Game.Presentation
                 return;
             }
 
-            if (!homeCaptured)
+            if (returnToHomeTween != null && returnToHomeTween.IsActive())
+            {
+                returnToHomeTween.Kill();
+                returnToHomeTween = null;
+                CompleteDockIntoHomeImmediate(false);
+            }
+
+            KillSlotExpandTween();
+
+            if (!homeCaptured || (!isPending && transform.parent == homeParent))
             {
                 CaptureHome();
             }
 
+            if (!isPending && homeParent != null && transform.parent == homeParent)
+            {
+                EnsureHomePlaceholderExpanded();
+            }
+
             dragging = true;
             dropAccepted = false;
-            
 
-if (homeLocation == CardVisualLocation.Hand)
-{
-    // Bật bóng khi bắt đầu kéo bài từ Hand.
-    CardShadowVFX shadow = GetComponent<CardShadowVFX>();
-    shadow?.UpdateDynamicShadow(0f);
-}
+            if (homeLocation == CardVisualLocation.Hand)
+            {
+                // Bật bóng khi bắt đầu kéo bài từ Hand.
+                CardShadowVFX shadow = GetComponent<CardShadowVFX>();
+                shadow?.UpdateDynamicShadow(0f);
+            }
+            else if (homeLocation == CardVisualLocation.Reserve)
+            {
+                CombatZoneHighlightController combatGlow =
+                    FindAnyObjectByType<CombatZoneHighlightController>();
 
+                combatGlow?.ShowEffects();
 
-else if (homeLocation == CardVisualLocation.Reserve)
-{
-    CombatZoneHighlightController combatGlow =
-        FindAnyObjectByType<CombatZoneHighlightController>();
-
-    combatGlow?.ShowEffects();
-
-    // Bật bóng khi kéo quái thú từ Reserve.
-    CardShadowVFX shadow = GetComponent<CardShadowVFX>();
-    shadow?.ShowFixedShadow();
-}
-
+                // Bật bóng khi kéo quái thú từ Reserve.
+                CardShadowVFX shadow = GetComponent<CardShadowVFX>();
+                shadow?.ShowFixedShadow();
+            }
 
             transform.SetParent(dragLayer, false);
             transform.SetAsLastSibling();
@@ -155,34 +186,32 @@ else if (homeLocation == CardVisualLocation.Reserve)
             MoveToPointer(eventData);
         }
 
-        
-public void OnDrag(PointerEventData eventData)
-{
-    if (!dragging)
-    {
-        return;
-    }
-
-    MoveToPointer(eventData);
-
-    if (homeLocation == CardVisualLocation.Hand)
-    {
-        CardShadowVFX shadow = GetComponent<CardShadowVFX>();
-
-        if (shadow != null)
+        public void OnDrag(PointerEventData eventData)
         {
-            float progress = Mathf.Clamp01(
-                Vector2.Distance(
-                    eventData.pressPosition,
-                    eventData.position
-                ) / 500f
-            );
+            if (!dragging)
+            {
+                return;
+            }
 
-            shadow.UpdateDynamicShadow(progress);
+            MoveToPointer(eventData);
+
+            if (homeLocation == CardVisualLocation.Hand)
+            {
+                CardShadowVFX shadow = GetComponent<CardShadowVFX>();
+
+                if (shadow != null)
+                {
+                    float progress = Mathf.Clamp01(
+                        Vector2.Distance(
+                            eventData.pressPosition,
+                            eventData.position
+                        ) / 500f
+                    );
+
+                    shadow.UpdateDynamicShadow(progress);
+                }
+            }
         }
-    }
-}
-
 
         public void OnEndDrag(PointerEventData eventData)
         {
@@ -191,37 +220,33 @@ public void OnDrag(PointerEventData eventData)
                 return;
             }
 
-            
-canvasGroup.blocksRaycasts = true;
-dragging = false;
+            canvasGroup.blocksRaycasts = true;
+            dragging = false;
 
-// Tắt bóng khi kết thúc kéo bài từ Reserve.
+            // Tắt bóng khi kết thúc kéo bài từ Hand hoặc Reserve.
+            if (
+                homeLocation == CardVisualLocation.Hand
+                || homeLocation == CardVisualLocation.Reserve
+            )
+            {
+                CardShadowVFX shadow = GetComponent<CardShadowVFX>();
+                shadow?.HideShadow();
+            }
 
-// Tắt bóng khi kết thúc kéo bài từ Hand hoặc Reserve.
-if (homeLocation == CardVisualLocation.Hand ||
-    homeLocation == CardVisualLocation.Reserve)
-{
-    CardShadowVFX shadow = GetComponent<CardShadowVFX>();
-    shadow?.HideShadow();
-}
+            if (homeLocation == CardVisualLocation.Hand)
+            {
+                SummonZoneHighlightController summonGlow =
+                    FindAnyObjectByType<SummonZoneHighlightController>();
 
+                summonGlow?.HideEffects();
+            }
+            else if (homeLocation == CardVisualLocation.Reserve)
+            {
+                CombatZoneHighlightController combatGlow =
+                    FindAnyObjectByType<CombatZoneHighlightController>();
 
-            
-if (homeLocation == CardVisualLocation.Hand)
-{
-    SummonZoneHighlightController summonGlow =
-        FindAnyObjectByType<SummonZoneHighlightController>();
-
-    summonGlow?.HideEffects();
-}
-else if (homeLocation == CardVisualLocation.Reserve)
-{
-    CombatZoneHighlightController combatGlow =
-        FindAnyObjectByType<CombatZoneHighlightController>();
-
-    combatGlow?.HideEffects();
-}
-
+                combatGlow?.HideEffects();
+            }
 
             if (dropAccepted)
             {
@@ -234,7 +259,7 @@ else if (homeLocation == CardVisualLocation.Reserve)
             }
             else
             {
-                RestoreToHome();
+                AnimateReturnToHome();
             }
         }
 
@@ -267,13 +292,30 @@ else if (homeLocation == CardVisualLocation.Reserve)
             CardVisualLocation location
         )
         {
+            bool wasAlreadyInTarget = isPending && pendingParent == targetParent;
+
+            KillReturnToHomeTween();
+            KillSlotExpandTween();
+
             dropAccepted = true;
             isPending = true;
             pendingParent = targetParent;
             pendingLocation = location;
             canDrag = CanDragNow();
 
+            CollapseHomePlaceholderAnimated();
+
             ApplyPendingPlacement(targetParent, location);
+
+            if (
+                !wasAlreadyInTarget
+                && targetParent != null
+                && targetParent.GetComponent<HorizontalLayoutGroup>() != null
+                && targetParent.childCount > 1
+            )
+            {
+                AnimateOwnSlotExpansion(targetParent);
+            }
 
             visual.SetPending(true);
             visual.SetInteractableVisual(canDrag);
@@ -323,13 +365,90 @@ else if (homeLocation == CardVisualLocation.Reserve)
                 return;
             }
 
+            bool wasPending = isPending;
+            RectTransform previousPendingParent = pendingParent;
+            int previousPendingSiblingIndex =
+                previousPendingParent != null && transform.parent == previousPendingParent
+                    ? transform.GetSiblingIndex()
+                    : -1;
+            Vector2 pendingCardSize = rectTransform != null
+                ? rectTransform.rect.size
+                : new Vector2(150f, 210f);
+
+            KillActiveTweens();
+
+            if (
+                wasPending
+                && previousPendingParent != null
+                && previousPendingParent != homeParent
+                && previousPendingParent.GetComponent<HorizontalLayoutGroup>() != null
+            )
+            {
+                SpawnTemporaryCollapsingPlaceholder(
+                    previousPendingParent,
+                    previousPendingSiblingIndex,
+                    pendingCardSize
+                );
+            }
+
+            CompleteDockIntoHomeImmediate(wasPending);
+        }
+
+        private void AnimateReturnToHome()
+        {
+            if (!homeCaptured || homeParent == null || homePlaceholder == null)
+            {
+                CompleteDockIntoHomeImmediate(false);
+                return;
+            }
+
+            RectTransform homeRoot = homeParent as RectTransform;
+            if (homeRoot != null)
+            {
+                LayoutRebuilder.ForceRebuildLayoutImmediate(homeRoot);
+            }
+
+            Vector3 targetWorldPos = homePlaceholder.TransformPoint(homePlaceholder.rect.center);
+            KillReturnToHomeTween();
+            canvasGroup.blocksRaycasts = false;
+
+            returnToHomeTween = rectTransform
+                .DOMove(targetWorldPos, ReturnToHomeDuration)
+                .SetEase(Ease.OutCubic)
+                .SetTarget(rectTransform)
+                .SetLink(gameObject)
+                .OnComplete(() => CompleteDockIntoHomeImmediate(false));
+        }
+
+        private void CompleteDockIntoHomeImmediate(bool animateSlotExpand)
+        {
+            returnToHomeTween = null;
+
+            if (!homeCaptured || homeParent == null)
+            {
+                DestroyHomePlaceholderImmediate();
+                return;
+            }
+
+            int targetIndex = homePlaceholder != null
+                ? homePlaceholder.GetSiblingIndex()
+                : homeSiblingIndex;
+
+            DestroyHomePlaceholderImmediate();
+
             // Prevent OnEndDrag from restoring the previous pending slot.
             dropAccepted = true;
             isPending = false;
             pendingParent = null;
             pendingLocation = homeLocation;
+            canvasGroup.blocksRaycasts = true;
+
             transform.SetParent(homeParent, false);
-            transform.SetSiblingIndex(homeSiblingIndex);
+            int maxSibling = Mathf.Max(0, homeParent.childCount - 1);
+            int clampedIndex = Mathf.Clamp(targetIndex, 0, maxSibling);
+            transform.SetSiblingIndex(clampedIndex);
+            homeSiblingIndex = clampedIndex;
+
             visualLayout?.Apply(homeLocation);
             rectTransform.anchorMin = homeAnchorMin;
             rectTransform.anchorMax = homeAnchorMax;
@@ -340,9 +459,350 @@ else if (homeLocation == CardVisualLocation.Reserve)
             visual.SetPending(false);
             visual.SetInteractableVisual(canDrag);
 
-            if (homeParent is RectTransform homeRoot)
+            RectTransform homeRoot = homeParent as RectTransform;
+            if (homeRoot != null)
             {
-                LayoutRebuilder.ForceRebuildLayoutImmediate(homeRoot);
+                if (
+                    animateSlotExpand
+                    && homeRoot.GetComponent<HorizontalLayoutGroup>() != null
+                    && homeRoot.childCount > 1
+                )
+                {
+                    AnimateOwnSlotExpansion(homeRoot);
+                }
+                else
+                {
+                    LayoutRebuilder.ForceRebuildLayoutImmediate(homeRoot);
+                }
+            }
+        }
+
+        private void EnsureHomePlaceholderExpanded()
+        {
+            if (homeParent == null)
+            {
+                return;
+            }
+
+            Vector2 cardSize = rectTransform.rect.size;
+            if (cardSize.x <= 0f || cardSize.y <= 0f)
+            {
+                cardSize = new Vector2(150f, 210f);
+            }
+
+            if (homePlaceholder == null)
+            {
+                var placeholderObj = new GameObject(
+                    "HandSlotPlaceholder",
+                    typeof(RectTransform),
+                    typeof(LayoutElement)
+                );
+                homePlaceholder = placeholderObj.GetComponent<RectTransform>();
+                homePlaceholderLayout = placeholderObj.GetComponent<LayoutElement>();
+                homePlaceholder.SetParent(homeParent, false);
+                homePlaceholder.SetSiblingIndex(homeSiblingIndex);
+            }
+
+            KillPlaceholderWidthTween();
+
+            homePlaceholderLayout.ignoreLayout = false;
+            homePlaceholderLayout.preferredWidth = cardSize.x;
+            homePlaceholderLayout.preferredHeight = cardSize.y;
+            homePlaceholderLayout.flexibleWidth = 0f;
+            homePlaceholderLayout.flexibleHeight = 0f;
+
+            homePlaceholder.anchorMin = new Vector2(0.5f, 0.5f);
+            homePlaceholder.anchorMax = new Vector2(0.5f, 0.5f);
+            homePlaceholder.pivot = new Vector2(0.5f, 0.5f);
+            homePlaceholder.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, cardSize.x);
+            homePlaceholder.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, cardSize.y);
+        }
+
+        private void CollapseHomePlaceholderAnimated()
+        {
+            if (
+                homePlaceholder == null
+                || homePlaceholderLayout == null
+                || homePlaceholderLayout.ignoreLayout
+            )
+            {
+                return;
+            }
+
+            KillPlaceholderWidthTween();
+
+            RectTransform homeRoot = homeParent as RectTransform;
+            float startWidth = homePlaceholderLayout.preferredWidth;
+            float targetWidth = GetCollapsedPlaceholderWidth(homeParent);
+
+            if (startWidth <= targetWidth + 0.5f)
+            {
+                homePlaceholderLayout.ignoreLayout = true;
+                if (homeRoot != null)
+                {
+                    LayoutRebuilder.ForceRebuildLayoutImmediate(homeRoot);
+                }
+                return;
+            }
+
+            float currentWidth = startWidth;
+            placeholderWidthTween = DOTween
+                .To(
+                    () => currentWidth,
+                    w =>
+                    {
+                        currentWidth = w;
+                        if (homePlaceholder == null || homePlaceholderLayout == null)
+                        {
+                            return;
+                        }
+
+                        homePlaceholderLayout.preferredWidth = w;
+                        homePlaceholder.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, w);
+                        if (homeRoot != null)
+                        {
+                            LayoutRebuilder.ForceRebuildLayoutImmediate(homeRoot);
+                        }
+                    },
+                    targetWidth,
+                    SlotTransitionDuration
+                )
+                .SetEase(Ease.InOutQuad)
+                .SetLink(homePlaceholder.gameObject)
+                .OnComplete(() =>
+                {
+                    placeholderWidthTween = null;
+                    if (homePlaceholderLayout != null)
+                    {
+                        homePlaceholderLayout.ignoreLayout = true;
+                    }
+                    if (homeRoot != null)
+                    {
+                        LayoutRebuilder.ForceRebuildLayoutImmediate(homeRoot);
+                    }
+                });
+        }
+
+        private void AnimateOwnSlotExpansion(RectTransform parentRoot)
+        {
+            if (parentRoot == null || rectTransform == null)
+            {
+                return;
+            }
+
+            LayoutElement ownLayout = GetComponent<LayoutElement>();
+            if (ownLayout == null)
+            {
+                return;
+            }
+
+            KillSlotExpandTween();
+
+            float targetWidth = ownLayout.preferredWidth > 0f
+                ? ownLayout.preferredWidth
+                : rectTransform.rect.width;
+            if (targetWidth <= 0f)
+            {
+                targetWidth = 150f;
+            }
+
+            float startWidth = GetCollapsedPlaceholderWidth(parentRoot);
+            float currentWidth = startWidth;
+
+            ownLayout.preferredWidth = startWidth;
+            rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, startWidth);
+            LayoutRebuilder.ForceRebuildLayoutImmediate(parentRoot);
+
+            slotExpandTween = DOTween
+                .To(
+                    () => currentWidth,
+                    w =>
+                    {
+                        currentWidth = w;
+                        if (ownLayout == null || rectTransform == null)
+                        {
+                            return;
+                        }
+
+                        ownLayout.preferredWidth = w;
+                        rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, w);
+                        if (parentRoot != null)
+                        {
+                            LayoutRebuilder.ForceRebuildLayoutImmediate(parentRoot);
+                        }
+                    },
+                    targetWidth,
+                    SlotTransitionDuration
+                )
+                .SetEase(Ease.OutCubic)
+                .SetTarget(rectTransform)
+                .SetLink(gameObject)
+                .OnComplete(() =>
+                {
+                    slotExpandTween = null;
+                    if (ownLayout != null)
+                    {
+                        ownLayout.preferredWidth = targetWidth;
+                    }
+                    if (rectTransform != null)
+                    {
+                        rectTransform.SetSizeWithCurrentAnchors(
+                            RectTransform.Axis.Horizontal,
+                            targetWidth
+                        );
+                    }
+                    if (parentRoot != null)
+                    {
+                        LayoutRebuilder.ForceRebuildLayoutImmediate(parentRoot);
+                    }
+                });
+        }
+
+        private static void SpawnTemporaryCollapsingPlaceholder(
+            RectTransform parentRoot,
+            int siblingIndex,
+            Vector2 cardSize
+        )
+        {
+            if (parentRoot == null)
+            {
+                return;
+            }
+
+            if (cardSize.x <= 0f || cardSize.y <= 0f)
+            {
+                cardSize = new Vector2(150f, 210f);
+            }
+
+            var placeholderObj = new GameObject(
+                "TempCollapsePlaceholder",
+                typeof(RectTransform),
+                typeof(LayoutElement)
+            );
+            RectTransform placeholderRect = placeholderObj.GetComponent<RectTransform>();
+            LayoutElement layoutElement = placeholderObj.GetComponent<LayoutElement>();
+
+            placeholderRect.SetParent(parentRoot, false);
+            if (siblingIndex >= 0 && siblingIndex < parentRoot.childCount)
+            {
+                placeholderRect.SetSiblingIndex(siblingIndex);
+            }
+
+            layoutElement.preferredWidth = cardSize.x;
+            layoutElement.preferredHeight = cardSize.y;
+            layoutElement.flexibleWidth = 0f;
+            layoutElement.flexibleHeight = 0f;
+
+            placeholderRect.anchorMin = new Vector2(0.5f, 0.5f);
+            placeholderRect.anchorMax = new Vector2(0.5f, 0.5f);
+            placeholderRect.pivot = new Vector2(0.5f, 0.5f);
+            placeholderRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, cardSize.x);
+            placeholderRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, cardSize.y);
+
+            float currentWidth = cardSize.x;
+            float targetWidth = GetCollapsedPlaceholderWidth(parentRoot);
+
+            DOTween
+                .To(
+                    () => currentWidth,
+                    w =>
+                    {
+                        currentWidth = w;
+                        if (placeholderRect == null || layoutElement == null)
+                        {
+                            return;
+                        }
+
+                        layoutElement.preferredWidth = w;
+                        placeholderRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, w);
+                        if (parentRoot != null)
+                        {
+                            LayoutRebuilder.ForceRebuildLayoutImmediate(parentRoot);
+                        }
+                    },
+                    targetWidth,
+                    SlotTransitionDuration
+                )
+                .SetEase(Ease.InOutQuad)
+                .SetLink(placeholderObj)
+                .OnComplete(() =>
+                {
+                    if (placeholderObj != null)
+                    {
+                        placeholderRect.SetParent(null, false);
+                        placeholderObj.SetActive(false);
+                        Destroy(placeholderObj);
+                    }
+                    if (parentRoot != null)
+                    {
+                        LayoutRebuilder.ForceRebuildLayoutImmediate(parentRoot);
+                    }
+                });
+        }
+
+        private static float GetCollapsedPlaceholderWidth(Transform parentTransform)
+        {
+            if (parentTransform == null)
+            {
+                return 0f;
+            }
+
+            HorizontalLayoutGroup layoutGroup = parentTransform.GetComponent<HorizontalLayoutGroup>();
+            if (layoutGroup != null && layoutGroup.spacing < 0f)
+            {
+                return -layoutGroup.spacing;
+            }
+
+            return 0f;
+        }
+
+        private void KillActiveTweens()
+        {
+            KillReturnToHomeTween();
+            KillPlaceholderWidthTween();
+            KillSlotExpandTween();
+        }
+
+        private void KillReturnToHomeTween()
+        {
+            if (returnToHomeTween != null)
+            {
+                returnToHomeTween.Kill();
+                returnToHomeTween = null;
+            }
+        }
+
+        private void KillPlaceholderWidthTween()
+        {
+            if (placeholderWidthTween != null)
+            {
+                placeholderWidthTween.Kill();
+                placeholderWidthTween = null;
+            }
+        }
+
+        private void KillSlotExpandTween()
+        {
+            if (slotExpandTween != null)
+            {
+                slotExpandTween.Kill();
+                slotExpandTween = null;
+                visualLayout?.Apply(isPending ? pendingLocation : homeLocation);
+            }
+        }
+
+        private void DestroyHomePlaceholderImmediate()
+        {
+            KillPlaceholderWidthTween();
+
+            if (homePlaceholder != null)
+            {
+                GameObject obj = homePlaceholder.gameObject;
+                homePlaceholder.SetParent(null, false);
+                obj.SetActive(false);
+                Destroy(obj);
+                homePlaceholder = null;
+                homePlaceholderLayout = null;
             }
         }
 
