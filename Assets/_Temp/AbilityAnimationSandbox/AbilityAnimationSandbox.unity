@@ -2911,6 +2911,9 @@ MonoBehaviour:
   nexusHitPrefab: {fileID: 6927888912574776446, guid: 7021a87c7eee1db42a03e43ed83bdd01, type: 3}
   deathDustPrefab: {fileID: 1881139425499535096, guid: fc0c2982e37e6254090f475d911b5ff7, type: 3}
   slideEffectPrefab: {fileID: 383219524286715352, guid: 3c38c1a694146e140859277cacc85300, type: 3}
+  vongNhiSoulOrbPrefab: {fileID: 0}
+  vongNhiSoulBlastPrefab: {fileID: 0}
+  vongNhiSoulOrbScale: 3
   cardHitScale: 2
   nexusHitScale: 1
   deathDustScale: 2.2
@@ -3134,6 +3137,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::KLTN.Audio.AudioMuteButton
   controlsMusic: 0
+  controlsCombat: 0
   enabledIcon: {fileID: -1661364228, guid: de2c6501ffe3c624c98564a65e483990, type: 3}
   mutedIcon: {fileID: -1118546514, guid: de2c6501ffe3c624c98564a65e483990, type: 3}
 --- !u!114 &236421808
@@ -4276,9 +4280,12 @@ MonoBehaviour:
   damageProjectileColor: {r: 1, g: 0.47, b: 0.08, a: 1}
   killProjectileColor: {r: 0.65, g: 0.21, b: 0.96, a: 1}
   reviveFlashColor: {r: 0.38, g: 0.94, b: 1, a: 1}
+  thanTrungLightning: {fileID: 0}
+  maTranhBite: {fileID: 0}
+  ongKeBonk: {fileID: 0}
+  maDoiFeast: {fileID: 0}
   selfAbilityNexusTarget: {fileID: 0}
   opponentAbilityNexusTarget: {fileID: 0}
-  matchResultPresenter: {fileID: 0}
   boardPresenter: {fileID: 789479152}
   animationLayer: {fileID: 1306502258}
   selfNexusTarget: {fileID: 1449227914}
@@ -10867,6 +10874,16 @@ MonoBehaviour:
   - {fileID: 1250572838}
   dragLayer: {fileID: 532690470}
   mulliganPresenter: {fileID: 0}
+  selfDeckSpawnPoint: {fileID: 0}
+  drawSortingOrder: 50
+  drawShowcasePoint: {fileID: 0}
+  drawStartDelayOnNewRound: 0.75
+  drawFlyToCenterDuration: 0.45
+  drawShowcaseDuration: 0.6
+  drawFlyToHandDuration: 0.4
+  drawShowcaseScale: 1
+  drawHandScale: 0.45
+  drawShowcaseSpacing: 250
 --- !u!114 &789479153
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -10899,6 +10916,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::KLTN.Game.Presentation.AbilityTargetSelectionController
   boardPresenter: {fileID: 789479152}
+  skillTargetGlow: {fileID: 0}
   actionControls: {fileID: 789479151}
   promptLabel: {fileID: 827662873}
   cancelButton: {fileID: 1188374426}
@@ -11232,7 +11250,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 4290963189
   m_fontColor: {r: 0.96, g: 0.9, b: 0.76, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -11245,7 +11263,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -12807,7 +12825,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 4290963189
   m_fontColor: {r: 0.96, g: 0.9, b: 0.76, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -12820,7 +12838,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -21808,6 +21826,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::KLTN.Audio.AudioMuteButton
   controlsMusic: 1
+  controlsCombat: 0
   enabledIcon: {fileID: -1514759653, guid: de2c6501ffe3c624c98564a65e483990, type: 3}
   mutedIcon: {fileID: 1447486510, guid: de2c6501ffe3c624c98564a65e483990, type: 3}
 --- !u!114 &1725299092

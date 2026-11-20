@@ -23,10 +23,13 @@ MonoBehaviour:
   m_OverrideGlobalSceneList: 1
   m_Scenes:
   - m_enabled: 0
-    m_path: Assets/Scenes/LoginScene.unity
+    m_path: Assets/Scenes/OldLoginScene.unity
     m_guid: 1e3398dbbf183b14baa23186620d4b53
   - m_enabled: 1
-    m_path: Assets/Scenes/ImproveLoginScene.unity
+    m_path: Assets/Scenes/LoginStateChecking.unity
+    m_guid: cedaecfbe0984be2aa1798de3f41f695
+  - m_enabled: 1
+    m_path: Assets/Scenes/LoginScene.unity
     m_guid: 879116ac117029847bfd3028959b5636
   - m_enabled: 1
     m_path: Assets/Scenes/MainMenu.unity

@@ -2,6 +2,8 @@
 using System;
 using System.Linq;
 using TMPro;
+using Unity.Netcode;
+using Unity.Netcode.Transports.UTP;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -16,6 +18,7 @@ namespace KLTN.Game.Editor
         #region Configuration
 
         public const string ScenePath = "Assets/Scenes/LoginStateChecking.unity";
+        private const string NetworkRootPath = "Assets/Prefabs/Networking/NetworkRoot.prefab";
 
         #endregion
 
@@ -36,6 +39,12 @@ namespace KLTN.Game.Editor
             var font = Object.FindObjectsByType<TextMeshProUGUI>(FindObjectsInactive.Include)
                 .Single(x => x.name == "LoadingLabel").font;
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Additive);
+
+            // Auto-login can bypass LoginScene, so startup must also own the network root.
+            var networkPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(NetworkRootPath);
+            if (networkPrefab == null)
+                throw new InvalidOperationException("NetworkRoot prefab is missing.");
+            PrefabUtility.InstantiatePrefab(networkPrefab, scene);
 
             var sourceCamera = source.GetRootGameObjects().Single(x => x.CompareTag("MainCamera"));
             var cameraObject = Object.Instantiate(sourceCamera);
@@ -93,6 +102,18 @@ namespace KLTN.Game.Editor
             EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
             if (Camera.main == null || !Camera.main.isActiveAndEnabled)
                 throw new InvalidOperationException("Startup scene needs an active Main Camera.");
+            var networkRoots = Object.FindObjectsByType<PersistentNetworkRoot>();
+            if (networkRoots.Length != 1 ||
+                Object.FindObjectsByType<NetworkManager>().Length != 1)
+                throw new InvalidOperationException("Startup needs exactly one network root.");
+            var manager = networkRoots[0].GetComponent<NetworkManager>();
+            var transport = networkRoots[0].GetComponent<UnityTransport>();
+            if (manager == null || !manager.isActiveAndEnabled || transport == null ||
+                !transport.isActiveAndEnabled || manager.NetworkConfig.NetworkTransport != transport ||
+                !manager.NetworkConfig.EnableSceneManagement ||
+                PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(networkRoots[0]) !=
+                    NetworkRootPath)
+                throw new InvalidOperationException("Invalid startup NetworkRoot configuration.");
             if (EditorBuildSettings.scenes.First(x => x.enabled).path != ScenePath ||
                 Object.FindObjectsByType<AuthManager>().Length != 1 ||
                 Object.FindObjectsByType<GoogleAuthService>().Length != 1 ||
