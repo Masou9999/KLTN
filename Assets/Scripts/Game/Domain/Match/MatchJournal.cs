@@ -58,6 +58,9 @@ namespace KLTN.Game.Domain
             {
                 string source = Card(e.Source, viewer);
                 var target = e.TargetBefore ?? e.TargetAfter;
+                if (e.AbilityId == CardCostCalculator.AlliedDeathReductionId
+                    && target != null && target.Owner != viewer)
+                    return null;
                 string name = Card(target, viewer);
                 string prefix = source + context + ": ";
                 if (e.IsRoundStartPassive)
@@ -120,21 +123,5 @@ namespace KLTN.Game.Domain
                 (roundEnd ? "khi kết thúc vòng." : "sau khi ra đòn."));
         }
 
-        public void PassiveCosts(MatchState state, IReadOnlyDictionary<string, CardDefinition> definitions, SeatId owner)
-        {
-            foreach (var card in state.Player(owner).DrawHand)
-            {
-                if (!definitions.TryGetValue(card.DefinitionId, out var definition)) continue;
-                int reduction = definition.PassiveRules.CostReductionPerAlliedDeathThisGame;
-                if (reduction <= 0) continue;
-                int after = CardCostCalculator.GetEffectiveCost(state, card, definition);
-                int deaths = state.RoundHistory.CountDeathsThisGame(owner);
-                int before = Math.Max(0, card.GetCost(definition) - (deaths - 1) * reduction);
-                if (before == after) continue;
-                var captured = AbilityCardState.Capture(card, definition);
-                Add(state.RoundNumber, MatchLogCategory.Ability, v => v != owner ? null :
-                    $"Thêm một đồng minh chết: giảm năng lượng tiêu hao của {Card(captured, v)}: {before} → {after}.");
-            }
-        }
     }
 }

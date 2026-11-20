@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: MaTroi
   m_EditorClassIdentifier: Assembly-CSharp::CMCMProductions.Card
   cardName: "Ma Tr\u01A1i"
-  rulesText: "T\xF4i t\u1ED1n \xEDt h\u01A1n 1 mana v\u1EDBi m\u1ED7i \u0111\u1ED3ng
+  rulesText: "Khi \u1EDF DrawHand, t\xF4i t\u1ED1n \xEDt h\u01A1n 1 mana v\u1EDBi m\u1ED7i \u0111\u1ED3ng
     minh \u0111\xE3 ch\u1EBFt trong tr\u1EADn n\xE0y."
   cardType: 
   health: 5

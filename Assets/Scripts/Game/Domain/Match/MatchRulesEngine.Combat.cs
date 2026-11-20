@@ -190,7 +190,7 @@ namespace KLTN.Game.Domain
                     damageAtDeath,
                     maximumHealthAtDeath
                 );
-                state.Journal.PassiveCosts(state, definitionsById, deadCard.Owner);
+                CardCostCalculator.RecordAlliedDeathReductions(state, definitionsById, deadCard.Owner);
 
                 deathEvents.Add(
                     GameEvent.FromCard(

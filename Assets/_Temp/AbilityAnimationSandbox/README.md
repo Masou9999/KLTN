@@ -94,7 +94,7 @@ opening and final-frame echo. Captures are written to `Logs/MenuPolish/ma-tranh-
 To remove the sandbox, delete this folder and its `.meta`. The three small
 `UNITY_EDITOR` hooks in `MatchDebugControls.cs`, `.Submission.cs`, and
 `.AbilitySelection.cs` can also be removed, but are inert without a harness and
-have no dependency on this folder. No production Domain/network rules changed.
+have no dependency on this folder. Production ability rules and VFX remain in place.
 
 Ông Kẹ uses `Assets/Resources/VFX/OngKeBonk.asset`. A random one of three wood
 sticks swings locally beside the selected allied card and contacts its top edge
@@ -166,6 +166,41 @@ kill/revive, source cutoff/tail drain, reset during charge/stream/tail and sound
 cleanup. Results: `Logs/ThienLinhCaiSpirit/result.txt`. Visually inspect frame
 alignment, continuous stream-to-circle motion and both viewer perspectives.
 
+### Ma Gà and Ma Trơi
+
+Both cards are available in **THÊM THẺ** → Draw Hand, including existing scenes
+without rebuilding. Ma Gà reduces another allied hand card's mana: add Ma Gà and
+Ma Trơi, summon Ma Gà and select Ma Trơi. The supplied 24-frame blue swirl plays
+at the target's mana badge, without a projectile; the digit changes at frame 20.
+With no other hand card, Ma Gà summons without an effect. Cancel preserves mana
+and costs; a target already at zero does not play a false reduction.
+
+For Ma Trơi, add Ma Trơi and Ma Đói to hand, then summon Ma Đói and sacrifice a
+Ma Lợn. While Ma Trơi remains in DrawHand, each actual allied death triggers the
+same badge effect and SFX, plus a smooth 1 → 1.3 → 1 card pulse over 280 ms. The
+original scale is restored. Reserve, Board, Deck and Graveyard do not receive
+this discount or animation. Drawing Ma Trơi later includes prior allied deaths
+in its hand cost without replaying old effects. Enemy deaths do not reduce it.
+
+`Assets/Resources/VFX/ManaReduction.asset` holds the shared atlas, 50 ms frame
+timing, badge width (40.3% of card width, increased by 30%), frame-20 cost switch and original SFX.
+Audio tails continue after the 1.2-second visual and stop on reset/disable.
+Original PNG/MP3 bytes are preserved. Client and server must both be updated
+for the new captured cost events and DrawHand-only passive rule.
+
+In Play Mode, run **Tools > KLTN > Temporary > Validate Mana Reduction (Play Mode)**.
+It exercises the real director, before/after digits, badge anchor, pulse/scale
+restoration, no projectile, audio tail and reset during early/late frames. It
+also checks owner/opponent DTO and journal privacy using actual card resources.
+Batch entry (without `-quit`):
+`KLTN.Sandbox.Editor.ManaReductionValidation.RunBatch`. Batch opens only this
+offline scene and exits on completion; the Play Mode menu keeps Unity running.
+Neither path saves or rebuilds scenes. Output: `Logs/ManaReduction/result.txt`.
+These runtime checks were added but could not be executed on 19 November 2026:
+Unity batch returned 198 because no valid Editor license was available. Domain
+and pure projection checks were executed separately; visual/audio inspection
+and host/guest Play Mode checks remain to be run in a licensed Editor.
+
 ### Source staging and Host/Client timing
 
 Ma Trành now moves an existing local Reserve visual to the same center used by
@@ -206,3 +241,27 @@ Cái/Ma Đói alongside Ông Kẹ/Thần Trùng, swap the committing side, then 
 Editor logs and disable tracing. Traces are development-only and off by default;
 they omit player/card/target identities and payloads. See
 `Tools/AbilitySyncCheck/README.md` for the log comparison command and limitations.
+
+
+### Multi-step ability / Ma Trơi ordering (2026-11-20)
+
+Each effect-list execution now finishes before publishing its captured allied-death
+hand-cost notifications. Death history and effective costs still update after each
+operation; the buffered notifications never recompute old deltas. Publication
+sequences remain monotonic. Execution IDs survive viewer projection so two consecutive
+invocations of the same source/ability do not share one staging group.
+
+Manual scenarios (both local and opponent perspectives):
+- Ma Trơi + Thiên Linh Cái in DrawHand: summon, select an ally; the source stays
+  centered through kill and revive, returns once, then Ma Trơi's badge animates.
+- Ma Trơi + Thần Trùng in DrawHand: kill the ally and enemy while the source stays
+  centered, return once, then animate the hand-cost reduction.
+- Repeat with two Ma Trơi, cost 1/0, combat deaths and end-round expiry. Opponent
+  must never see hidden hand identities or cost notifications. Ma Gà uses the same
+  enlarged badge, with unchanged timing, sound, center and card pulse.
+
+Verification: the two ordering regressions first failed with the passive at index 1;
+258 Domain cases now pass, including per-death deltas and distinct execution IDs.
+Projection checks cover both viewers, both multi-step shapes and hidden-hand privacy.
+Runtime/Editor compile was checked separately. Actual Play Mode motion has not been
+observed in this change; do not treat the .NET checks as Unity animation verification.

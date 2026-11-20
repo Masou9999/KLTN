@@ -52,6 +52,62 @@ namespace KLTN.Game.Domain
     {
         #region Cost Calculation
 
+        public const string AlliedDeathReductionId = "allied_death_cost_reduction";
+
+        /// <summary>
+        /// Records actual hand-cost changes immediately after one allied death is
+        /// recorded. Each event captures its own delta, even in a multi-death batch.
+        /// </summary>
+        public static void RecordAlliedDeathReductions(MatchState state,
+            IReadOnlyDictionary<string, CardDefinition> definitions, SeatId owner)
+        {
+            foreach (var reduction in CaptureAlliedDeathReductions(state, definitions, owner))
+                reduction.Record(state);
+        }
+
+        /// <summary>Freezes each death's actual delta before later effects change the hand.</summary>
+        internal static IEnumerable<HandCostReduction> CaptureAlliedDeathReductions(
+            MatchState state, IReadOnlyDictionary<string, CardDefinition> definitions,
+            SeatId owner)
+        {
+            int deaths = state.RoundHistory.CountDeathsThisGame(owner);
+            if (deaths <= 0) yield break;
+            foreach (CardInstance card in state.Player(owner).DrawHand)
+            {
+                if (!definitions.TryGetValue(card.DefinitionId, out var definition))
+                    continue;
+                int reduction = definition.PassiveRules.CostReductionPerAlliedDeathThisGame;
+                if (reduction <= 0) continue;
+                int after = GetEffectiveCost(state, card, definition);
+                int before = (int)Math.Max(0L,
+                    (long)card.GetCost(definition) - (long)(deaths - 1) * reduction);
+                if (before == after) continue;
+                var oldState = AbilityCardState.Capture(card, definition, before);
+                yield return new HandCostReduction(oldState,
+                    AbilityCardState.Capture(card, definition, after));
+            }
+        }
+
+        /// <summary>Immutable cost snapshots; recording never recomputes or changes cost.</summary>
+        internal readonly struct HandCostReduction
+        {
+            private readonly AbilityCardState before;
+            private readonly AbilityCardState after;
+
+            internal HandCostReduction(AbilityCardState before, AbilityCardState after)
+            {
+                this.before = before;
+                this.after = after;
+            }
+
+            internal void Record(MatchState state)
+            {
+                state.RecordAbilityResolution(new AbilityResolutionEvent(
+                    state.NextAbilityResolutionSequence(), AlliedDeathReductionId,
+                    EffectKind.ReduceCost, before, before, after));
+            }
+        }
+
         public static int GetEffectiveCost(
             MatchState state,
             CardInstance card,
@@ -70,9 +126,10 @@ namespace KLTN.Game.Domain
 
             int alliedDeaths = state.RoundHistory.CountDeathsThisGame(card.Owner);
 
-            long passiveReduction =
-                (long)alliedDeaths
-                * definition.PassiveRules.CostReductionPerAlliedDeathThisGame;
+            long passiveReduction = card.Zone == CardZone.DrawHand
+                ? (long)alliedDeaths
+                    * definition.PassiveRules.CostReductionPerAlliedDeathThisGame
+                : 0;
 
             long effectiveCost = (long)card.GetCost(definition) - passiveReduction;
 

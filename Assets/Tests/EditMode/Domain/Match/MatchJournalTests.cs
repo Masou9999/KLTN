@@ -164,7 +164,7 @@ namespace KLTN.Game.Domain.Tests
             state.Host.Reserve.Remove(source); source.MoveTo(CardZone.DrawHand); state.Host.DrawHand.Add(source);
             var dead = new CardInstance(9, "secret", SeatId.Host, CardZone.Graveyard, 0);
             state.RoundHistory.RecordDeath(dead, 2, 3);
-            state.Journal.PassiveCosts(state, definitions, SeatId.Host);
+            CardCostCalculator.RecordAlliedDeathReductions(state, definitions, SeatId.Host);
             StringAssert.Contains("5 → 4", state.Journal.Entries[0].TextFor(SeatId.Host));
             Assert.IsNull(state.Journal.Entries[0].TextFor(SeatId.Guest));
             Execute(new EffectDefinition(EffectKind.ReduceCost, EffectTarget.Source, amount: 1));

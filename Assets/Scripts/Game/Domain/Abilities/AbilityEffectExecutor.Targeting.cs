@@ -183,7 +183,8 @@ namespace KLTN.Game.Domain
             result.Add(card);
         }
 
-        private GameEventBatch MoveDeadCardsAndBuildEvents(MatchState state)
+        private GameEventBatch MoveDeadCardsAndBuildEvents(MatchState state,
+            List<CardCostCalculator.HandCostReduction> deferredReductions)
         {
             var deadCards = new List<CardInstance>();
 
@@ -225,7 +226,8 @@ namespace KLTN.Game.Domain
                     damageAtDeath,
                     maximumHealthAtDeath
                 );
-                state.Journal.PassiveCosts(state, definitionsById, deadCard.Owner);
+                deferredReductions.AddRange(CardCostCalculator.CaptureAlliedDeathReductions(
+                    state, definitionsById, deadCard.Owner));
 
                 deathEvents.Add(
                     GameEvent.FromCard(

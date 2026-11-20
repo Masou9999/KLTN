@@ -837,7 +837,9 @@ namespace KLTN.Game.Presentation
                         layout.Apply(
                             zone == (int)CardZone.Board
                                 ? CardVisualLocation.Board
-                                : CardVisualLocation.Reserve
+                                : zone == (int)CardZone.DrawHand
+                                    ? CardVisualLocation.Hand
+                                    : CardVisualLocation.Reserve
                         );
                     }
 
@@ -850,7 +852,9 @@ namespace KLTN.Game.Presentation
                             dragLayer,
                             zone == (int)CardZone.Board
                                 ? CardVisualLocation.Board
-                                : CardVisualLocation.Reserve
+                                : zone == (int)CardZone.DrawHand
+                                    ? CardVisualLocation.Hand
+                                    : CardVisualLocation.Reserve
                         );
                     }
 
@@ -877,7 +881,9 @@ namespace KLTN.Game.Presentation
                 ? CardVisualLocation.AbilitySelection
                 : zone == (int)CardZone.Board
                     ? CardVisualLocation.Board
-                    : CardVisualLocation.Reserve;
+                    : zone == (int)CardZone.DrawHand
+                                    ? CardVisualLocation.Hand
+                                    : CardVisualLocation.Reserve;
 
             bool revealOpponentHand = ownerSeat != viewerSeat
                 && zone == (int)CardZone.Reserve;
@@ -1423,6 +1429,9 @@ namespace KLTN.Game.Presentation
         )
         {
             bool isSelf = ownerSeat == viewerSeat;
+
+            if (zone == (int)CardZone.DrawHand)
+                return isSelf ? selfHandRoot : null;
 
             if (zone == (int)CardZone.Reserve)
             {

@@ -150,7 +150,7 @@ namespace KLTN.Game.Networking
                 displayName = definition?.DisplayName ?? "Unknown card",
                 health = card.Health,
                 damage = card.Damage,
-                energy = definition?.Cost ?? 0,
+                energy = card.Cost,
                 keywords = definition == null ? 0 : (int)definition.Keywords,
                 boardSlotIndex = card.BoardSlotIndex,
             };

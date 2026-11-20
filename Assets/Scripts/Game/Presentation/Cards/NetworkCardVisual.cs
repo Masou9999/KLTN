@@ -78,10 +78,18 @@ namespace KLTN.Game.Presentation
         public bool IsOpponentCard { get; private set; }
         public RectTransform ArtworkMount => artworkMount;
         public RectTransform CardRect => transform as RectTransform;
+        public RectTransform ManaAnchor => costText != null ? costText.rectTransform : CardRect;
 
         #endregion
 
         #region Binding
+
+        /// <summary>Stages the captured mana value until the final snapshot binds.</summary>
+        public void SetDisplayedEnergy(int value)
+        {
+            Energy = value;
+            if (costText != null) costText.text = value.ToString();
+        }
 
         public void BindFaceUp(CardViewDto dto, CardArtworkView artworkPrefab)
         {

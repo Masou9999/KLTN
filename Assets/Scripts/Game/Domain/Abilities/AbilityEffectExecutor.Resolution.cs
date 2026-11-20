@@ -30,7 +30,8 @@ namespace KLTN.Game.Domain
             TriggeredAbility triggeredAbility,
             EffectKind kind,
             AbilityCardState before,
-            AbilityCardState after
+            AbilityCardState after,
+            EffectDuration duration = EffectDuration.Permanent
         )
         {
             state.RecordAbilityResolution(
@@ -42,6 +43,7 @@ namespace KLTN.Game.Domain
                     before,
                     after,
                     journalContext: JournalContext(state, triggeredAbility),
+                    duration: duration,
                     executionId: currentExecutionId
                 )
             );

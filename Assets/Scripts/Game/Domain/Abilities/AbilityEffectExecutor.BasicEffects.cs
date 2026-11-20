@@ -243,7 +243,8 @@ namespace KLTN.Game.Domain
                 var before = CaptureCard(target, state);
                 target.ApplyCostReduction(definition, effect.Amount, effect.Duration);
                 if (before.Cost != CardCostCalculator.GetEffectiveCost(state, target, definition))
-                    RecordJournalCard(state, triggeredAbility, effect.Kind, before, CaptureCard(target, state), effect.Duration);
+                    RecordCardEffect(state, triggeredAbility, effect.Kind, before,
+                        CaptureCard(target, state), effect.Duration);
             }
         }
 

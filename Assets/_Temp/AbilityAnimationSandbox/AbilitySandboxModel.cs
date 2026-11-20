@@ -18,11 +18,11 @@ namespace KLTN.Sandbox
         public const int HandLimit = 10;
         public static readonly string[] ReserveIds =
         {
-            "MaLon", "VongNhi", "ThanTrung", "ThienLinhCai", "OngKe", "MaTranh", "MaDoi", "MaCangSung", "MaDa", "MaCo", "LinhMieu"
+            "MaLon", "VongNhi", "ThanTrung", "ThienLinhCai", "OngKe", "MaTranh", "MaDoi", "MaCangSung", "MaDa", "MaGa", "MaTroi", "MaCo", "LinhMieu"
         };
         public static readonly string[] HandIds =
         {
-            "ThanTrung", "ThienLinhCai", "OngKe", "MaTranh", "MaDoi", "MaCangSung", "MaDa", "MaCo", "LinhMieu"
+            "ThanTrung", "ThienLinhCai", "OngKe", "MaTranh", "MaDoi", "MaCangSung", "MaDa", "MaGa", "MaTroi", "MaCo", "LinhMieu"
         };
 
         #endregion

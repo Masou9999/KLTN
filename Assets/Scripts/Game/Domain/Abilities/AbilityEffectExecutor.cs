@@ -38,6 +38,7 @@ namespace KLTN.Game.Domain
         /// <summary>
         /// Resolves every effect in definition order and moves newly dead units after
         /// each operation so Death and AllyDeath triggers observe deterministic state.
+        /// Hand-cost notifications retain death-time snapshots but follow this invocation.
         /// </summary>
         public GameEventBatch Execute(
             MatchState state,
@@ -50,6 +51,7 @@ namespace KLTN.Game.Domain
                 throw new ArgumentNullException(nameof(triggeredAbility));
 
             var emittedEvents = new List<GameEvent>();
+            var reductions = new List<CardCostCalculator.HandCostReduction>();
             long previousExecutionId = currentExecutionId;
             currentExecutionId = state.NextAbilityExecutionId();
             try
@@ -57,9 +59,12 @@ namespace KLTN.Game.Domain
                 foreach (EffectDefinition effect in triggeredAbility.Ability.Effects)
                 {
                     ExecuteEffect(state, triggeredAbility, selection, effect, emittedEvents);
-                    GameEventBatch deaths = MoveDeadCardsAndBuildEvents(state);
+                    GameEventBatch deaths = MoveDeadCardsAndBuildEvents(state, reductions);
                     foreach (GameEvent death in deaths.Events) emittedEvents.Add(death);
                 }
+                // Death history and effective cost already changed at each death. Only
+                // their captured notifications wait until this execution has completed.
+                foreach (var reduction in reductions) reduction.Record(state);
                 return new GameEventBatch(emittedEvents);
             }
             finally

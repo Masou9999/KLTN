@@ -189,13 +189,14 @@ namespace KLTN.Game.Domain
                 int maximumHealthAtDeath = card.GetMaximumHealth(definition);
 
                 state.RoundHistory.RecordDeath(card, damageAtDeath, maximumHealthAtDeath);
-                state.Journal.PassiveCosts(state, definitionsById, card.Owner);
 
                 state.RecordAbilityResolution(new AbilityResolutionEvent(
                     state.NextAbilityResolutionSequence(), null, EffectKind.Kill,
                     null, before, AbilityCardState.Capture(card, definition),
                     isDeathOnly: true
                 ));
+                CardCostCalculator.RecordAlliedDeathReductions(
+                    state, definitionsById, card.Owner);
 
                 deathEvents.Add(
                     GameEvent.FromCard(GameEventType.UnitDied, state.RoundNumber, card)

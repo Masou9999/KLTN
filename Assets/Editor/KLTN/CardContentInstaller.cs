@@ -49,7 +49,8 @@ namespace KLTN.Game.Editor
                 damage: 5,
                 energy: 10,
                 UnitKeyword.Fearsome,
-                "Tôi tốn ít hơn 1 mana với mỗi đồng minh " + "đã chết trong trận này.",
+                "Khi ở DrawHand, tôi tốn ít hơn 1 mana với mỗi đồng minh "
+                    + "đã chết trong trận này.",
                 Passive(costReductionPerAlliedDeathThisGame: 1)
             );
 

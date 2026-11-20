@@ -48,6 +48,8 @@ namespace KLTN.Game.Presentation
         private BatSwarmView batView;
         private SpiritSpellProfile spiritProfile;
         private SpiritSpellView spiritView;
+        private ManaReductionProfile manaReductionProfile;
+        private ManaReductionView manaReductionView;
 
         /// <summary>
         /// Replays only host-confirmed effects in their original execution order. The
@@ -79,7 +81,8 @@ namespace KLTN.Game.Presentation
 
                 // Finish natural expiry deaths before announcing the next round.
                 // Other ability sequences retain their existing post-banner ordering.
-                if (transitionPending && !effect.isDeathOnly)
+                if (transitionPending && !effect.isDeathOnly
+                    && effect.abilityId != CardCostCalculator.AlliedDeathReductionId)
                 {
                     yield return AnimateRoundTransition(update);
                     transitionPending = false;
@@ -299,6 +302,30 @@ namespace KLTN.Game.Presentation
             }
 
             Canvas.ForceUpdateCanvases();
+
+            if ((EffectKind)effect.effectKind == EffectKind.ReduceCost
+                && effect.targetAfter != null
+                && (effect.abilityId == "ma_ga_play"
+                    || effect.abilityId == CardCostCalculator.AlliedDeathReductionId))
+            {
+                if (manaReductionProfile == null)
+                    manaReductionProfile = Resources.Load<ManaReductionProfile>("VFX/ManaReduction");
+                if (manaReductionProfile != null && manaReductionProfile.IsUsable)
+                {
+                    if (manaReductionView == null)
+                    {
+                        var go = new GameObject("ManaReduction", typeof(RectTransform),
+                            typeof(ManaReductionView));
+                        go.transform.SetParent(animationLayer, false);
+                        manaReductionView = go.GetComponent<ManaReductionView>();
+                    }
+                    yield return manaReductionView.Play(manaReductionProfile, animationLayer,
+                        target, effect.targetBefore.energy, effect.targetAfter.energy,
+                        effect.abilityId == CardCostCalculator.AlliedDeathReductionId, sfxAudioSource);
+                }
+                else target.SetDisplayedEnergy(effect.targetAfter.energy);
+                yield break;
+            }
 
             if (effect.isDeathOnly)
             {
@@ -1064,6 +1091,7 @@ else
 
         private void ClearAbilityGraphics()
         {
+            if (manaReductionView != null) manaReductionView.ClearVisuals();
             if (spiritView != null) spiritView.ClearVisuals(stopAudio: false);
             if (batView != null) batView.ClearVisuals();
             if (feastView != null) feastView.ClearVisuals();
@@ -1147,6 +1175,12 @@ else
 
         private void CleanupAbilityPresentation()
         {
+            if (manaReductionView != null)
+            {
+                manaReductionView.gameObject.SetActive(false);
+                Destroy(manaReductionView.gameObject);
+                manaReductionView = null;
+            }
             if (spiritView != null)
             {
                 spiritView.gameObject.SetActive(false);
