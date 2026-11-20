@@ -39,7 +39,9 @@ namespace KLTN.Game.Presentation
 
             root = card.CardRect;
             group = card.GetComponent<CanvasGroup>();
-            images = card.ArtworkMount == null
+            images = string.IsNullOrEmpty(card.DefinitionId)
+                ? card.GetComponentsInChildren<Image>(true)
+                : card.ArtworkMount == null
                 ? new Image[0]
                 : card.ArtworkMount.GetComponentsInChildren<Image>(true);
             originalMaterials = new Material[images.Length];

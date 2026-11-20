@@ -213,6 +213,13 @@ namespace KLTN.Game.Presentation
         {
             EffectKind kind = (EffectKind)effect.effectKind;
 
+            if (kind == EffectKind.Copy
+                && effect.targetZoneAfter == (int)CardZone.DrawHand)
+            {
+                yield return AnimateAbilityCopy(effect, viewerSeat);
+                yield break;
+            }
+
             if (kind == EffectKind.Revive && effect.targetAfter != null)
             {
                 yield return AnimateAbilityRevive(effect, viewerSeat, reserveCanDrag);
@@ -403,8 +410,14 @@ namespace KLTN.Game.Presentation
         private SpiritSpellProfile ResolveSpiritProfile(AbilityResolutionEventDto effect)
         {
             if (spiritProfile == null) spiritProfile = Resources.Load<SpiritSpellProfile>("VFX/ThienLinhCaiSpirit");
-            return spiritProfile != null && spiritProfile.IsUsable && effect.abilityId == spiritProfile.abilityId
-                && ((EffectKind)effect.effectKind == EffectKind.Kill || (EffectKind)effect.effectKind == EffectKind.Revive)
+            EffectKind kind = (EffectKind)effect.effectKind;
+            bool originalSpell = effect.abilityId == spiritProfile?.abilityId
+                && (kind == EffectKind.Kill || kind == EffectKind.Revive);
+            bool sharedRevive = (effect.abilityId == "linh_mieu_summon"
+                    && kind == EffectKind.Revive)
+                || (effect.abilityId == "ma_co_summon" && kind == EffectKind.Copy);
+            return spiritProfile != null && spiritProfile.IsUsable
+                && (originalSpell || sharedRevive)
                 ? spiritProfile : null;
         }
         private SpiritSpellView GetSpiritView()
@@ -583,6 +596,54 @@ else
                 );
 
                 yield return feedback.PlayDamage(damage, effect.nexusHealthAfter);
+            }
+        }
+
+        private IEnumerator AnimateAbilityCopy(
+            AbilityResolutionEventDto effect, int viewerSeat)
+        {
+            NetworkCardVisual source = boardPresenter.PrepareAbilitySource(
+                effect.source,
+                effect.sourceOwner,
+                viewerSeat,
+                effect.sourceZone,
+                centerNewSource: true,
+                out bool createdAtCenter
+            );
+
+            if (createdAtCenter && source != null)
+            {
+                yield return boardPresenter.AnimateAbilitySourceMoveToCenter(
+                    source,
+                    effect.sourceOwner,
+                    viewerSeat
+                );
+            }
+
+            NetworkCardVisual copy = boardPresenter.PrepareCopiedHandCard(
+                effect.targetAfter, effect.targetOwner, viewerSeat);
+            if (copy == null) yield break;
+
+            CardReviveFeedback feedback = copy.GetComponent<CardReviveFeedback>();
+            if (feedback == null) feedback = copy.gameObject.AddComponent<CardReviveFeedback>();
+            activeReviveFeedbacks.Add(feedback);
+            try
+            {
+                SpiritSpellProfile spirit = ResolveSpiritProfile(effect);
+                if (spirit != null && source != null)
+                {
+                    yield return GetSpiritView().PlayRevive(spirit, animationLayer,
+                        source.CardRect, copy, feedback, 0, 0, 1f, sfxAudioSource);
+                }
+                else
+                {
+                    yield return feedback.Play(copy, 0, 0, abilityReviveDuration, 1f);
+                }
+            }
+            finally
+            {
+                feedback.ResetImmediately();
+                activeReviveFeedbacks.Remove(feedback);
             }
         }
 

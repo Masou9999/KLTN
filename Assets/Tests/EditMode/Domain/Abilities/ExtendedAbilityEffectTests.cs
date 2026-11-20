@@ -260,6 +260,25 @@ namespace KLTN.Game.Domain.Tests
             Assert.AreNotEqual(dead.InstanceId, copy.InstanceId);
 
             CollectionAssert.Contains(state.Host.Graveyard, dead);
+
+            AbilityResolution resolution = state.TakeAbilityResolution();
+            Assert.AreEqual(1, resolution.Events.Count);
+            Assert.AreEqual(EffectKind.Copy, resolution.Events[0].Kind);
+            Assert.AreEqual(CardZone.DrawHand, resolution.Events[0].TargetAfter.Zone);
+            Assert.AreEqual(copy.InstanceId, resolution.Events[0].TargetAfter.InstanceId);
+            Assert.IsNull(resolution.Events[0].TargetBefore);
+        }
+
+        [Test]
+        public void CopyRandomDeadAlly_WithoutDeath_DoesNotEmitCreation()
+        {
+            MatchState state = CreateState();
+            CardDefinition definition = Unit("source");
+            CardInstance source = AddReserveCard(state.Host, 1, definition);
+            Execute(state, Definitions(definition), source,
+                new EffectDefinition(EffectKind.Copy, EffectTarget.RandomDeadAlly));
+            Assert.IsEmpty(state.Host.DrawHand);
+            Assert.IsNull(state.TakeAbilityResolution());
         }
 
         [Test]

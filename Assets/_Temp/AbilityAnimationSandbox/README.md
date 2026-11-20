@@ -1,5 +1,26 @@
 # Ability Animation Sandbox (temporary, Editor only)
 
+## Ma Co and Linh Mieu shared resurrection
+
+Both cards are available in the count editor without rebuilding the scene.
+Record an allied death (the Ma Tranh preview provides one), make room in Reserve,
+then add and summon Ma Co or Linh Mieu. The source moves from Reserve to center,
+plays the Thien Linh Cai spirit ribbon/healing sound, then returns to Reserve.
+Linh Mieu revives into Reserve. Ma Co reconstructs a new copy in Draw Hand;
+the opponent receives only a card-back animation, never the copied identity.
+The copy does not also fly in from the deck when the final snapshot arrives.
+
+Batch Play Mode entry (no `-quit`):
+`KLTN.Sandbox.Editor.SharedReviveValidation.RunBatch`.
+Results: `Logs/SharedRevive/result.txt`. Covers both cards/viewers, hidden copy
+projection, source centered during VFX, final zones, duplicate draw suppression,
+and reset during the spirit stream. This is an offline real-pipeline fixture,
+not a two-process network test.
+
+Verified 2026-11-20: Unity 6000.5.4f1 batch Play Mode passed all eight scenarios;
+259 Domain NUnit cases passed through the .NET harness. Runtime/Editor compilation
+passed. No separate network-client run or human visual/audio review was performed.
+
 Open `AbilityAnimationSandbox.unity` in this folder and press Play. No login,
 UGS session, network host, opponent client, or build is required.
 

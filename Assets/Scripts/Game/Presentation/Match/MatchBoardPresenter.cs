@@ -1284,6 +1284,42 @@ namespace KLTN.Game.Presentation
         /// Creates a new reserve view even when an earlier view of the same card has
         /// just shattered. The old view stays intact until this update finishes.
         /// </summary>
+        public NetworkCardVisual PrepareCopiedHandCard(
+            CardViewDto card, int ownerSeat, int viewerSeat)
+        {
+            bool ownCard = ownerSeat == viewerSeat;
+            RectTransform parent = ownCard ? selfHandRoot : opponentHandRoot;
+            if (parent == null || cardPrefab == null || (ownCard && card == null))
+            {
+                return null;
+            }
+
+            NetworkCardVisual view;
+            if (ownCard)
+            {
+                view = CreateFaceUpCard(card, parent, false, CardVisualLocation.Hand);
+                knownHandCardIds.Add(card.instanceId);
+            }
+            else
+            {
+                view = Instantiate(cardPrefab, parent);
+                view.GetComponent<CardVisualLayout>()?.Apply(CardVisualLocation.Hand);
+                view.BindBack(cardBack);
+                view.SetOwnerPerspective(true);
+                view.GetComponent<DraggableHandCard>()?.Configure(
+                    false, dragLayer, CardVisualLocation.Hand);
+                spawnedViews.Add(view.gameObject);
+                opponentHandBacks.Add(view.gameObject);
+            }
+
+            CanvasGroup group = view.GetComponent<CanvasGroup>();
+            if (group == null) group = view.gameObject.AddComponent<CanvasGroup>();
+            group.alpha = 0f;
+            group.blocksRaycasts = false;
+            Canvas.ForceUpdateCanvases();
+            return view;
+        }
+
         public NetworkCardVisual PrepareRevivedCard(
             CardViewDto card,
             int ownerSeat,

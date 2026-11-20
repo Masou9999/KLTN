@@ -143,7 +143,8 @@ namespace KLTN.Game.Domain
             );
 
             if (!owner.TryAddCreatedCardToDrawHand(copy)) return false;
-            RecordJournalCard(state, triggeredAbility, EffectKind.Copy, null, CaptureCard(copy));
+            RecordCardEffect(state, triggeredAbility, EffectKind.Copy, null,
+                CaptureCard(copy, state));
             return true;
         }
 

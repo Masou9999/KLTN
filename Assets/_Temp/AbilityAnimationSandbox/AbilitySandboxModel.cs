@@ -18,11 +18,11 @@ namespace KLTN.Sandbox
         public const int HandLimit = 10;
         public static readonly string[] ReserveIds =
         {
-            "MaLon", "VongNhi", "ThanTrung", "ThienLinhCai", "OngKe", "MaTranh", "MaDoi", "MaCangSung", "MaDa"
+            "MaLon", "VongNhi", "ThanTrung", "ThienLinhCai", "OngKe", "MaTranh", "MaDoi", "MaCangSung", "MaDa", "MaCo", "LinhMieu"
         };
         public static readonly string[] HandIds =
         {
-            "ThanTrung", "ThienLinhCai", "OngKe", "MaTranh", "MaDoi", "MaCangSung", "MaDa"
+            "ThanTrung", "ThienLinhCai", "OngKe", "MaTranh", "MaDoi", "MaCangSung", "MaDa", "MaCo", "LinhMieu"
         };
 
         #endregion
@@ -243,9 +243,9 @@ namespace KLTN.Sandbox
         /// <summary>
         /// Publishes effects once, retaining a strictly increasing revision.
         /// </summary>
-        public MatchUpdateDto BuildUpdate()
+        public MatchUpdateDto BuildUpdate(SeatId viewerSeat = SeatId.Host)
         {
-            MatchSnapshotDto snapshot = snapshots.Build(State, SeatId.Host, true,
+            MatchSnapshotDto snapshot = snapshots.Build(State, viewerSeat, true,
                 ++revision);
             snapshot.matchId = "offline-ability-sandbox";
             snapshot.self.displayName = "Bạn • Test kỹ năng";
@@ -255,7 +255,7 @@ namespace KLTN.Sandbox
             snapshot.viewerCanDeclareBlock = false;
             snapshot.viewerCanEndRound = false;
             AbilityResolutionDto resolution = abilities.Build(
-                State.TakeAbilityResolution(), SeatId.Host);
+                State.TakeAbilityResolution(), viewerSeat);
             return new MatchUpdateDto
             {
                 snapshot = snapshot,

@@ -69,8 +69,10 @@ namespace KLTN.Sandbox
                 foreach (Row row in rows.Where(r => r.reserve == reserve))
                 {
                     var rect = (RectTransform)row.count.transform.parent;
-                    rect.anchoredPosition = new Vector2(reserve ? -330 : 330, 170 - index++ * 52);
-                    rect.sizeDelta = new Vector2(600, 50);
+                    rect.anchoredPosition = new Vector2(reserve ? -330 : 330, 170 - index++ * 38);
+                    rect.sizeDelta = new Vector2(600, 36);
+                    foreach (RectTransform child in rect)
+                        child.sizeDelta = new Vector2(child.sizeDelta.x, 34);
                 }
             }
             foreach (Row row in rows)

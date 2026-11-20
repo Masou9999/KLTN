@@ -164,23 +164,23 @@ namespace KLTN.Sandbox.Editor
                 var asset = AssetDatabase.LoadAssetAtPath<CMCMProductions.Card>(
                     "Assets/Resources/Cards/" + id + ".asset");
                 RectTransform row = Rect((reserve ? "Reserve_" : "Hand_") + id,
-                    parent, new Vector2(x, 170 - i * 52), new Vector2(600, 50));
+                    parent, new Vector2(x, 170 - i * 38), new Vector2(600, 36));
                 row.gameObject.AddComponent<Image>().color =
                     new Color(0.18f, 0.135f, 0.15f);
                 TMP_Text label = Text("Name", row, asset.cardName,
-                    new Vector2(-125, 0), new Vector2(300, 55), 28);
+                    new Vector2(-125, 0), new Vector2(300, 34), 28);
                 label.alignment = TextAlignmentOptions.MidlineLeft;
                 var entry = new AbilitySandboxModal.Row
                 {
                     id = id,
                     reserve = reserve,
                     minus = Button("Minus", row, "−", new Vector2(75, 0),
-                        new Vector2(55, 48)),
+                        new Vector2(55, 34)),
                     count = Text("Count", row,
                         reserve && i < 2 ? (i == 0 ? "2" : "1") : "0",
-                        new Vector2(155, 0), new Vector2(70, 48), 30),
+                        new Vector2(155, 0), new Vector2(70, 34), 30),
                     plus = Button("Plus", row, "+", new Vector2(235, 0),
-                        new Vector2(55, 48))
+                        new Vector2(55, 34))
                 };
                 rows.Add(entry);
             }

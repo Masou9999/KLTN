@@ -34,12 +34,19 @@ namespace KLTN.Game.Networking
                 CardViewDto before = MapVisible(effect.TargetBefore, viewer);
                 CardViewDto after = MapVisible(effect.TargetAfter, viewer);
 
-                // A hidden hand/deck target must not leak through an animation DTO.
+                // Public copy effects retain only their destination for the opponent's
+                // card-back animation. Never project the copied card's identity.
+                bool hiddenCopy = effect.Kind == EffectKind.Copy
+                    && effect.TargetAfter?.Zone == CardZone.DrawHand
+                    && source != null;
+
+                // Other hidden hand/deck targets must not leak through animation DTOs.
                 if (
                     !effect.NexusOwner.HasValue
                     && (effect.TargetBefore != null || effect.TargetAfter != null)
                     && before == null
                     && after == null
+                    && !hiddenCopy
                 )
                 {
                     continue;
