@@ -67,6 +67,39 @@ namespace KLTN.UI
 
         #region Helpers
 
+        /// <summary>Creates or rebinds the independent fullscreen checkbox.</summary>
+        public static Toggle BuildFullscreen(Transform window, TMP_Text template,
+            UnityAction<bool> select)
+        {
+            var option = Child(window, "FullscreenToggle");
+            if (option.GetComponent<Image>() == null) option.AddComponent<Image>();
+            if (option.GetComponent<Toggle>() == null) option.AddComponent<Toggle>();
+            Place((RectTransform)option.transform,
+                new Vector2(0, -174), new Vector2(340, 44));
+            option.GetComponent<Image>().color = Color.clear;
+            var box = Child(option.transform, "Box");
+            if (box.GetComponent<Image>() == null) box.AddComponent<Image>();
+            Place((RectTransform)box.transform, new Vector2(-145, 0),
+                new Vector2(26, 26));
+            box.GetComponent<Image>().color = new Color(0.85f, 0.68f, 0.4f);
+            var tick = Child(box.transform, "Checkmark");
+            if (tick.GetComponent<ResolutionCheckmarkGraphic>() == null)
+                tick.AddComponent<ResolutionCheckmarkGraphic>();
+            Place((RectTransform)tick.transform, Vector2.zero, new Vector2(26, 26));
+            var mark = tick.GetComponent<ResolutionCheckmarkGraphic>();
+            mark.raycastTarget = false;
+            mark.color = new Color(0.04f, 0.07f, 0.09f);
+            Label(template, option.transform, "Toàn màn hình (F11)", 20, 280);
+            var toggle = option.GetComponent<Toggle>();
+            toggle.group = null;
+            toggle.targetGraphic = box.GetComponent<Image>();
+            toggle.graphic = mark;
+            toggle.SetIsOnWithoutNotify(WindowResolutionSettings.SavedFullscreen);
+            toggle.onValueChanged = new Toggle.ToggleEvent();
+            toggle.onValueChanged.AddListener(select);
+            return toggle;
+        }
+
         private static TMP_Text Label(TMP_Text template, Transform parent,
             string value, float x, float width)
         {
@@ -90,7 +123,7 @@ namespace KLTN.UI
         public static void ApplyLayout(Transform window)
         {
             var panel = (RectTransform)window.parent;
-            panel.sizeDelta = new Vector2(900, 620);
+            panel.sizeDelta = new Vector2(900, 680);
             var surface = (RectTransform)window;
             surface.anchorMin = Vector2.zero;
             surface.anchorMax = Vector2.one;
