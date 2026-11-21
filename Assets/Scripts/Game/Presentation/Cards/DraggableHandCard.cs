@@ -40,8 +40,12 @@ namespace KLTN.Game.Presentation
         #region Pending Placement
 
         private RectTransform pendingParent;
+        private int pendingSiblingIndex = -1;
         private bool isPending;
         private CardVisualLocation pendingLocation = CardVisualLocation.Hand;
+        private RectTransform pendingPlaceholder;
+        private LayoutElement pendingPlaceholderLayout;
+        private Tween pendingPlaceholderWidthTween;
 
         #endregion
 
@@ -84,12 +88,14 @@ namespace KLTN.Game.Presentation
         {
             KillActiveTweens();
             DestroyHomePlaceholderImmediate();
+            DestroyPendingPlaceholderImmediate();
         }
 
         private void OnDestroy()
         {
             KillActiveTweens();
             DestroyHomePlaceholderImmediate();
+            DestroyPendingPlaceholderImmediate();
         }
 
         #endregion
@@ -141,7 +147,14 @@ namespace KLTN.Game.Presentation
             {
                 returnToHomeTween.Kill();
                 returnToHomeTween = null;
-                CompleteDockIntoHomeImmediate(false);
+                if (isPending)
+                {
+                    CompleteDockIntoPendingImmediate();
+                }
+                else
+                {
+                    CompleteDockIntoHomeImmediate(false);
+                }
             }
 
             KillSlotExpandTween();
@@ -154,6 +167,14 @@ namespace KLTN.Game.Presentation
             if (!isPending && homeParent != null && transform.parent == homeParent)
             {
                 EnsureHomePlaceholderExpanded();
+            }
+            else if (isPending && pendingParent != null && transform.parent == pendingParent)
+            {
+                pendingSiblingIndex = transform.GetSiblingIndex();
+                if (pendingParent.GetComponent<HorizontalLayoutGroup>() != null)
+                {
+                    EnsurePendingPlaceholderExpanded();
+                }
             }
 
             dragging = true;
@@ -297,6 +318,20 @@ namespace KLTN.Game.Presentation
             KillReturnToHomeTween();
             KillSlotExpandTween();
 
+            int targetSiblingIndex = -1;
+            if (pendingPlaceholder != null)
+            {
+                if (wasAlreadyInTarget)
+                {
+                    targetSiblingIndex = pendingPlaceholder.GetSiblingIndex();
+                    DestroyPendingPlaceholderImmediate();
+                }
+                else
+                {
+                    CollapseAndDestroyPendingPlaceholder();
+                }
+            }
+
             dropAccepted = true;
             isPending = true;
             pendingParent = targetParent;
@@ -305,7 +340,7 @@ namespace KLTN.Game.Presentation
 
             CollapseHomePlaceholderAnimated();
 
-            ApplyPendingPlacement(targetParent, location);
+            ApplyPendingPlacement(targetParent, location, targetSiblingIndex);
 
             if (
                 !wasAlreadyInTarget
@@ -329,7 +364,13 @@ namespace KLTN.Game.Presentation
                 return;
             }
 
-            ApplyPendingPlacement(pendingParent, pendingLocation);
+            if (pendingPlaceholder != null)
+            {
+                AnimateReturnToPending();
+                return;
+            }
+
+            ApplyPendingPlacement(pendingParent, pendingLocation, pendingSiblingIndex);
 
             canDrag = CanDragNow();
             visual.SetPending(true);
@@ -338,10 +379,20 @@ namespace KLTN.Game.Presentation
 
         private void ApplyPendingPlacement(
             RectTransform targetParent,
-            CardVisualLocation location
+            CardVisualLocation location,
+            int targetSiblingIndex = -1
         )
         {
             transform.SetParent(targetParent, false);
+            if (
+                targetParent != null
+                && targetSiblingIndex >= 0
+                && targetSiblingIndex < targetParent.childCount
+            )
+            {
+                transform.SetSiblingIndex(targetSiblingIndex);
+            }
+            pendingSiblingIndex = transform.GetSiblingIndex();
 
             visualLayout?.Apply(location);
 
@@ -356,6 +407,11 @@ namespace KLTN.Game.Presentation
             rectTransform.localScale = Vector3.one;
 
             rectTransform.localRotation = Quaternion.identity;
+
+            if (targetParent != null && targetParent.GetComponent<HorizontalLayoutGroup>() != null)
+            {
+                LayoutRebuilder.ForceRebuildLayoutImmediate(targetParent);
+            }
         }
 
         public void RestoreToHome()
@@ -370,14 +426,18 @@ namespace KLTN.Game.Presentation
             int previousPendingSiblingIndex =
                 previousPendingParent != null && transform.parent == previousPendingParent
                     ? transform.GetSiblingIndex()
-                    : -1;
+                    : pendingSiblingIndex;
             Vector2 pendingCardSize = rectTransform != null
                 ? rectTransform.rect.size
                 : new Vector2(150f, 210f);
 
             KillActiveTweens();
 
-            if (
+            if (pendingPlaceholder != null)
+            {
+                CollapseAndDestroyPendingPlaceholder();
+            }
+            else if (
                 wasPending
                 && previousPendingParent != null
                 && previousPendingParent != homeParent
@@ -392,6 +452,54 @@ namespace KLTN.Game.Presentation
             }
 
             CompleteDockIntoHomeImmediate(wasPending);
+        }
+
+        private void AnimateReturnToPending()
+        {
+            if (pendingParent == null || pendingPlaceholder == null)
+            {
+                CompleteDockIntoPendingImmediate();
+                return;
+            }
+
+            LayoutRebuilder.ForceRebuildLayoutImmediate(pendingParent);
+
+            Vector3 targetWorldPos = pendingPlaceholder.TransformPoint(
+                pendingPlaceholder.rect.center
+            );
+            KillReturnToHomeTween();
+            canvasGroup.blocksRaycasts = false;
+
+            returnToHomeTween = rectTransform
+                .DOMove(targetWorldPos, ReturnToHomeDuration)
+                .SetEase(Ease.OutCubic)
+                .SetTarget(rectTransform)
+                .SetLink(gameObject)
+                .OnComplete(CompleteDockIntoPendingImmediate);
+        }
+
+        private void CompleteDockIntoPendingImmediate()
+        {
+            returnToHomeTween = null;
+
+            if (pendingParent == null)
+            {
+                DestroyPendingPlaceholderImmediate();
+                return;
+            }
+
+            int targetIndex = pendingPlaceholder != null
+                ? pendingPlaceholder.GetSiblingIndex()
+                : pendingSiblingIndex;
+
+            DestroyPendingPlaceholderImmediate();
+
+            canvasGroup.blocksRaycasts = true;
+            ApplyPendingPlacement(pendingParent, pendingLocation, targetIndex);
+
+            canDrag = CanDragNow();
+            visual.SetPending(true);
+            visual.SetInteractableVisual(canDrag);
         }
 
         private void AnimateReturnToHome()
@@ -440,6 +548,7 @@ namespace KLTN.Game.Presentation
             dropAccepted = true;
             isPending = false;
             pendingParent = null;
+            pendingSiblingIndex = -1;
             pendingLocation = homeLocation;
             canvasGroup.blocksRaycasts = true;
 
@@ -760,6 +869,7 @@ namespace KLTN.Game.Presentation
         {
             KillReturnToHomeTween();
             KillPlaceholderWidthTween();
+            KillPendingPlaceholderWidthTween();
             KillSlotExpandTween();
         }
 
@@ -781,6 +891,15 @@ namespace KLTN.Game.Presentation
             }
         }
 
+        private void KillPendingPlaceholderWidthTween()
+        {
+            if (pendingPlaceholderWidthTween != null)
+            {
+                pendingPlaceholderWidthTween.Kill();
+                pendingPlaceholderWidthTween = null;
+            }
+        }
+
         private void KillSlotExpandTween()
         {
             if (slotExpandTween != null)
@@ -788,6 +907,151 @@ namespace KLTN.Game.Presentation
                 slotExpandTween.Kill();
                 slotExpandTween = null;
                 visualLayout?.Apply(isPending ? pendingLocation : homeLocation);
+            }
+        }
+
+        private void EnsurePendingPlaceholderExpanded()
+        {
+            if (pendingParent == null)
+            {
+                return;
+            }
+
+            Vector2 cardSize = rectTransform.rect.size;
+            if (cardSize.x <= 0f || cardSize.y <= 0f)
+            {
+                cardSize = new Vector2(150f, 210f);
+            }
+
+            if (pendingPlaceholder == null)
+            {
+                var placeholderObj = new GameObject(
+                    "PendingSlotPlaceholder",
+                    typeof(RectTransform),
+                    typeof(LayoutElement)
+                );
+                pendingPlaceholder = placeholderObj.GetComponent<RectTransform>();
+                pendingPlaceholderLayout = placeholderObj.GetComponent<LayoutElement>();
+                pendingPlaceholder.SetParent(pendingParent, false);
+                if (
+                    pendingSiblingIndex >= 0
+                    && pendingSiblingIndex < pendingParent.childCount
+                )
+                {
+                    pendingPlaceholder.SetSiblingIndex(pendingSiblingIndex);
+                }
+            }
+
+            KillPendingPlaceholderWidthTween();
+
+            pendingPlaceholderLayout.ignoreLayout = false;
+            pendingPlaceholderLayout.preferredWidth = cardSize.x;
+            pendingPlaceholderLayout.preferredHeight = cardSize.y;
+            pendingPlaceholderLayout.flexibleWidth = 0f;
+            pendingPlaceholderLayout.flexibleHeight = 0f;
+
+            pendingPlaceholder.anchorMin = new Vector2(0.5f, 0.5f);
+            pendingPlaceholder.anchorMax = new Vector2(0.5f, 0.5f);
+            pendingPlaceholder.pivot = new Vector2(0.5f, 0.5f);
+            pendingPlaceholder.SetSizeWithCurrentAnchors(
+                RectTransform.Axis.Horizontal,
+                cardSize.x
+            );
+            pendingPlaceholder.SetSizeWithCurrentAnchors(
+                RectTransform.Axis.Vertical,
+                cardSize.y
+            );
+        }
+
+        private void CollapseAndDestroyPendingPlaceholder()
+        {
+            if (pendingPlaceholder == null || pendingPlaceholderLayout == null)
+            {
+                DestroyPendingPlaceholderImmediate();
+                return;
+            }
+
+            KillPendingPlaceholderWidthTween();
+
+            RectTransform capturedPlaceholder = pendingPlaceholder;
+            LayoutElement capturedLayout = pendingPlaceholderLayout;
+            RectTransform capturedParent = capturedPlaceholder.parent as RectTransform;
+            GameObject placeholderObj = capturedPlaceholder.gameObject;
+
+            pendingPlaceholder = null;
+            pendingPlaceholderLayout = null;
+
+            float startWidth = capturedLayout.preferredWidth > 0f
+                ? capturedLayout.preferredWidth
+                : capturedPlaceholder.rect.width;
+            float targetWidth = GetCollapsedPlaceholderWidth(capturedParent);
+
+            if (startWidth <= targetWidth + 0.5f)
+            {
+                capturedPlaceholder.SetParent(null, false);
+                placeholderObj.SetActive(false);
+                Destroy(placeholderObj);
+                if (capturedParent != null)
+                {
+                    LayoutRebuilder.ForceRebuildLayoutImmediate(capturedParent);
+                }
+                return;
+            }
+
+            float currentWidth = startWidth;
+            DOTween
+                .To(
+                    () => currentWidth,
+                    w =>
+                    {
+                        currentWidth = w;
+                        if (capturedPlaceholder == null || capturedLayout == null)
+                        {
+                            return;
+                        }
+
+                        capturedLayout.preferredWidth = w;
+                        capturedPlaceholder.SetSizeWithCurrentAnchors(
+                            RectTransform.Axis.Horizontal,
+                            w
+                        );
+                        if (capturedParent != null)
+                        {
+                            LayoutRebuilder.ForceRebuildLayoutImmediate(capturedParent);
+                        }
+                    },
+                    targetWidth,
+                    SlotTransitionDuration
+                )
+                .SetEase(Ease.InOutQuad)
+                .SetLink(placeholderObj)
+                .OnComplete(() =>
+                {
+                    if (placeholderObj != null)
+                    {
+                        capturedPlaceholder.SetParent(null, false);
+                        placeholderObj.SetActive(false);
+                        Destroy(placeholderObj);
+                    }
+                    if (capturedParent != null)
+                    {
+                        LayoutRebuilder.ForceRebuildLayoutImmediate(capturedParent);
+                    }
+                });
+        }
+
+        private void DestroyPendingPlaceholderImmediate()
+        {
+            KillPendingPlaceholderWidthTween();
+
+            if (pendingPlaceholder != null)
+            {
+                GameObject obj = pendingPlaceholder.gameObject;
+                pendingPlaceholder.SetParent(null, false);
+                obj.SetActive(false);
+                Destroy(obj);
+                pendingPlaceholder = null;
+                pendingPlaceholderLayout = null;
             }
         }
 

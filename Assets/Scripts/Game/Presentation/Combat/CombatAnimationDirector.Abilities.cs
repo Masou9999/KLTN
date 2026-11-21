@@ -353,7 +353,7 @@ namespace KLTN.Game.Presentation
                 AbilityPresentationTrace.Record(currentUpdate, "vfx-begin", effect);
                 yield return feastView.Play(feast, animationLayer, source.CardRect, target.CardRect, sfxAudioSource);
                 AbilityPresentationTrace.Record(currentUpdate, "vfx-end", effect);
-                boardPresenter.IgnoreCardInReserveLayout(target);
+                yield return boardPresenter.AnimateCollapseCardInReserveLayout(target);
                 // Transformation replaces the generic kill/shatter presentation only.
                 // Subsequent death-trigger events still replay in authoritative order.
                 yield break;
@@ -437,7 +437,7 @@ namespace KLTN.Game.Presentation
             if (killed)
             {
                 yield return PlayCardDeath(target, effect.targetBefore.instanceId);
-                boardPresenter.IgnoreCardInReserveLayout(target);
+                yield return boardPresenter.AnimateCollapseCardInReserveLayout(target);
                 yield break;
             }
 
@@ -621,29 +621,29 @@ namespace KLTN.Game.Presentation
 
             yield return PlayAbilityCastPulse(source);
             if (effect.abilityId == "vong_nhi_ally_death")
-{
-    if (vfxPresenter != null)
-    {
-        yield return vfxPresenter.PlayVongNhiSoulBlast(
-            sourcePosition,
-            targetPosition
-        );
-    }
+            {
+                if (vfxPresenter != null)
+                {
+                    yield return vfxPresenter.PlayVongNhiSoulBlast(
+                        sourcePosition,
+                        targetPosition
+                    );
+                }
 
-    PlayAbilityHitSfx();
-}
-else
-{
-    yield return PlayAbilityProjectile(
-        sourcePosition,
-        targetPosition,
-        AbilityColor((EffectKind)effect.effectKind)
-    );
+                PlayAbilityHitSfx();
+            }
+            else
+            {
+                yield return PlayAbilityProjectile(
+                    sourcePosition,
+                    targetPosition,
+                    AbilityColor((EffectKind)effect.effectKind)
+                );
 
-    PlayAbilityHitSfx();
-    vfxPresenter?.PlayNexusHit(targetPosition, targetIsSelf);
-    yield return PlayAbilityImpact(targetPosition);
-}
+                PlayAbilityHitSfx();
+                vfxPresenter?.PlayNexusHit(targetPosition, targetIsSelf);
+                yield return PlayAbilityImpact(targetPosition);
+            }
 
             if (feedback != null)
             {
