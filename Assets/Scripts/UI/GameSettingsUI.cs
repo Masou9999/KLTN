@@ -32,6 +32,8 @@ public class GameSettingsUI : MonoBehaviour
     private TMP_Text saveLabel;
     private TMP_Text saveStatus;
     private Toggle[] resolutionToggles;
+    private Toggle fullscreenToggle;
+    private bool selectedFullscreen;
     private int selectedResolution;
     private string resolutionStatus;
 
@@ -42,13 +44,17 @@ public class GameSettingsUI : MonoBehaviour
     /// <summary>Binds authored controls, creating missing controls only once.</summary>
     public void InitializeControls()
     {
-        if (saveButton != null && resolutionToggles != null) return;
+        if (saveButton != null && resolutionToggles != null
+            && fullscreenToggle != null) return;
         selectedResolution = WindowResolutionSettings.SavedIndex;
+        selectedFullscreen = WindowResolutionSettings.SavedFullscreen;
         BuildSaveControls();
         if (closeButton != null)
         {
             resolutionToggles = ResolutionSettingsControls.Build(
                 closeButton.transform.parent, saveLabel, SelectResolution);
+            fullscreenToggle = ResolutionSettingsControls.BuildFullscreen(
+                closeButton.transform.parent, saveLabel, SelectFullscreen);
         }
         Refresh();
     }
@@ -95,7 +101,7 @@ public class GameSettingsUI : MonoBehaviour
         saveStatus.rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
         saveStatus.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
         saveStatus.rectTransform.pivot = new Vector2(0.5f, 0.5f);
-        saveStatus.rectTransform.anchoredPosition = new Vector2(0, -180);
+        saveStatus.rectTransform.anchoredPosition = new Vector2(0, -214);
         saveStatus.rectTransform.sizeDelta = new Vector2(600, 22);
         saveStatus.enableAutoSizing = true;
         saveStatus.fontSizeMin = 14;
@@ -111,17 +117,18 @@ public class GameSettingsUI : MonoBehaviour
         var rect = (RectTransform)button.transform;
         rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
         rect.pivot = new Vector2(0.5f, 0.5f);
-        rect.anchoredPosition = new Vector2(x, -242);
+        rect.anchoredPosition = new Vector2(x, -276);
         rect.sizeDelta = new Vector2(220, 52);
     }
 
     public async void SaveAudio()
     {
         if (AudioVolumeSettings.IsSaving) return;
-        if (selectedResolution != WindowResolutionSettings.SavedIndex)
+        if (selectedResolution != WindowResolutionSettings.SavedIndex
+            || selectedFullscreen != WindowResolutionSettings.SavedFullscreen)
         {
-            WindowResolutionSettings.Save(selectedResolution);
-            resolutionStatus = "Đã lưu độ phân giải trên máy.";
+            WindowResolutionSettings.Save(selectedResolution, selectedFullscreen);
+            resolutionStatus = "Đã lưu cài đặt hiển thị trên máy.";
         }
         await AudioVolumeSettings.SaveAsync();
         if (this != null) Refresh();
@@ -135,17 +142,35 @@ public class GameSettingsUI : MonoBehaviour
         Refresh();
     }
 
+    private void SelectFullscreen(bool fullscreen)
+    {
+        selectedFullscreen = fullscreen;
+        resolutionStatus = null;
+        UIClickManager.Instance?.PlayClick();
+        Refresh();
+    }
+
+    /// <summary>Rebases only fullscreen after F11, preserving other modal drafts.</summary>
+    private void SyncFullscreen()
+    {
+        selectedFullscreen = WindowResolutionSettings.SavedFullscreen;
+        resolutionStatus = "Đã lưu cài đặt hiển thị trên máy.";
+        Refresh();
+    }
 
     private void OnEnable()
     {
         InitializeControls();
+        selectedFullscreen = WindowResolutionSettings.SavedFullscreen;
         AudioVolumeSettings.Changed += Refresh;
+        WindowResolutionSettings.FullscreenChanged += SyncFullscreen;
         Refresh();
     }
 
     private void OnDisable()
     {
         AudioVolumeSettings.Changed -= Refresh;
+        WindowResolutionSettings.FullscreenChanged -= SyncFullscreen;
     }
 
     #endregion
@@ -159,6 +184,7 @@ public class GameSettingsUI : MonoBehaviour
         {
             previewCheckpoint = AudioVolumeSettings.CapturePreview();
             selectedResolution = WindowResolutionSettings.SavedIndex;
+            selectedFullscreen = WindowResolutionSettings.SavedFullscreen;
             resolutionStatus = null;
         }
         Refresh();
@@ -176,6 +202,7 @@ public class GameSettingsUI : MonoBehaviour
         AudioVolumeSettings.RestorePreview(previewCheckpoint);
         previewCheckpoint = null;
         selectedResolution = WindowResolutionSettings.SavedIndex;
+        selectedFullscreen = WindowResolutionSettings.SavedFullscreen;
         resolutionStatus = null;
         settingsPanel.SetActive(false);
         if (menuGroup != null)
@@ -210,14 +237,20 @@ public class GameSettingsUI : MonoBehaviour
     private void Refresh()
     {
         bool resolutionChanged =
-            selectedResolution != WindowResolutionSettings.SavedIndex;
+            selectedResolution != WindowResolutionSettings.SavedIndex
+            || selectedFullscreen != WindowResolutionSettings.SavedFullscreen;
+        if (fullscreenToggle != null)
+        {
+            fullscreenToggle.SetIsOnWithoutNotify(selectedFullscreen);
+            fullscreenToggle.interactable = !AudioVolumeSettings.IsSaving;
+        }
         if (resolutionToggles != null)
         {
             for (int i = 0; i < resolutionToggles.Length; i++)
             {
                 resolutionToggles[i].SetIsOnWithoutNotify(i == selectedResolution);
                 resolutionToggles[i].interactable = !AudioVolumeSettings.IsSaving
-                    && WindowResolutionSettings.FitsDisplay(i);
+                    && (selectedFullscreen || WindowResolutionSettings.FitsDisplay(i));
             }
         }
         if (closeButton != null)

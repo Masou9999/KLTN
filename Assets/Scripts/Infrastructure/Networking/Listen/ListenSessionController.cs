@@ -19,6 +19,9 @@ public sealed class ListenSessionController : MonoBehaviour
     [SerializeField]
     private TMP_Text statusLabel;
 
+    [SerializeField]
+    private KLTN.UI.HostClientMenuView menuView;
+
     #endregion
 
     #region Runtime State
@@ -49,8 +52,11 @@ public sealed class ListenSessionController : MonoBehaviour
 
     public async void Host()
     {
-        if (connecting || leaving || loadingGameScene || MatchConnectionController.IsLeaving) return;
+        if (connecting || leaving || loadingGameScene
+            || MatchConnectionController.IsLeaving) return;
         connecting = true;
+        menuView?.SetBusy(true);
+        menuView?.HideRoomCode();
         try
         {
             SetStatus("Đang tạo phòng...");
@@ -61,41 +67,62 @@ public sealed class ListenSessionController : MonoBehaviour
 
             if (joinCodeLabel != null)
             {
-                joinCodeLabel.text = joinCode;
+                joinCodeLabel.readOnly = true;
+                joinCodeLabel.SetTextWithoutNotify(joinCode);
             }
-
+            menuView?.ShowRoomCode(joinCode);
             SetStatus("Đã tạo phòng. Đang chờ người chơi thứ hai.");
         }
         catch (Exception exception)
         {
             Debug.LogException(exception);
-            SetStatus($"Không thể tạo phòng: {exception.Message}");
+            if (this != null && !leaving)
+                SetStatus("Không thể tạo phòng. Vui lòng thử lại.");
         }
-        finally { connecting = false; }
+        finally
+        {
+            connecting = false;
+            if (this != null) menuView?.SetBusy(false);
+        }
     }
 
     public async void Join()
     {
-        if (connecting || leaving || loadingGameScene || MatchConnectionController.IsLeaving) return;
+        if (connecting || leaving || loadingGameScene
+            || MatchConnectionController.IsLeaving) return;
+        string joinCode = joinCodeInput?.text?.Trim();
+        if (string.IsNullOrWhiteSpace(joinCode))
+        {
+            SetStatus("Vui lòng nhập mã phòng.");
+            return;
+        }
         connecting = true;
+        bool joined = false;
+        menuView?.SetBusy(true);
+        menuView?.HideRoomCode();
         try
         {
-            string joinCode = joinCodeInput?.text;
             SetStatus("Đang tham gia phòng...");
             await UgsSessionService.Instance.JoinByCodeAsync(joinCode);
-
             if (leaving || MatchConnectionController.IsLeaving) return;
-            // The guest can rejoin the same room with this code after a lost connection.
+            // Preserve the code for the existing reconnect flow.
             MatchConnectionController.RememberListenGuest(joinCode);
+            joined = true;
             if (this == null) return;
             SetStatus("Đã tham gia. Chờ host bắt đầu.");
         }
         catch (Exception exception)
         {
             Debug.LogException(exception);
-            SetStatus($"Không thể tham gia: {exception.Message}");
+            if (this != null && !leaving)
+                SetStatus("Không thể tham gia. Kiểm tra mã phòng và kết nối rồi thử lại.");
         }
-        finally { connecting = false; }
+        finally
+        {
+            connecting = false;
+            // A joined guest must not start another operation while scene sync is pending.
+            if (this != null) menuView?.SetBusy(joined);
+        }
     }
 
     public async void Leave()
@@ -169,6 +196,7 @@ public sealed class ListenSessionController : MonoBehaviour
         }
 
         leaving = true;
+        menuView?.SetLeaving(true);
         NetworkManager networkManager = NetworkManager.Singleton;
         bool needsCleanup = connecting
             || loadingGameScene
@@ -190,6 +218,7 @@ public sealed class ListenSessionController : MonoBehaviour
         if (this != null && !completed)
         {
             leaving = false;
+            menuView?.SetLeaving(false);
             SetStatus("Chưa thể rời phòng. Vui lòng thử lại.");
         }
     }
