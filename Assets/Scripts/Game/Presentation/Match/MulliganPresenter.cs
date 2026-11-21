@@ -4,6 +4,7 @@ using KLTN.Game.Content;
 using KLTN.Game.Networking;
 using KLTN.Game.Presentation;
 using TMPro;
+using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.UI;
 using DG.Tweening;
@@ -77,11 +78,72 @@ public class MulliganPresenter : MonoBehaviour
         DestroyMulliganCardObjects();
     }
 
+    private void Update()
+    {
+        CheckAutoConfirmOnTimerExpiry();
+    }
+
     private void LateUpdate()
     {
         if (hideRealHandCards)
         {
             ApplyHandCardsAlpha(false);
+        }
+    }
+
+    private void CheckAutoConfirmOnTimerExpiry()
+    {
+        if (hasConfirmed || isAnimating || cardsContainer == null || cardsContainer.childCount == 0)
+        {
+            return;
+        }
+
+        MatchTurnClockDto clock = MatchTurnClockRegistry.Current;
+        if (clock == null || clock.paused || clock.self == null || clock.self.awaitingPresentation)
+        {
+            return;
+        }
+
+        double now =
+            NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening
+                ? NetworkManager.Singleton.LocalTime.Time
+                : clock.serverNow;
+
+        // Auto-confirm slightly before the server's +0.3s NetworkToleranceSeconds expires
+        // so any cards the player already selected are replaced and animated to Hand.
+        if (now >= clock.self.deadline - 0.05)
+        {
+            OnConfirmClicked();
+        }
+    }
+
+    private void LockCardsOnServerTimeout()
+    {
+        hasConfirmed = true;
+        if (replacedSlotPositions.Count == 0)
+        {
+            hasSpawnedNewCards = true;
+        }
+        isReturningToDeck = false;
+
+        if (cardsContainer != null)
+        {
+            foreach (Transform child in cardsContainer)
+            {
+                MulliganCardToggle toggle = child.GetComponent<MulliganCardToggle>();
+                if (toggle != null)
+                {
+                    toggle.LockAndClearOverlay();
+                    Destroy(toggle);
+                }
+            }
+        }
+
+        if (actionButtonText != null) actionButtonText.text = "ĐANG CHỜ...";
+        if (actionButton != null)
+        {
+            actionButton.onClick.RemoveListener(OnConfirmClicked);
+            actionButton.interactable = false;
         }
     }
 
@@ -116,29 +178,7 @@ public class MulliganPresenter : MonoBehaviour
             && snapshot.turnClock.self == null
         )
         {
-            hasConfirmed = true;
-            hasSpawnedNewCards = true;
-            isReturningToDeck = false;
-
-            if (cardsContainer != null)
-            {
-                foreach (Transform child in cardsContainer)
-                {
-                    MulliganCardToggle toggle = child.GetComponent<MulliganCardToggle>();
-                    if (toggle != null)
-                    {
-                        toggle.LockAndClearOverlay();
-                        Destroy(toggle);
-                    }
-                }
-            }
-
-            if (actionButtonText != null) actionButtonText.text = "ĐANG CHỜ...";
-            if (actionButton != null)
-            {
-                actionButton.onClick.RemoveListener(OnConfirmClicked);
-                actionButton.interactable = false;
-            }
+            LockCardsOnServerTimeout();
             return;
         }
 
@@ -186,6 +226,11 @@ public class MulliganPresenter : MonoBehaviour
 
         if (snapshot.roundNumber > 0)
         {
+            if (!hasConfirmed)
+            {
+                LockCardsOnServerTimeout();
+            }
+
             if (actionButton != null)
             {
                 actionButton.onClick.RemoveListener(OnConfirmClicked);
@@ -529,7 +574,10 @@ public class MulliganPresenter : MonoBehaviour
         isAnimating = false;
     }
 
-    private IEnumerator WaitBothConfirmedAndMoveToHandRoutine(float swapWaitDuration)
+    private IEnumerator WaitBothConfirmedAndMoveToHandRoutine(
+        float swapWaitDuration,
+        bool includeViewAfterSwapDelay = true
+    )
     {
         if (hasMovedToHand || isTransitioningToMatch) yield break;
         isTransitioningToMatch = true;
@@ -543,12 +591,18 @@ public class MulliganPresenter : MonoBehaviour
 
         float elapsedSwapTime = Time.time - confirmedAtTime;
         float remainingSwapWait = Mathf.Max(0f, swapWaitDuration - elapsedSwapTime);
+        float extraViewDelay = includeViewAfterSwapDelay ? viewAfterSwapDelay : 0f;
+        float totalWait = remainingSwapWait + extraViewDelay;
 
-        yield return new WaitForSeconds(remainingSwapWait + viewAfterSwapDelay);
+        if (totalWait > 0f)
+        {
+            yield return new WaitForSeconds(totalWait);
+        }
 
         yield return StartCoroutine(AnimateCardsToHandRoutine());
 
         SetRealHandVisibility(true);
+        SetTopBarVisibility(true);
         DestroyMulliganCardObjects();
 
         hasMovedToHand = true;
@@ -558,14 +612,20 @@ public class MulliganPresenter : MonoBehaviour
 
     private IEnumerator WaitAndCloseMulliganRoutine(MatchSnapshotDto snapshot)
     {
+        bool spawnedReplacementsNow = false;
         if (hasConfirmed && !hasSpawnedNewCards)
         {
             List<CardViewDto> newCardsData = ExtractNewCardsFromSnapshot(snapshot);
+            hasSpawnedNewCards = true;
             if (newCardsData.Count > 0)
             {
-                hasSpawnedNewCards = true;
+                spawnedReplacementsNow = true;
                 yield return StartCoroutine(SpawnNewCardsFromDeckRoutine(newCardsData));
             }
+        }
+        else
+        {
+            hasSpawnedNewCards = true;
         }
 
         while (isReturningToDeck || isAnimating || isTransitioningToMatch)
@@ -575,10 +635,13 @@ public class MulliganPresenter : MonoBehaviour
 
         if (!hasMovedToHand)
         {
-            yield return StartCoroutine(WaitBothConfirmedAndMoveToHandRoutine(0f));
+            yield return StartCoroutine(
+                WaitBothConfirmedAndMoveToHandRoutine(0f, spawnedReplacementsNow)
+            );
         }
 
         SetRealHandVisibility(true);
+        SetTopBarVisibility(true);
         if (gameObject.activeInHierarchy) gameObject.SetActive(false);
         ClearViews();
     }
@@ -608,6 +671,13 @@ public class MulliganPresenter : MonoBehaviour
         List<Transform> handCardSlots = new List<Transform>();
         if (handContainer != null)
         {
+            RectTransform handRect = handContainer as RectTransform;
+            if (handRect != null)
+            {
+                Canvas.ForceUpdateCanvases();
+                LayoutRebuilder.ForceRebuildLayoutImmediate(handRect);
+            }
+
             foreach (Transform child in handContainer)
             {
                 if (child != null && child.gameObject.activeSelf && child.GetComponent<NetworkCardVisual>() != null)
@@ -625,7 +695,28 @@ public class MulliganPresenter : MonoBehaviour
             if (cardRect == null) continue;
 
             Vector3 targetWorldPos = cardRect.position;
-            if (i < handCardSlots.Count)
+            Transform matchedHandSlot = null;
+
+            NetworkCardVisual mulliganVisual = cardRect.GetComponent<NetworkCardVisual>();
+            string instanceId = mulliganVisual != null ? mulliganVisual.InstanceId : null;
+            if (!string.IsNullOrEmpty(instanceId))
+            {
+                for (int j = 0; j < handCardSlots.Count; j++)
+                {
+                    NetworkCardVisual handVisual = handCardSlots[j].GetComponent<NetworkCardVisual>();
+                    if (handVisual != null && handVisual.InstanceId == instanceId)
+                    {
+                        matchedHandSlot = handCardSlots[j];
+                        break;
+                    }
+                }
+            }
+
+            if (matchedHandSlot != null)
+            {
+                targetWorldPos = matchedHandSlot.position;
+            }
+            else if (i < handCardSlots.Count)
             {
                 targetWorldPos = handCardSlots[i].position;
             }
