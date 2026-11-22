@@ -26,6 +26,7 @@ namespace KLTN.Game.Presentation
 
         private IEnumerator PlayCardDeath(NetworkCardVisual target, string instanceId)
         {
+            boardPresenter?.NotifyFlameDeparture(instanceId, true);
             if (target == null) yield break;
             CardDeathFeedback death = target.GetComponent<CardDeathFeedback>();
             MaDaDeathProfile water = ResolveWaterDeath(target.DefinitionId);

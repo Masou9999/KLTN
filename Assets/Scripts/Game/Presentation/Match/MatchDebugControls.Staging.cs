@@ -232,6 +232,13 @@ namespace KLTN.Game.Presentation
             return true;
         }
 
+        /// <summary>Returns local draft occupancy without exposing mutable draft arrays.</summary>
+        public NetworkCardVisual GetPendingBoardVisual(int slotIndex)
+        {
+            return slotIndex >= 0 && slotIndex < pendingBoardCards.Length
+                ? pendingBoardCards[slotIndex]?.Visual : null;
+        }
+
         public void ClearPendingSelection()
         {
             RestorePendingVisuals();

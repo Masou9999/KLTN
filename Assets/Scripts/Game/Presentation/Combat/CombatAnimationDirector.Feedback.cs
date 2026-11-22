@@ -132,6 +132,8 @@ namespace KLTN.Game.Presentation
 
             string instanceId = card.cardBefore.instanceId;
 
+            boardPresenter.NotifyFlameDeparture(instanceId, true);
+
             if (pendingDeathsById.ContainsKey(instanceId))
             {
                 return;

@@ -98,6 +98,9 @@ namespace KLTN.Game.Presentation
                 yield break;
             }
 
+            foreach (ResolvedCardDto survivor in survivingCards)
+                boardPresenter.NotifyFlameDeparture(survivor.cardBefore.instanceId, false);
+
             yield return boardPresenter.AnimateCombatSurvivorsReturnToReserve(
                 survivingCards,
                 viewerSeat,

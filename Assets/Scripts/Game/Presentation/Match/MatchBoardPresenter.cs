@@ -14,7 +14,7 @@ namespace KLTN.Game.Presentation
     /// Rebuilds local card views from filtered snapshots and temporarily preserves combat
     /// participants so presentation can finish after the domain has changed zones.
     /// </summary>
-    public sealed class MatchBoardPresenter : MonoBehaviour
+    public sealed partial class MatchBoardPresenter : MonoBehaviour
     {
         #region Serialized Fields
 
@@ -189,6 +189,7 @@ namespace KLTN.Game.Presentation
 
         private void OnDisable()
         {
+            ClearFlames();
             if (projection != null)
             {
                 projection.SnapshotChanged -= Render;
@@ -211,6 +212,8 @@ namespace KLTN.Game.Presentation
 
         private void Render(MatchSnapshotDto snapshot)
         {
+            ResetFlameBoardState();
+            if (snapshot == null) ClearFlames();
             CaptureSelectionSourceStartState(snapshot);
             CaptureCurrentReserveVisualIds(snapshot);
             ClearViews();
@@ -972,6 +975,7 @@ namespace KLTN.Game.Presentation
 
                 PrepareResolvedCard(step.guestCard, step.slotIndex, viewerSeat);
             }
+            PrepareFlameCombat(resolution, viewerSeat);
         }
 
         public bool TryGetFaceUpVisual(string instanceId, out NetworkCardVisual view)

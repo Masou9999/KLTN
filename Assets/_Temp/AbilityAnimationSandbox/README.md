@@ -1,5 +1,28 @@
 # Ability Animation Sandbox (temporary, Editor only)
 
+## Quỷ Cẩu adjacent Support flames
+
+Production loads `Assets/Resources/VFX/QuyCauFlame.asset` automatically. The original
+4 x 6 atlas uses frames 1–4 for intro, 5–16 for the loop, and 17–24 for outro at
+110 ms/frame. A single shared looping SFX source respects the SFX volume setting.
+The marker indicates the adjacent right slot, including local draft placement;
+it neither applies nor revokes the existing round-long Support stat modifier.
+
+`KLTN.Sandbox.QuyCauFlameValidationRunner.RunBatch` is a separate batch Play Mode
+entry (without `-quit`). It constructs an unsaved isolated scene with the real
+card prefab, draft controls, board presenter and combat animator. It does not
+overwrite GameScene or this sandbox. Results: `Logs/QuyCauFlame/result.txt`;
+capture: `Logs/QuyCauFlame/flame-board.png`. It checks slot/card anchors, sorting,
+snapshot rebuild, intro/outro, spam, both sides, combat/ability death hooks,
+survivor return, shared audio and reset. It is not a two-client network test.
+
+2026-11-22: runtime/Editor .NET compilation passed against the local Unity
+references (two existing CS0649 warnings in MatchServerModuleClient). Standalone
+playback tests passed 52,229 assertions including 50,000 random toggles; asset
+validation passed. Unity Play Mode execution was attempted but blocked before
+import by missing Editor license (exit 198). The Play Mode fixture and human
+visual/audio review have **not** passed yet.
+
 ## Ma Co and Linh Mieu shared resurrection
 
 Both cards are available in the count editor without rebuilding the scene.
