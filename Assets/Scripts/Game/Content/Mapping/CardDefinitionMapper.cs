@@ -50,7 +50,8 @@ namespace KLTN.Game.Content
                 abilities,
                 cardAsset.rulesText,
                 CreatePassiveRules(cardAsset.passiveRules),
-                cardAsset.maximumCopiesPerDeck
+                cardAsset.maximumCopiesPerDeck,
+                cardAsset.drawCostOverride
             );
         }
 

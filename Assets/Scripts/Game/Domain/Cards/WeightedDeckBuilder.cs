@@ -6,7 +6,10 @@ namespace KLTN.Game.Domain
     /// <summary>
     /// Builds a legal deck from the cards a player owns. Weaker cards get a larger
     /// weight, so they receive more copies than stronger cards. Every owned card gets
-    /// at least one copy. The result is grouped by card; MatchFactory shuffles it.
+    /// at least one copy. Leftover copies go to the cards furthest below their quota;
+    /// ties go to the higher weight, then the lower power score, then the card ID, so the
+    /// result never depends on how a card happens to be named unless everything else ties.
+    /// The result is grouped by card; draws pick from it through CardDrawPolicy.
     /// </summary>
     public static class WeightedDeckBuilder
     {
@@ -16,7 +19,8 @@ namespace KLTN.Game.Domain
             IReadOnlyList<CardDefinition> ownedCards,
             Func<string, int> weightOf,
             int deckSize = DeckRules.RequiredCardCount,
-            int maximumCopiesPerCard = DefaultMaximumCopiesPerCard
+            int maximumCopiesPerCard = DefaultMaximumCopiesPerCard,
+            Func<string, float> powerOf = null
         )
         {
             if (ownedCards == null || ownedCards.Count == 0)
@@ -37,7 +41,12 @@ namespace KLTN.Game.Domain
                 throw new ArgumentOutOfRangeException(nameof(maximumCopiesPerCard));
             }
 
-            List<Entry> entries = CreateEntries(ownedCards, weightOf, maximumCopiesPerCard);
+            List<Entry> entries = CreateEntries(
+                ownedCards,
+                weightOf,
+                powerOf,
+                maximumCopiesPerCard
+            );
 
             if (entries.Count > deckSize)
             {
@@ -89,6 +98,7 @@ namespace KLTN.Game.Domain
         {
             public CardDefinition Definition;
             public int Weight;
+            public float Power;
             public int Limit;
             public double Quota;
             public int Copies;
@@ -97,6 +107,7 @@ namespace KLTN.Game.Domain
         private static List<Entry> CreateEntries(
             IReadOnlyList<CardDefinition> ownedCards,
             Func<string, int> weightOf,
+            Func<string, float> powerOf,
             int maximumCopiesPerCard
         )
         {
@@ -127,6 +138,7 @@ namespace KLTN.Game.Domain
                     {
                         Definition = definition,
                         Weight = Math.Max(1, weightOf(definition.Id)),
+                        Power = powerOf?.Invoke(definition.Id) ?? 0f,
                         Limit = limit,
                     }
                 );
@@ -167,7 +179,7 @@ namespace KLTN.Game.Domain
             }
 
             // Largest remainder: give extra copies to the cards furthest below quota.
-            // Ties favour the higher weight (weaker card).
+            // Ties favour the higher weight, then the lower power score (weaker card).
             while (total < deckSize)
             {
                 Entry best = null;
@@ -190,7 +202,7 @@ namespace KLTN.Game.Domain
             }
 
             // Remove copies from cards furthest above quota.
-            // Ties remove from the lower weight (stronger card).
+            // Ties remove from the lower weight, then the higher power score (stronger card).
             while (total > deckSize)
             {
                 Entry best = null;
@@ -222,7 +234,14 @@ namespace KLTN.Game.Domain
                 return deficit;
             }
 
-            return left.Weight.CompareTo(right.Weight);
+            int weight = left.Weight.CompareTo(right.Weight);
+
+            if (weight != 0)
+            {
+                return weight;
+            }
+
+            return right.Power.CompareTo(left.Power);
         }
 
         private static int CompareForRemove(Entry left, Entry right)
@@ -234,7 +253,14 @@ namespace KLTN.Game.Domain
                 return excess;
             }
 
-            return right.Weight.CompareTo(left.Weight);
+            int weight = right.Weight.CompareTo(left.Weight);
+
+            if (weight != 0)
+            {
+                return weight;
+            }
+
+            return left.Power.CompareTo(right.Power);
         }
 
         private static int Clamp(int value, int minimum, int maximum)

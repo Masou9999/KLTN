@@ -59,12 +59,13 @@ namespace KLTN.Game.Domain
             state.Host.ReturnBoardCardsToReserve();
             state.Guest.ReturnBoardCardsToReserve();
 
-            state.Host.DrawOne();
-            state.Guest.DrawOne();
-
+            // Tăng mana trước khi rút: lọc rút bài dùng max mana của vòng mới.
             state.Host.AdvanceAndRefillMana(MaximumMana);
 
             state.Guest.AdvanceAndRefillMana(MaximumMana);
+
+            state.Host.DrawOne();
+            state.Guest.DrawOne();
 
             state.AttackTokenOwner = state.AttackTokenOwner.Opponent();
 

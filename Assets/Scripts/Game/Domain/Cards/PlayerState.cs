@@ -37,11 +37,33 @@ namespace KLTN.Game.Domain
 
         #endregion
 
+        #region Draw Configuration
+
+        // Null until ConfigureDraws: DrawOne then takes the last deck card (test fixtures).
+        private IRandomSource drawRandom;
+        private Func<string, CardDefinition> drawDefinitionOf;
+
+        #endregion
+
         #region Construction
 
         public PlayerState(SeatId seat)
         {
             Seat = seat;
+        }
+
+        /// <summary>
+        /// Enables mana-gated random draws through <see cref="CardDrawPolicy"/>. Each seat
+        /// owns its own random source so one player's draws never shift the other's.
+        /// </summary>
+        public void ConfigureDraws(
+            IRandomSource random,
+            Func<string, CardDefinition> definitionOf
+        )
+        {
+            drawRandom = random ?? throw new ArgumentNullException(nameof(random));
+            drawDefinitionOf =
+                definitionOf ?? throw new ArgumentNullException(nameof(definitionOf));
         }
 
         #endregion
@@ -498,6 +520,12 @@ namespace KLTN.Game.Domain
             }
         }
 
+        /// <summary>
+        /// Moves one deck card to DrawHand. Once draws are configured the card is chosen by
+        /// <see cref="CardDrawPolicy"/> against the current <see cref="MaxMana"/>; otherwise
+        /// the last deck card is taken.
+        /// </summary>
+        /// <returns>False when the deck is empty.</returns>
         public bool DrawOne()
         {
             if (Deck.Count == 0)
@@ -505,10 +533,12 @@ namespace KLTN.Game.Domain
                 return false;
             }
 
-            int topIndex = Deck.Count - 1;
-            CardInstance card = Deck[topIndex];
+            int index = drawRandom == null
+                ? Deck.Count - 1
+                : CardDrawPolicy.PickIndex(Deck, MaxMana, drawDefinitionOf, drawRandom);
+            CardInstance card = Deck[index];
 
-            Deck.RemoveAt(topIndex);
+            Deck.RemoveAt(index);
             card.MoveTo(CardZone.DrawHand);
             DrawHand.Add(card);
 
@@ -589,16 +619,19 @@ namespace KLTN.Game.Domain
         #region Mulligan Logic
 
         /// <summary>
-        /// Replaces selected opening cards atomically: selected instances leave the draw
-        /// pool, replacements are drawn, then returned instances are shuffled back.
+        /// Replaces selected opening cards: selected instances leave the draw pool,
+        /// replacements are drawn with the normal draw rules, then the returned instances
+        /// go back into the deck. A replacement can only be a returned card when the deck
+        /// had too few other cards. Each replacement takes the hand slot of the card it
+        /// replaced, so the Mulligan presentation can fly it back to the same position.
         /// </summary>
-        public void PerformMulligan(ulong[] cardIdsToReplace, Random rng)
+        public void PerformMulligan(ulong[] cardIdsToReplace)
         {
             if (cardIdsToReplace == null || cardIdsToReplace.Length == 0)
                 return;
 
             var replacedIndices = new List<int>(cardIdsToReplace.Length);
-            var returnedCards = new List<CardInstance>(cardIdsToReplace.Length);
+            var returned = new List<CardInstance>(cardIdsToReplace.Length);
 
             for (int i = 0; i < DrawHand.Count; i++)
             {
@@ -613,66 +646,48 @@ namespace KLTN.Game.Domain
                 }
 
                 replacedIndices.Add(i);
-                returnedCards.Add(DrawHand[i]);
+                returned.Add(DrawHand[i]);
             }
 
-            if (replacedIndices.Count == 0)
+            if (returned.Count == 0)
             {
                 return;
             }
 
-            ShuffleDeck(rng);
-
-            bool returnedToDeckEarly = false;
-            for (int i = 0; i < replacedIndices.Count; i++)
+            // Gỡ từ cuối lên để các chỉ số đã ghi vẫn đúng.
+            for (int i = replacedIndices.Count - 1; i >= 0; i--)
             {
-                if (Deck.Count == 0 && !returnedToDeckEarly)
-                {
-                    for (int j = 0; j < returnedCards.Count; j++)
-                    {
-                        CardInstance returnedCard = returnedCards[j];
-                        returnedCard.MoveTo(CardZone.Deck);
-                        Deck.Add(returnedCard);
-                    }
-                    returnedToDeckEarly = true;
-                    ShuffleDeck(rng);
-                }
-
-                if (Deck.Count == 0)
-                {
-                    break;
-                }
-
-                int handSlotIndex = replacedIndices[i];
-                CardInstance replacementCard = Deck[0];
-                Deck.RemoveAt(0);
-                replacementCard.MoveTo(CardZone.DrawHand);
-                DrawHand[handSlotIndex] = replacementCard;
+                DrawHand.RemoveAt(replacedIndices[i]);
             }
 
-            if (!returnedToDeckEarly)
-            {
-                for (int i = 0; i < returnedCards.Count; i++)
-                {
-                    CardInstance returnedCard = returnedCards[i];
-                    returnedCard.MoveTo(CardZone.Deck);
-                    Deck.Add(returnedCard);
-                }
+            int keptCount = DrawHand.Count;
+            int drawn = 0;
 
-                ShuffleDeck(rng);
+            while (drawn < returned.Count && DrawOne())
+            {
+                drawn++;
             }
-        }
 
-        private void ShuffleDeck(Random rng)
-        {
-            int n = Deck.Count;
-            while (n > 1)
+            // Thứ tự trả về cố định (theo thứ tự trên tay) để cùng seed cho cùng kết quả.
+            for (int i = 0; i < returned.Count; i++)
             {
-                n--;
-                int k = rng.Next(n + 1);
-                CardInstance value = Deck[k];
-                Deck[k] = Deck[n];
-                Deck[n] = value;
+                returned[i].MoveTo(CardZone.Deck);
+                Deck.Add(returned[i]);
+            }
+
+            while (drawn < returned.Count && DrawOne())
+            {
+                drawn++;
+            }
+
+            // DrawOne nối bài mới vào cuối; đưa từng lá về đúng ô của lá đã đổi.
+            var replacements = DrawHand.GetRange(keptCount, drawn);
+            DrawHand.RemoveRange(keptCount, drawn);
+
+            for (int i = 0; i < replacements.Count; i++)
+            {
+                int slot = Math.Min(replacedIndices[i], DrawHand.Count);
+                DrawHand.Insert(slot, replacements[i]);
             }
         }
 

@@ -23,13 +23,26 @@ namespace KLTN.Game.Domain
         }
     }
 
+    /// <summary>
+    /// Creates a match from two legal decks. Decks are not shuffled: every draw (opening
+    /// hand, mulligan, round draw, draw effects) picks a random eligible card through
+    /// <see cref="CardDrawPolicy"/> using that seat's own random source.
+    /// </summary>
     public sealed class MatchFactory
     {
-        private readonly IRandomSource random;
+        private readonly IRandomSource hostDrawRandom;
+        private readonly IRandomSource guestDrawRandom;
 
+        /// <summary>Both seats draw from one shared random source (tests and sandboxes).</summary>
         public MatchFactory(IRandomSource random)
+            : this(random, random) { }
+
+        public MatchFactory(IRandomSource hostDrawRandom, IRandomSource guestDrawRandom)
         {
-            this.random = random ?? throw new ArgumentNullException(nameof(random));
+            this.hostDrawRandom =
+                hostDrawRandom ?? throw new ArgumentNullException(nameof(hostDrawRandom));
+            this.guestDrawRandom =
+                guestDrawRandom ?? throw new ArgumentNullException(nameof(guestDrawRandom));
         }
 
         public MatchState Create(
@@ -61,8 +74,13 @@ namespace KLTN.Game.Domain
 
             state.EnsureNextCardInstanceIdAtLeast(nextInstanceId);
 
-            Shuffle(state.Host.Deck);
-            Shuffle(state.Guest.Deck);
+            Func<string, CardDefinition> definitionOf = CreateLookup(
+                hostDeckDefinitions,
+                guestDeckDefinitions
+            );
+
+            state.Host.ConfigureDraws(hostDrawRandom, definitionOf);
+            state.Guest.ConfigureDraws(guestDrawRandom, definitionOf);
 
             DrawCards(state.Host, openingHandSize);
             DrawCards(state.Guest, openingHandSize);
@@ -90,17 +108,24 @@ namespace KLTN.Game.Domain
             }
         }
 
-        private void Shuffle(List<CardInstance> cards)
+        private static Func<string, CardDefinition> CreateLookup(
+            IReadOnlyList<CardDefinition> hostDeck,
+            IReadOnlyList<CardDefinition> guestDeck
+        )
         {
-            for (int i = cards.Count - 1; i > 0; i--)
+            var byId = new Dictionary<string, CardDefinition>(StringComparer.Ordinal);
+
+            foreach (CardDefinition definition in hostDeck)
             {
-                int otherIndex = random.Next(0, i + 1);
-
-                CardInstance temporary = cards[i];
-
-                cards[i] = cards[otherIndex];
-                cards[otherIndex] = temporary;
+                byId[definition.Id] = definition;
             }
+
+            foreach (CardDefinition definition in guestDeck)
+            {
+                byId[definition.Id] = definition;
+            }
+
+            return id => byId.TryGetValue(id, out CardDefinition found) ? found : null;
         }
 
         private static void DrawCards(PlayerState player, int amount)

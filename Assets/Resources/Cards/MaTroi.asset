@@ -28,3 +28,4 @@ MonoBehaviour:
     joinsAttackFromGraveyard: 0
     requiresEphemeralAttacker: 0
   maximumCopiesPerDeck: 0
+  drawCostOverride: 5

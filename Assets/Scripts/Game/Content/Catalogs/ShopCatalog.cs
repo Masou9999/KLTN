@@ -100,6 +100,15 @@ namespace KLTN.Game.Content
                 : CardTierWeights.Of(CardTier.Mid);
         }
 
+        /// <summary>
+        /// Power score used by WeightedDeckBuilder to break copy ties (weaker card first).
+        /// Unknown cards count as the strongest, so they never win a tie.
+        /// </summary>
+        public float PowerOf(string cardId)
+        {
+            return TryGet(cardId, out ShopEntry entry) ? entry.PowerScore : float.MaxValue;
+        }
+
 #if UNITY_EDITOR
         public void ReplaceEntries(List<ShopCatalogEntry> newEntries)
         {

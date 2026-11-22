@@ -20,6 +20,17 @@ namespace KLTN.Game.Domain.Tests
             { "LinhMieu", 1 }, { "MaTranh", 1 }, { "QuyDaXoa", 1 },
         };
 
+        // Power scores from ShopCatalogInstaller.
+        private static readonly Dictionary<string, float> Powers = new Dictionary<string, float>
+        {
+            { "MaDa", 3.6f }, { "MaDoi", 5.2f }, { "MaGa", 6.5f }, { "MaLon", 6.5f },
+            { "QuyMotDo", 6.6f }, { "VongNhi", 7.0f }, { "OngKe", 7.5f }, { "QuyCau", 8.3f },
+            { "MaMatMam", 8.3f }, { "MaLai", 8.6f }, { "ThienLinhCai", 9.0f },
+            { "AmBinh", 10.2f }, { "MaCo", 10.2f }, { "MaCangSung", 12.5f },
+            { "MaTroi", 12.7f }, { "ThanTrung", 13.0f }, { "LinhMieu", 15.0f },
+            { "MaTranh", 20.1f }, { "QuyDaXoa", 34.0f },
+        };
+
         [Test]
         public void Build_StarterSet_Has30CardsAndEveryOwnedCard()
         {
@@ -96,6 +107,29 @@ namespace KLTN.Game.Domain.Tests
         }
 
         [Test]
+        public void Build_StarterTies_GiveExtraCopiesToLowerPowerCards()
+        {
+            Dictionary<string, int> counts = Count(Build(Starter));
+
+            foreach (string id in new[] { "MaDa", "MaDoi", "MaGa", "MaLon", "QuyMotDo", "VongNhi" })
+            {
+                Assert.AreEqual(4, counts[id], id);
+            }
+
+            Assert.AreEqual(3, counts["OngKe"]);
+            Assert.AreEqual(3, counts["QuyCau"]);
+        }
+
+        [Test]
+        public void Build_FullCollection_ExtraMidCopyGoesToWeakestMidCard()
+        {
+            Dictionary<string, int> counts = Count(Build(new List<string>(Weights.Keys)));
+
+            Assert.AreEqual(2, counts["ThienLinhCai"]);
+            Assert.AreEqual(1, counts["MaCangSung"]);
+        }
+
+        [Test]
         public void Build_ThrowsWhenOwnedCardsCannotFillDeck()
         {
             Assert.Throws<InvalidOperationException>(() => Build(new[] { "MaDa", "MaGa" }));
@@ -112,7 +146,11 @@ namespace KLTN.Game.Domain.Tests
                 );
             }
 
-            return WeightedDeckBuilder.Build(definitions, id => Weights[id]);
+            return WeightedDeckBuilder.Build(
+                definitions,
+                id => Weights[id],
+                powerOf: id => Powers[id]
+            );
         }
 
         private static Dictionary<string, int> Count(IReadOnlyList<CardDefinition> deck)

@@ -19,6 +19,13 @@ namespace KLTN.Game.Domain
 
         public int MaximumCopiesPerDeck { get; }
 
+        /// <summary>
+        /// Cost used only by <see cref="CardDrawPolicy"/> to decide when the card may be
+        /// drawn. Equals <see cref="Cost"/> unless the card overrides it (e.g. a unit that
+        /// becomes cheaper during the match).
+        /// </summary>
+        public int DrawCost { get; }
+
         public UnitKeyword Keywords { get; }
         public IReadOnlyList<AbilityDefinition> Abilities { get; }
 
@@ -40,7 +47,8 @@ namespace KLTN.Game.Domain
             IReadOnlyList<AbilityDefinition> abilities = null,
             string rulesText = "",
             UnitPassiveRules passiveRules = null,
-            int maximumCopiesPerDeck = 0
+            int maximumCopiesPerDeck = 0,
+            int drawCostOverride = 0
         )
         {
             if (string.IsNullOrWhiteSpace(id))
@@ -71,6 +79,17 @@ namespace KLTN.Game.Domain
             }
 
             MaximumCopiesPerDeck = maximumCopiesPerDeck;
+
+            if (drawCostOverride < 0)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(drawCostOverride),
+                    "Draw cost override cannot be negative."
+                );
+            }
+
+            // 0 nghĩa là không ghi đè: lọc rút bài theo mana thật của lá.
+            DrawCost = drawCostOverride > 0 ? drawCostOverride : Cost;
 
             PassiveRules = passiveRules ?? UnitPassiveRules.None;
         }

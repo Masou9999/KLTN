@@ -35,6 +35,13 @@ namespace CMCMProductions
         [Tooltip("0 means no card-specific deck limit.")]
         public int maximumCopiesPerDeck;
 
+        [Min(0)]
+        [Tooltip(
+            "Cost used only to decide when this card may be drawn "
+                + "(drawable when <= max mana + 2). 0 means use energy."
+        )]
+        public int drawCostOverride;
+
         #endregion
 
         #region Types

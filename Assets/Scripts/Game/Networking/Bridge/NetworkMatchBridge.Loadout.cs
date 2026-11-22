@@ -159,7 +159,8 @@ namespace KLTN.Game.Networking
             {
                 IReadOnlyList<CardDefinition> deck = WeightedDeckBuilder.Build(
                     owned,
-                    id => shopCatalog != null ? shopCatalog.WeightOf(id) : 2
+                    id => shopCatalog != null ? shopCatalog.WeightOf(id) : 2,
+                    powerOf: id => shopCatalog != null ? shopCatalog.PowerOf(id) : 0f
                 );
 
                 Debug.Log($"[Loadout] {seat} deck: {Describe(deck)}");

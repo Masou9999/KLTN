@@ -137,7 +137,7 @@ namespace KLTN.Game.Domain
             foreach (ulong id in cardIdsToReplace ?? Array.Empty<ulong>())
                 if (!unique.Add(id) || !player.DrawHand.Exists(card => card.InstanceId == id))
                     return CommandResult.Reject(CommandRejectionReason.CardNotInHand);
-            player.PerformMulligan(cardIdsToReplace, new Random());
+            player.PerformMulligan(cardIdsToReplace);
             if (actor == SeatId.Host) state.HostMulliganDone = true;
             else state.GuestMulliganDone = true;
             return CommandResult.Success();
