@@ -33,6 +33,83 @@ namespace KLTN.Game.Presentation
             Array.Clear(pendingBoardCards, 0, pendingBoardCards.Length);
 
             SetPendingManaCost(0);
+
+            PublishAttackCompanionPreview(Array.Empty<CardViewDto>());
+        }
+
+        /// <summary>
+        /// Predicts which Last Breath companions (Ma Da) will join the drafted attack and
+        /// publishes them by slot. Preview cards are visual only: they never enter
+        /// <see cref="pendingBoardCards"/> or the attack command.
+        /// </summary>
+        private void RefreshAttackCompanionPreview()
+        {
+            MatchSnapshotDto snapshot = projection?.Current;
+            CardViewDto[] companions = snapshot?.self?.attackCompanions;
+
+            if (
+                snapshot == null
+                || !snapshot.viewerCanDeclareAttack
+                || companions == null
+                || companions.Length == 0
+            )
+            {
+                PublishAttackCompanionPreview(Array.Empty<CardViewDto>());
+                return;
+            }
+
+            var occupied = new bool[pendingBoardCards.Length];
+            bool hasEphemeralAttacker = false;
+
+            for (int slot = 0; slot < pendingBoardCards.Length; slot++)
+            {
+                DraggableHandCard card = pendingBoardCards[slot];
+
+                if (card == null || card.Visual == null)
+                {
+                    continue;
+                }
+
+                occupied[slot] = true;
+
+                CardViewDto dto = FindCard(snapshot.self.reserve, card.Visual.InstanceId);
+
+                if (dto != null && ((UnitKeyword)dto.keywords & UnitKeyword.Ephemeral) != 0)
+                {
+                    hasEphemeralAttacker = true;
+                }
+            }
+
+            var requiresEphemeral = new bool[companions.Length];
+
+            for (int i = 0; i < companions.Length; i++)
+            {
+                requiresEphemeral[i] = companions[i] != null
+                    && companions[i].requiresEphemeralAttacker;
+            }
+
+            int[] plan = AttackCompanionPlanner.PlanSlots(
+                requiresEphemeral,
+                occupied,
+                hasEphemeralAttacker
+            );
+
+            var previewBySlot = new CardViewDto[plan.Length];
+
+            for (int slot = 0; slot < plan.Length; slot++)
+            {
+                if (plan[slot] >= 0)
+                {
+                    previewBySlot[slot] = companions[plan[slot]];
+                }
+            }
+
+            PublishAttackCompanionPreview(previewBySlot);
+        }
+
+        private void PublishAttackCompanionPreview(CardViewDto[] previewBySlot)
+        {
+            AttackCompanionPreviewChanged?.Invoke(previewBySlot);
         }
 
         private void ClearPendingBoardStatPreviews()
@@ -50,6 +127,8 @@ namespace KLTN.Game.Presentation
 
         private void ApplyPendingBoardStatPreviews()
         {
+            RefreshAttackCompanionPreview();
+
             MatchSnapshotDto snapshot = projection?.Current;
 
             if (

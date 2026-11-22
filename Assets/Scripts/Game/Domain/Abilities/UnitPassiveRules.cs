@@ -237,14 +237,8 @@ namespace KLTN.Game.Domain
 
             PlayerState player = state.Player(attackerSeat);
 
-            // A death remains eligible even when a spell revives its original instance.
-            // Snapshot the history so each recorded death is considered once per attack.
-            var candidates = new List<DeathRecord>(state.RoundHistory.AllDeaths);
-            candidates.Sort((left, right) =>
-            {
-                int order = left.CardInstanceId.CompareTo(right.CardInstanceId);
-                return order != 0 ? order : left.Sequence.CompareTo(right.Sequence);
-            });
+            IReadOnlyList<DeathRecord> candidates =
+                GetPendingAttackCompanions(state, attackerSeat);
 
             var events = new List<GameEvent>();
 
@@ -261,28 +255,9 @@ namespace KLTN.Game.Domain
                 {
                     DeathRecord death = candidates[candidateIndex++];
 
-                    if (death.Owner != attackerSeat
-                        || state.RoundHistory.HasJoinedAttack(death))
-                    {
-                        continue;
-                    }
-
-                    if (
-                        !definitionsById.TryGetValue(
-                            death.DefinitionId,
-                            out CardDefinition definition
-                        )
-                    )
-                    {
-                        continue;
-                    }
+                    CardDefinition definition = definitionsById[death.DefinitionId];
 
                     UnitPassiveRules rules = definition.PassiveRules;
-
-                    if (!rules.JoinsAttackFromGraveyard)
-                    {
-                        continue;
-                    }
 
                     if (rules.RequiresEphemeralAttacker && !hasEphemeralAttacker)
                     {
@@ -317,6 +292,8 @@ namespace KLTN.Game.Domain
                         definition
                     );
 
+                    candidate.MarkAttackCompanion();
+
                     var joined = AbilityCardState.Capture(candidate, definition);
                     state.Journal.Add(state.RoundNumber, MatchLogCategory.Ability, v =>
                         $"{MatchJournal.Card(joined, v)} hồi sinh từ nghĩa địa để cùng tấn công" +
@@ -336,6 +313,51 @@ namespace KLTN.Game.Domain
             }
 
             return new GameEventBatch(events);
+        }
+
+        /// <summary>
+        /// Lists the unused Last Breath deaths that may join <paramref name="seat"/>'s
+        /// next attack, in the exact order <see cref="JoinAttackFromGraveyard"/> fills
+        /// empty slots. A death stays eligible even after its original card is revived,
+        /// so callers must not infer this list from the graveyard alone.
+        /// </summary>
+        public IReadOnlyList<DeathRecord> GetPendingAttackCompanions(
+            MatchState state,
+            SeatId seat
+        )
+        {
+            if (state == null)
+            {
+                throw new ArgumentNullException(nameof(state));
+            }
+
+            var result = new List<DeathRecord>();
+
+            foreach (DeathRecord death in state.RoundHistory.AllDeaths)
+            {
+                if (
+                    death.Owner != seat
+                    || state.RoundHistory.HasJoinedAttack(death)
+                    || !definitionsById.TryGetValue(
+                        death.DefinitionId,
+                        out CardDefinition definition
+                    )
+                    || !definition.PassiveRules.JoinsAttackFromGraveyard
+                )
+                {
+                    continue;
+                }
+
+                result.Add(death);
+            }
+
+            result.Sort((left, right) =>
+            {
+                int order = left.CardInstanceId.CompareTo(right.CardInstanceId);
+                return order != 0 ? order : left.Sequence.CompareTo(right.Sequence);
+            });
+
+            return result;
         }
 
         #endregion

@@ -27,6 +27,13 @@ namespace KLTN.Game.Domain
         public int PermanentCostModifier { get; private set; }
         public int RoundCostModifier { get; private set; }
 
+        /// <summary>
+        /// True while this unit fights only because a graveyard passive pulled it into
+        /// the current attack. It survives the unit's death so combat presentation can
+        /// still identify it, and clears on revival or a return to an ordinary zone.
+        /// </summary>
+        public bool IsAttackCompanion { get; private set; }
+
         public bool IsDead => CurrentHealth <= 0;
 
         public bool IsInActiveRoster =>
@@ -201,6 +208,8 @@ namespace KLTN.Game.Domain
             CurrentHealth = definition.BaseHealth;
 
             BoardSlotIndex = -1;
+
+            IsAttackCompanion = false;
         }
 
         #endregion
@@ -212,6 +221,16 @@ namespace KLTN.Game.Domain
             Zone = zone;
 
             BoardSlotIndex = zone == CardZone.Board ? boardSlotIndex : -1;
+
+            if (zone != CardZone.Board && zone != CardZone.Graveyard)
+            {
+                IsAttackCompanion = false;
+            }
+        }
+
+        internal void MarkAttackCompanion()
+        {
+            IsAttackCompanion = true;
         }
 
         public void ApplyDamage(int amount)

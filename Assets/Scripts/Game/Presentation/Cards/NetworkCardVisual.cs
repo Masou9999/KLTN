@@ -50,6 +50,10 @@ namespace KLTN.Game.Presentation
         [SerializeField]
         private CanvasGroup canvasGroup;
 
+        [Tooltip("Opacity of a Last Breath companion (e.g. Ma Da) during preview and combat.")]
+        [SerializeField, Range(0.05f, 1f)]
+        private float attackCompanionAlpha = 0.45f;
+
         #endregion
 
         #region Runtime State
@@ -61,6 +65,7 @@ namespace KLTN.Game.Presentation
         private Action<string> abilityTargetExited;
         private int authoritativeDamage;
         private int authoritativeHealth;
+        private bool interactableVisual = true;
 
         #endregion
 
@@ -76,6 +81,16 @@ namespace KLTN.Game.Presentation
         public int CurrentHealth => authoritativeHealth;
         public CardArtworkView CurrentArtworkPrefab => currentArtworkPrefab;
         public bool IsOpponentCard { get; private set; }
+
+        /// <summary>True for a Last Breath companion; the card stays translucent.</summary>
+        public bool IsAttackCompanion { get; private set; }
+
+        /// <summary>
+        /// The opacity this card should rest at. Animations that hide or flash the card
+        /// must return to this value instead of 1 so a companion stays translucent.
+        /// </summary>
+        public float RestingAlpha => IsAttackCompanion ? attackCompanionAlpha : 1f;
+
         public RectTransform ArtworkMount => artworkMount;
         public RectTransform CardRect => transform as RectTransform;
         public RectTransform ManaAnchor => costText != null ? costText.rectTransform : CardRect;
@@ -123,9 +138,18 @@ namespace KLTN.Game.Presentation
 
             SetKeywords((UnitKeyword)dto.keywords);
 
+            IsAttackCompanion = dto.isAttackCompanion;
+
             SetPending(false);
             ClearAbilityTargetState();
             SetInteractableVisual(true);
+        }
+
+        /// <summary>Marks or unmarks this view as a translucent Last Breath companion.</summary>
+        public void SetAttackCompanion(bool value)
+        {
+            IsAttackCompanion = value;
+            ApplyAlpha();
         }
 
         public void BindBack(Sprite cardBack)
@@ -151,6 +175,7 @@ namespace KLTN.Game.Presentation
             SetTextActive(damageText, false);
             SetTextActive(healthText, false);
             SetKeywords(UnitKeyword.None);
+            IsAttackCompanion = false;
             SetPending(false);
             ClearAbilityTargetState();
             SetInteractableVisual(true);
@@ -345,9 +370,15 @@ namespace KLTN.Game.Presentation
 
         public void SetInteractableVisual(bool value)
         {
+            interactableVisual = value;
+            ApplyAlpha();
+        }
+
+        private void ApplyAlpha()
+        {
             if (canvasGroup != null)
             {
-                canvasGroup.alpha = value ? 1f : 0.55f;
+                canvasGroup.alpha = interactableVisual ? RestingAlpha : RestingAlpha * 0.55f;
             }
         }
 

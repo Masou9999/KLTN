@@ -185,5 +185,111 @@ namespace KLTN.Game.Tests
         }
 
         #endregion
+
+        #region Companion Marking And Preview
+
+        [Test]
+        public void JoinedCompanion_IsMarked_AndOrdinaryAttackerIsNot()
+        {
+            CardInstance target = Add(companion);
+            Kill(target);
+            CardInstance attacker = Add(ephemeral);
+            state.Host.TryMoveReserveCardToBoard(attacker, 0);
+            var attackers = new[] { attacker, null, null };
+            resolver.JoinAttackFromGraveyard(state, SeatId.Host, attackers);
+            Assert.IsTrue(attackers[1].IsAttackCompanion);
+            Assert.IsFalse(attacker.IsAttackCompanion);
+        }
+
+        [Test]
+        public void CompanionMark_SurvivesDeath_AndClearsOnReturnOrRevive()
+        {
+            CardInstance target = Add(companion);
+            Kill(target);
+            CardInstance attacker = Add(ephemeral);
+            state.Host.TryMoveReserveCardToBoard(attacker, 0);
+            resolver.JoinAttackFromGraveyard(state, SeatId.Host,
+                new[] { attacker, null, null });
+
+            target.MoveTo(CardZone.Graveyard);
+            Assert.IsTrue(target.IsAttackCompanion, "Combat presentation reads it after death.");
+            target.ResetToBase(companion);
+            Assert.IsFalse(target.IsAttackCompanion, "A revival starts unmarked.");
+        }
+
+        [Test]
+        public void CompanionMark_ClearsWhenReturnedToReserve()
+        {
+            CardInstance target = Add(companion);
+            Kill(target);
+            CardInstance attacker = Add(ephemeral);
+            state.Host.TryMoveReserveCardToBoard(attacker, 0);
+            resolver.JoinAttackFromGraveyard(state, SeatId.Host,
+                new[] { attacker, null, null });
+
+            target.MoveTo(CardZone.Reserve);
+            Assert.IsFalse(target.IsAttackCompanion);
+        }
+
+        [Test]
+        public void PendingCompanions_IncludeRevivedDeath_AndExcludeConsumedAndEnemy()
+        {
+            CardInstance revived = Add(companion);
+            KillAndRevive(revived);
+            CardInstance enemy = Add(companion, SeatId.Guest);
+            Kill(enemy);
+
+            IReadOnlyList<DeathRecord> pending =
+                resolver.GetPendingAttackCompanions(state, SeatId.Host);
+            Assert.AreEqual(1, pending.Count, "A revived Ma Da still owes a companion.");
+            Assert.AreEqual(revived.InstanceId, pending[0].CardInstanceId);
+
+            CardInstance attacker = Add(ephemeral);
+            state.Host.TryMoveReserveCardToBoard(attacker, 0);
+            resolver.JoinAttackFromGraveyard(state, SeatId.Host,
+                new[] { attacker, null, null });
+            Assert.AreEqual(0,
+                resolver.GetPendingAttackCompanions(state, SeatId.Host).Count);
+        }
+
+        [TestCase(true, false, false, true, -1, 0, -1)]
+        [TestCase(true, true, false, true, -1, -1, 0)]
+        [TestCase(false, true, false, true, 0, -1, -1)]
+        [TestCase(true, true, true, true, -1, -1, -1)]
+        [TestCase(false, false, false, true, -1, -1, -1)]
+        [TestCase(true, false, false, false, -1, -1, -1)]
+        public void Planner_FillsLeftmostEmptySlots(
+            bool slot0, bool slot1, bool slot2, bool hasEphemeral,
+            int expected0, int expected1, int expected2)
+        {
+            int[] plan = AttackCompanionPlanner.PlanSlots(
+                new[] { true }, new[] { slot0, slot1, slot2 }, hasEphemeral);
+            CollectionAssert.AreEqual(new[] { expected0, expected1, expected2 }, plan);
+        }
+
+        [Test]
+        public void Planner_MatchesResolver_ForMultipleDeaths()
+        {
+            CardInstance target = Add(companion);
+            KillAndRevive(target);
+            KillAndRevive(target);
+            CardInstance attacker = Add(ephemeral);
+            state.Host.TryMoveReserveCardToBoard(attacker, 1);
+
+            IReadOnlyList<DeathRecord> pending =
+                resolver.GetPendingAttackCompanions(state, SeatId.Host);
+            int[] plan = AttackCompanionPlanner.PlanSlots(
+                pending.Select(_ => true).ToArray(),
+                new[] { false, true, false }, true);
+
+            var attackers = new[] { null, attacker, null };
+            resolver.JoinAttackFromGraveyard(state, SeatId.Host, attackers);
+
+            CollectionAssert.AreEqual(new[] { 0, -1, 1 }, plan);
+            Assert.IsTrue(attackers[0].IsAttackCompanion);
+            Assert.IsTrue(attackers[2].IsAttackCompanion);
+        }
+
+        #endregion
     }
 }

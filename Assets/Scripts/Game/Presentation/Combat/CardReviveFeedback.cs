@@ -86,7 +86,8 @@ namespace KLTN.Game.Presentation
 
                 if (group != null)
                 {
-                    group.alpha = eased;
+                    // Never overshoot the resting alpha (e.g. a translucent companion).
+                    group.alpha = eased * originalAlpha;
                 }
 
                 float scale = Mathf.Lerp(0.84f, 1.06f, eased);

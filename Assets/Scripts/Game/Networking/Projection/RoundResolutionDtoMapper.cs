@@ -124,6 +124,7 @@ namespace KLTN.Game.Networking
                                 definition
                             ),
                     boardSlotIndex = slotIndex,
+                    isAttackCompanion = resolution.IsAttackCompanion,
                 },
             };
         }

@@ -81,6 +81,12 @@ namespace KLTN.Game.Presentation
         public int PendingManaCost => pendingManaCost;
         public event Action<int> PendingManaCostChanged;
 
+        /// <summary>
+        /// Raised with one entry per board slot (null = no companion) whenever the attack
+        /// draft changes. An empty array clears the preview.
+        /// </summary>
+        public event Action<CardViewDto[]> AttackCompanionPreviewChanged;
+
 #if UNITY_EDITOR
         // Optional local harness; never compiled into a player build.
         public Action EditorSubmitOverride { get; set; }

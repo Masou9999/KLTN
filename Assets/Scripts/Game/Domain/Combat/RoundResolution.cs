@@ -19,6 +19,9 @@ namespace KLTN.Game.Domain
 
         public bool DiedFromEphemeral { get; }
 
+        /// <summary>Captured at combat time; the card may leave the board afterwards.</summary>
+        public bool IsAttackCompanion { get; }
+
         #endregion
 
         #region Construction
@@ -30,9 +33,11 @@ namespace KLTN.Game.Domain
             int healthAfter,
             int damageBefore,
             int damageTaken,
-            bool diedFromEphemeral
+            bool diedFromEphemeral,
+            bool isAttackCompanion = false
         )
         {
+            IsAttackCompanion = isAttackCompanion;
             Seat = seat;
             CardInstanceId = cardInstanceId;
 

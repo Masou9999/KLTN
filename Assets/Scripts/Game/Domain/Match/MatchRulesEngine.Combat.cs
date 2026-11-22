@@ -325,7 +325,8 @@ namespace KLTN.Game.Domain
                 card.CurrentHealth,
                 DamageOf(card),
                 damageTaken,
-                diedFromEphemeral
+                diedFromEphemeral,
+                card.IsAttackCompanion
             );
         }
 

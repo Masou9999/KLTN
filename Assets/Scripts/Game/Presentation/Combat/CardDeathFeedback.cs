@@ -200,7 +200,9 @@ namespace KLTN.Game.Presentation
 
             if (cardCanvasGroup != null)
             {
-                cardCanvasGroup.alpha = 1f;
+                // A translucent companion (Ma Da) must not flash back to full opacity.
+                NetworkCardVisual visual = GetComponent<NetworkCardVisual>();
+                cardCanvasGroup.alpha = visual != null ? visual.RestingAlpha : 1f;
                 cardCanvasGroup.interactable = false;
                 cardCanvasGroup.blocksRaycasts = false;
             }

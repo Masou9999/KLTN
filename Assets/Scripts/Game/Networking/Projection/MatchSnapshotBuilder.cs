@@ -28,7 +28,11 @@ namespace KLTN.Game.Networking
             this.definitionsById =
                 definitionsById
                 ?? throw new ArgumentNullException(nameof(definitionsById));
+
+            passiveRuleResolver = new UnitPassiveRuleResolver(definitionsById);
         }
+
+        private readonly UnitPassiveRuleResolver passiveRuleResolver;
 
         #endregion
 
@@ -307,7 +311,57 @@ namespace KLTN.Game.Networking
                 board = ConvertCards(state, player.Board),
 
                 graveyard = ConvertCards(state, player.Graveyard),
+
+                // Only the owner stages attacks, so only the owner needs the preview.
+                attackCompanions = revealHand
+                    ? BuildAttackCompanionPreviews(state, player.Seat)
+                    : Array.Empty<CardViewDto>(),
             };
+        }
+
+        /// <summary>
+        /// Describes each unused Last Breath in server fill order. The cards have no
+        /// instance ID: they are previews and are never valid command arguments.
+        /// </summary>
+        private CardViewDto[] BuildAttackCompanionPreviews(MatchState state, SeatId seat)
+        {
+            IReadOnlyList<DeathRecord> deaths =
+                passiveRuleResolver.GetPendingAttackCompanions(state, seat);
+
+            var result = new CardViewDto[deaths.Count];
+
+            for (int i = 0; i < deaths.Count; i++)
+            {
+                CardDefinition definition = definitionsById[deaths[i].DefinitionId];
+
+                int bonus =
+                    state.RoundHistory.CountDeathsThisGame(deaths[i].CardInstanceId)
+                    * definition.PassiveRules.PowerAndHealthPerDeath;
+
+                GetSupportBuffPreview(
+                    definition,
+                    out int supportDamageBonus,
+                    out int supportHealthBonus
+                );
+
+                result[i] = new CardViewDto
+                {
+                    instanceId = string.Empty,
+                    definitionId = definition.Id,
+                    displayName = definition.DisplayName,
+                    health = Math.Max(0, definition.BaseHealth + bonus),
+                    damage = Math.Max(0, definition.BaseDamage + bonus),
+                    energy = definition.Cost,
+                    keywords = (int)definition.Keywords,
+                    supportDamageBonus = supportDamageBonus,
+                    supportHealthBonus = supportHealthBonus,
+                    isAttackCompanion = true,
+                    requiresEphemeralAttacker =
+                        definition.PassiveRules.RequiresEphemeralAttacker,
+                };
+            }
+
+            return result;
         }
 
         private CardViewDto[] ConvertCards(
@@ -356,6 +410,9 @@ namespace KLTN.Game.Networking
                     supportHealthBonus = supportHealthBonus,
 
                     boardSlotIndex = instance.BoardSlotIndex,
+
+                    isAttackCompanion =
+                        instance.IsAttackCompanion && instance.Zone == CardZone.Board,
                 };
             }
 
@@ -420,6 +477,7 @@ namespace KLTN.Game.Networking
                 reserve = Array.Empty<CardViewDto>(),
                 board = Array.Empty<CardViewDto>(),
                 graveyard = Array.Empty<CardViewDto>(),
+                attackCompanions = Array.Empty<CardViewDto>(),
             };
         }
 

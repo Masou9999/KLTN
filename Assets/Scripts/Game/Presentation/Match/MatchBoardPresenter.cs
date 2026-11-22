@@ -56,6 +56,10 @@ namespace KLTN.Game.Presentation
         [SerializeField]
         private RectTransform dragLayer;
 
+        [Tooltip("Optional; found in the scene when empty. Supplies the Ma Da attack preview.")]
+        [SerializeField]
+        private MatchDebugControls actionControls;
+
         [Header("Mulligan")]
         [SerializeField]
         public MulliganPresenter mulliganPresenter;
@@ -118,6 +122,7 @@ namespace KLTN.Game.Presentation
         #region Runtime State
 
         private readonly List<GameObject> spawnedViews = new List<GameObject>();
+        private readonly List<GameObject> attackCompanionPreviewViews = new List<GameObject>();
         private MatchClientProjection projection;
 
         private readonly List<GameObject> opponentHandBacks = new List<GameObject>();
@@ -163,6 +168,19 @@ namespace KLTN.Game.Presentation
             projection = MatchProjectionRegistry.Current;
             projection.SnapshotChanged += Render;
 
+            if (actionControls == null)
+            {
+                actionControls = FindAnyObjectByType<MatchDebugControls>(
+                    FindObjectsInactive.Include
+                );
+            }
+
+            if (actionControls != null)
+            {
+                actionControls.AttackCompanionPreviewChanged +=
+                    RenderAttackCompanionPreview;
+            }
+
             if (projection.Current != null)
             {
                 Render(projection.Current);
@@ -176,6 +194,13 @@ namespace KLTN.Game.Presentation
                 projection.SnapshotChanged -= Render;
             }
 
+            if (actionControls != null)
+            {
+                actionControls.AttackCompanionPreviewChanged -=
+                    RenderAttackCompanionPreview;
+            }
+
+            ClearAttackCompanionPreview();
             ClearDrawAnimations();
             ClearViews();
         }
@@ -2578,6 +2603,73 @@ namespace KLTN.Game.Presentation
             }
 
             return presentationCatalog.Find(definitionId);
+        }
+
+        #endregion
+
+        #region Attack Companion Preview
+
+        /// <summary>
+        /// Draws translucent, non-interactive Last Breath companions (Ma Da) into the
+        /// empty self board slots they would occupy if the current draft were confirmed.
+        /// </summary>
+        private void RenderAttackCompanionPreview(CardViewDto[] previewBySlot)
+        {
+            ClearAttackCompanionPreview();
+
+            if (previewBySlot == null || cardPrefab == null || selfBoardSlots == null)
+            {
+                return;
+            }
+
+            for (int slot = 0; slot < previewBySlot.Length; slot++)
+            {
+                CardViewDto dto = previewBySlot[slot];
+
+                if (dto == null || slot >= selfBoardSlots.Length || selfBoardSlots[slot] == null)
+                {
+                    continue;
+                }
+
+                NetworkCardVisual view = Instantiate(cardPrefab, selfBoardSlots[slot]);
+                view.name = $"AttackCompanionPreview_{dto.definitionId}_{slot}";
+                view.GetComponent<CardVisualLayout>()?.Apply(CardVisualLocation.Board);
+                view.BindFaceUp(dto, FindArtwork(dto.definitionId));
+                view.SetOwnerPerspective(false);
+                view.GetComponent<DraggableHandCard>()?.Configure(
+                    false,
+                    dragLayer,
+                    CardVisualLocation.Board
+                );
+                view.SetAttackCompanion(true);
+                view.SetInteractableVisual(true);
+
+                // Drops and clicks must reach the slot underneath, not the preview.
+                CanvasGroup group = view.GetComponent<CanvasGroup>();
+
+                if (group != null)
+                {
+                    group.interactable = false;
+                    group.blocksRaycasts = false;
+                }
+
+                attackCompanionPreviewViews.Add(view.gameObject);
+            }
+        }
+
+        private void ClearAttackCompanionPreview()
+        {
+            foreach (GameObject preview in attackCompanionPreviewViews)
+            {
+                if (preview != null)
+                {
+                    preview.SetActive(false);
+                    preview.transform.SetParent(null, false);
+                    Destroy(preview);
+                }
+            }
+
+            attackCompanionPreviewViews.Clear();
         }
 
         #endregion

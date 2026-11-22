@@ -27,6 +27,13 @@ namespace KLTN.Game.Networking
         // -1 while in hand, 0-2 while on the board.
         public int boardSlotIndex = -1;
 
+        // A unit pulled into the attack by a graveyard passive (e.g. Ma Da). Drawn
+        // translucent until it leaves combat.
+        public bool isAttackCompanion;
+
+        // Preview-only: the companion joins only alongside an Ephemeral attacker.
+        public bool requiresEphemeralAttacker;
+
         #endregion
     }
 
@@ -60,6 +67,10 @@ namespace KLTN.Game.Networking
         public CardViewDto[] reserve;
         public CardViewDto[] board;
         public CardViewDto[] graveyard;
+
+        // Owner-only: unused Last Breath companions in the order the server fills empty
+        // attack slots. Preview cards carry no instance ID.
+        public CardViewDto[] attackCompanions;
 
         #endregion
     }
