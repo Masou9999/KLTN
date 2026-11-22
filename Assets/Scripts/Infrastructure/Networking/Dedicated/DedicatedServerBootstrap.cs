@@ -308,13 +308,14 @@ public sealed class DedicatedServerBootstrap : MonoBehaviour
 
         MatchSession held = sessions.FindHeldSeat(payload.playerId, NowMs());
 
-        if (held != null)
+        //Luồng reconnect, FindHeldSeat trả về một match session mà player có thể tham gia lại
+        if (held != null) //held == null: kết nối lần đầu
         {
             AdmissionRejection rejoinRejection = MatchAdmissionPolicy.PreCheckRejoin(
                 payload.playerId,
                 payload.accessToken,
                 true,
-                verifyingPlayerIds
+                verifyingPlayerIds //Kiểm tra player có đang xác minh hay không
             );
 
             if (rejoinRejection != AdmissionRejection.None)
