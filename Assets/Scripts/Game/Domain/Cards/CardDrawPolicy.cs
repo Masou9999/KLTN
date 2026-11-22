@@ -6,15 +6,21 @@ namespace KLTN.Game.Domain
     /// <summary>
     /// Chooses which deck card a player draws. Only cards whose
     /// <see cref="CardDefinition.DrawCost"/> is at most the player's max mana plus
-    /// <see cref="CostAllowance"/> can be drawn, uniformly at random. When none remain,
-    /// the limit widens (+3, +4, ...) until the cheapest remaining cards qualify, so a
-    /// draw never fails while the deck still has cards.
+    /// <see cref="CostAllowance"/> can be drawn. Cards the player can already afford are
+    /// favoured: weight 4 at or below max mana, 2 at +1, 1 at +2 (i.e. 1 : 0.5 : 0.25).
+    /// When none remain, the limit widens (+3, +4, ...) until the cheapest remaining
+    /// cards qualify, so a draw never fails while the deck still has cards.
     /// </summary>
     public static class CardDrawPolicy
     {
         #region Constants
 
         public const int CostAllowance = 2;
+
+        // Trọng số nguyên để dùng IRandomSource.Next: <= mana : +1 : +2 = 4 : 2 : 1.
+        public const int AffordableWeight = 4;
+        public const int OneAboveWeight = 2;
+        public const int StretchWeight = 1;
 
         #endregion
 
@@ -59,17 +65,46 @@ namespace KLTN.Game.Domain
             }
 
             int limit = DrawLimit(maxMana, lowestCost);
-            var candidates = new List<int>(deck.Count);
+            int totalWeight = 0;
 
             for (int i = 0; i < deck.Count; i++)
             {
-                if (DrawCostOf(deck[i], definitionOf) <= limit)
+                totalWeight += WeightOf(DrawCostOf(deck[i], definitionOf), maxMana, limit);
+            }
+
+            int roll = random.Next(0, totalWeight);
+
+            for (int i = 0; i < deck.Count; i++)
+            {
+                roll -= WeightOf(DrawCostOf(deck[i], definitionOf), maxMana, limit);
+
+                if (roll < 0)
                 {
-                    candidates.Add(i);
+                    return i;
                 }
             }
 
-            return candidates[random.Next(0, candidates.Count)];
+            throw new InvalidOperationException("Weighted draw did not select a card.");
+        }
+
+        /// <summary>
+        /// Relative chance of a card with <paramref name="drawCost"/> being drawn; 0 when it
+        /// is above <paramref name="limit"/>. Cards above max mana + 2 only qualify after the
+        /// limit widened, when they are all equally the cheapest left.
+        /// </summary>
+        public static int WeightOf(int drawCost, int maxMana, int limit)
+        {
+            if (drawCost > limit)
+            {
+                return 0;
+            }
+
+            if (drawCost <= maxMana)
+            {
+                return AffordableWeight;
+            }
+
+            return drawCost == maxMana + 1 ? OneAboveWeight : StretchWeight;
         }
 
         /// <summary>

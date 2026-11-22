@@ -80,6 +80,38 @@ namespace KLTN.Game.Domain.Tests
                     new List<CardInstance>(), 1, Lookup, new SeededRandomSource(1)));
         }
 
+        [TestCase(3, 4, 6, 4)]
+        [TestCase(4, 4, 6, 4)]
+        [TestCase(5, 4, 6, 2)]
+        [TestCase(6, 4, 6, 1)]
+        [TestCase(7, 4, 6, 0)]
+        [TestCase(9, 4, 9, 1)]
+        public void WeightOf_FavoursAffordableCards(
+            int drawCost, int maxMana, int limit, int expected)
+        {
+            Assert.AreEqual(expected, CardDrawPolicy.WeightOf(drawCost, maxMana, limit));
+        }
+
+        [Test]
+        public void PickIndex_AffordableCardIsDrawnAboutFourTimesAsOftenAsStretchCard()
+        {
+            List<CardInstance> deck = Deck("c1", "c3");
+            int affordable = 0;
+            const int Samples = 4000;
+            var random = new SeededRandomSource(42);
+
+            for (int i = 0; i < Samples; i++)
+            {
+                if (deck[CardDrawPolicy.PickIndex(deck, 1, Lookup, random)].DefinitionId == "c1")
+                {
+                    affordable++;
+                }
+            }
+
+            // Trọng số 4 : 1 => kỳ vọng 80%.
+            Assert.That(affordable / (double)Samples, Is.InRange(0.75, 0.85));
+        }
+
         #endregion
 
         #region Match Tests
