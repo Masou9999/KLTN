@@ -28,6 +28,9 @@ namespace KLTN.Game.Presentation
         [SerializeField]
         private TMP_Text localStatusLabel;
 
+        [SerializeField]
+        private AudioClip actionRejectedSfx;
+
         #endregion
 
         #region Runtime State
@@ -53,6 +56,7 @@ namespace KLTN.Game.Presentation
         private CanvasGroup localStatusCanvasGroup;
         private Sequence localStatusSequence;
         private float localStatusBaseY;
+        private AudioSource actionRejectedSource;
 
         #endregion
 

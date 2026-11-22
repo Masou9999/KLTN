@@ -11678,6 +11678,7 @@ MonoBehaviour:
   actionButton: {fileID: 2135423312}
   actionLabel: {fileID: 160395354}
   localStatusLabel: {fileID: 814468878}
+  actionRejectedSfx: {fileID: 8300000, guid: fe9f8d1c1f95403a8530553780ecf06b, type: 3}
 --- !u!114 &789479152
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -58,7 +58,6 @@ namespace KLTN.Game.Presentation
 
             // Must be set before sending because a host RPC can complete synchronously.
             submitting = true;
-            SetLocalStatus("Đang chờ host xác nhận...");
             RefreshControls();
 
             bool sent;
@@ -91,7 +90,7 @@ namespace KLTN.Game.Presentation
             if (!sent)
             {
                 submitting = false;
-                SetLocalStatus("Không thể gửi command.");
+                RejectLocalAction("Không thể thực hiện thao tác.");
                 RefreshControls();
             }
         }
@@ -102,13 +101,7 @@ namespace KLTN.Game.Presentation
 
         private void OnSnapshotChanged(MatchSnapshotDto snapshot)
         {
-            bool completedLocalSubmission = submitting;
             submitting = false;
-
-            if (completedLocalSubmission)
-            {
-                SetLocalStatus(string.Empty);
-            }
 
             string authoritativeRequestId =
                 snapshot != null
@@ -139,7 +132,12 @@ namespace KLTN.Game.Presentation
             RestorePendingVisuals();
             ClearPendingReferences();
 
-            SetLocalStatus($"Host từ chối: {reason}");
+            // Lý do từ chối chỉ phục vụ gỡ lỗi; người chơi chỉ nghe âm báo lỗi.
+            Debug.LogWarning(
+                $"[MatchDebugControls] Host từ chối lệnh: {reason}",
+                this
+            );
+            PlayActionRejectedSfx();
 
             RefreshControls();
         }

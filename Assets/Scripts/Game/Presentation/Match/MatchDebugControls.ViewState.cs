@@ -296,8 +296,6 @@ namespace KLTN.Game.Presentation
 
             if (blocker == null)
             {
-                rejectionReason = "Lá bài không còn trong Reserve.";
-
                 return false;
             }
 
@@ -305,7 +303,7 @@ namespace KLTN.Game.Presentation
 
             if ((blockerKeywords & UnitKeyword.CannotBlock) != 0)
             {
-                rejectionReason = $"{blocker.displayName} có Không thể chặn.";
+                rejectionReason = $"Không thể dùng {blocker.displayName} để phòng thủ.";
 
                 return false;
             }
@@ -314,7 +312,7 @@ namespace KLTN.Game.Presentation
 
             if (attacker == null)
             {
-                rejectionReason = $"Slot {slotIndex + 1} không có attacker.";
+                rejectionReason = BuildDefendableSlotsStatus(snapshot);
 
                 return false;
             }
@@ -328,9 +326,9 @@ namespace KLTN.Game.Presentation
             )
             {
                 rejectionReason =
-                    $"{blocker.displayName} cần ít nhất "
-                    + $"{MatchRulesEngine.FearsomeMinimumBlockerDamage} Power "
-                    + $"để chặn {attacker.displayName} có Đáng sợ.";
+                    $"{blocker.displayName} cần có chỉ số tấn công ít nhất là "
+                    + $"{MatchRulesEngine.FearsomeMinimumBlockerDamage} để chặn "
+                    + $"{attacker.displayName} có hiệu ứng Đáng sợ.";
 
                 return false;
             }

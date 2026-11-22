@@ -65,7 +65,6 @@ namespace KLTN.Game.Presentation
 
             // Must be set before sending because host RPC may update the snapshot immediately.
             submitting = true;
-            SetLocalStatus("Đang chờ host hủy kỹ năng...");
             RefreshControls();
 
             bool sent = bridge.RequestCancelAbilitySelection(requestId);
@@ -73,7 +72,10 @@ namespace KLTN.Game.Presentation
             if (!sent)
             {
                 submitting = false;
-                SetLocalStatus("Không thể gửi yêu cầu hủy kỹ năng.");
+                Debug.LogWarning(
+                    "[MatchDebugControls] Không thể gửi yêu cầu hủy kỹ năng.",
+                    this
+                );
                 RefreshControls();
                 return false;
             }

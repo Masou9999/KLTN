@@ -24,35 +24,35 @@ namespace KLTN.Game.Presentation
 
             if (card == null || snapshot == null || !snapshot.viewerCanAct || submitting)
             {
-                SetLocalStatus("Hiện chưa thể triệu hồi bài.");
+                RejectLocalAction(BuildSummonUnavailableStatus(snapshot));
 
                 return false;
             }
 
             if (HasPendingBoardDraft)
             {
-                SetLocalStatus("Hãy hủy đội hình Board trước khi Summon.");
+                RejectLocalAction("Chỉ có thể thực hiện 1 hành động trong lượt.");
 
                 return false;
             }
 
             if (!IsCardInSelfHand(snapshot, card.Visual.InstanceId))
             {
-                SetLocalStatus("Lá bài không còn trong DrawHand.");
+                RejectLocalAction();
 
                 return false;
             }
 
             if (snapshot.self.activeRosterCount >= MatchState.MaximumActiveRosterSize)
             {
-                SetLocalStatus("Reserve đã đầy. Không thể triệu hồi thêm.");
+                RejectLocalAction("Doanh trại đã đầy.");
 
                 return false;
             }
 
             if (card.Visual.Energy > snapshot.self.mana)
             {
-                SetLocalStatus("Không đủ mana.");
+                RejectLocalAction("Không đủ năng lượng.");
                 return false;
             }
 
@@ -67,8 +67,6 @@ namespace KLTN.Game.Presentation
             card.PlacePending(reserveContentRoot, CardVisualLocation.Reserve);
 
             SetPendingManaCost(card.Visual.Energy);
-
-            SetLocalStatus("Đang chọn bài để triệu hồi. Chưa commit.");
 
             RefreshControls();
             return true;
@@ -98,14 +96,14 @@ namespace KLTN.Game.Presentation
                 || submitting
             )
             {
-                SetLocalStatus("Hiện chưa thể sắp xếp Board.");
+                RejectLocalAction();
 
                 return false;
             }
 
             if (pendingSummonCard != null)
             {
-                SetLocalStatus("Hãy commit hoặc hủy Summon trước.");
+                RejectLocalAction("Hãy nhấn Triệu hồi hoặc hủy bỏ triệu hồi.");
 
                 return false;
             }
@@ -117,21 +115,21 @@ namespace KLTN.Game.Presentation
 
             if (card.HomeLocation != CardVisualLocation.Reserve)
             {
-                SetLocalStatus("Lá bài phải nằm trong Reserve.");
+                RejectLocalAction();
 
                 return false;
             }
 
             if (!IsCardInSelfReserve(snapshot, card.Visual.InstanceId))
             {
-                SetLocalStatus("Lá bài không còn trong Reserve.");
+                RejectLocalAction();
 
                 return false;
             }
 
             if (isBlockDraft && !HasOpponentAttackerAtSlot(snapshot, slotIndex))
             {
-                SetLocalStatus($"Slot {slotIndex + 1} không có attacker.");
+                RejectLocalAction(BuildDefendableSlotsStatus(snapshot));
 
                 return false;
             }
@@ -146,7 +144,7 @@ namespace KLTN.Game.Presentation
                 )
             )
             {
-                SetLocalStatus(reason);
+                RejectLocalAction(reason);
 
                 return false;
             }
@@ -197,12 +195,6 @@ namespace KLTN.Game.Presentation
 
             ApplyPendingBoardStatPreviews();
 
-            string roleText = isBlockDraft ? "blocker" : "attacker";
-
-            SetLocalStatus(
-                $"Đã đặt {roleText} vào slot {slotIndex + 1}. " + "Chưa commit."
-            );
-
             RefreshControls();
             return true;
         }
@@ -236,8 +228,6 @@ namespace KLTN.Game.Presentation
 
             ApplyPendingBoardStatPreviews();
 
-            SetLocalStatus("Đã đưa card trở lại Reserve.");
-
             RefreshControls();
             return true;
         }
@@ -246,8 +236,6 @@ namespace KLTN.Game.Presentation
         {
             RestorePendingVisuals();
             ClearPendingReferences();
-
-            SetLocalStatus("Đã hủy action đang chọn.");
 
             RefreshControls();
         }
@@ -270,8 +258,6 @@ namespace KLTN.Game.Presentation
             pendingSummonCardInstanceId = null;
 
             SetPendingManaCost(0);
-
-            SetLocalStatus("Đã đưa lá bài về DrawHand.");
 
             RefreshControls();
             return true;
