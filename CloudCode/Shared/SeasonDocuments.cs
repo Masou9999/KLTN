@@ -14,6 +14,22 @@ namespace KLTN.CloudCode.Shared
     {
         public const string ConfigPath = "config/season";
 
+        /// <summary>One-rename history: a change at the end belongs to the next season.</summary>
+        public static string UsernameAtEnd(JsonObject profile, long endUtcMs)
+        {
+            bool beforeChange = HasLaterRename(profile, endUtcMs);
+            return FirestoreAdmin.GetString(profile, beforeChange ? "initialUsername" : "username")
+                ?? string.Empty;
+        }
+
+        public static int UsernameVersionAtEnd(JsonObject profile, long endUtcMs) =>
+            HasLaterRename(profile, endUtcMs) ? 0 : (int)FirestoreAdmin.GetLong(profile, "usernameVersion");
+
+        private static bool HasLaterRename(JsonObject profile, long endUtcMs) =>
+            FirestoreAdmin.Has(profile, "usernameChangedAt") &&
+            FirestoreAdmin.Has(profile, "initialUsername") &&
+            FirestoreAdmin.ParseTimestamp(profile["usernameChangedAt"]) >= endUtcMs;
+
         public static SeasonConfig? ParseConfig(JsonObject document)
         {
             JsonObject fields = FirestoreAdmin.Fields(document);

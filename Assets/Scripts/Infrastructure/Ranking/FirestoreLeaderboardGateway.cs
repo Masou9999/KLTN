@@ -266,9 +266,14 @@ namespace KLTN.Infrastructure.Ranking
             }
 
             string token = await tokenProvider();
+            FirestoreResponse profile = await client.GetDocumentAsync($"users/{uid}", token);
+            if (!profile.Success) return Fail<SeasonStanding>(profile);
+            username = FirestoreValueMapper.GetString(profile.Body, "username");
             var empty = new SeasonStanding(uid, username, 0, 0, 0, 0, 0);
+            var fields = StandingFields(empty, null);
+            fields["usernameVersion"] = FirestoreValueMapper.GetInteger(profile.Body, "usernameVersion");
             FirestoreResponse response = await client.CommitAsync(
-                new[] { client.CreateWrite(EntryPath(seasonId, uid), StandingFields(empty, null), "updatedAt") },
+                new[] { client.CreateWrite(EntryPath(seasonId, uid), fields, "updatedAt") },
                 token
             );
 

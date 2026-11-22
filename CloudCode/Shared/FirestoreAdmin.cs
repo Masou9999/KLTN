@@ -18,6 +18,67 @@ namespace KLTN.CloudCode.Shared
         private readonly string root;
 
         private readonly string host;
+        private string transaction;
+        private bool committed;
+
+        private FirestoreAdmin(FirestoreAdmin source, string transaction)
+        {
+            http = source.http;
+            account = source.account;
+            host = source.host;
+            root = source.root;
+            this.transaction = transaction;
+        }
+
+        /// <summary>
+        /// Runs a serializable transaction. Reads, including missing documents, participate
+        /// in conflict detection; the callback must have no side effects outside Firestore.
+        /// </summary>
+        public async Task<T> RunTransactionAsync<T>(Func<FirestoreAdmin, Task<T>> action)
+        {
+            if (transaction != null) throw new InvalidOperationException("Nested transaction.");
+            for (int attempt = 0; ; attempt++)
+            {
+                JsonObject begin = await TransactionRequestAsync("beginTransaction", new JsonObject());
+                var scoped = new FirestoreAdmin(this, begin["transaction"].GetValue<string>());
+                try
+                {
+                    T result = await action(scoped);
+                    if (!scoped.committed) await scoped.CommitAsync(new JsonArray());
+                    return result;
+                }
+                catch (FirestoreConflictException) when (attempt < 4)
+                {
+                    // Roll back before retrying. Jitter prevents two devices from repeatedly
+                    // upgrading the same shared read lock at exactly the same time.
+                }
+                finally
+                {
+                    if (!scoped.committed)
+                    {
+                        try
+                        {
+                            await TransactionRequestAsync("rollback",
+                                new JsonObject { ["transaction"] = scoped.transaction });
+                        }
+                        catch (Exception) { /* Preserve the original error; server expires locks. */ }
+                    }
+                }
+                await Task.Delay(80 * (1 << attempt) +
+                    System.Security.Cryptography.RandomNumberGenerator.GetInt32(30, 250));
+            }
+        }
+
+        private async Task<JsonObject> TransactionRequestAsync(string operation, JsonObject body)
+        {
+            using HttpRequestMessage request = await RequestAsync(HttpMethod.Post, $"{host}/v1/{root}:{operation}");
+            request.Content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json");
+            using HttpResponseMessage response = await http.SendAsync(request);
+            string text = await response.Content.ReadAsStringAsync();
+            if (!response.IsSuccessStatusCode)
+                throw new InvalidOperationException($"Firestore {operation} failed ({(int)response.StatusCode}).");
+            return JsonNode.Parse(text).AsObject();
+        }
 
         public FirestoreAdmin(HttpClient http, GoogleServiceAccount account)
             : this(http, account, account.ProjectId, "https://firestore.googleapis.com")
@@ -35,6 +96,7 @@ namespace KLTN.CloudCode.Shared
 
         public async Task<(JsonObject document, string updateTime)> GetAsync(string path)
         {
+            if (transaction != null) return await GetInTransactionAsync(path);
             using HttpRequestMessage request = await RequestAsync(HttpMethod.Get, $"{host}/v1/{root}/{path}");
             using HttpResponseMessage response = await http.SendAsync(request);
 
@@ -47,11 +109,42 @@ namespace KLTN.CloudCode.Shared
 
             if (!response.IsSuccessStatusCode)
             {
+                if (response.StatusCode == System.Net.HttpStatusCode.Conflict)
+                    throw new FirestoreConflictException("Transaction read aborted.");
                 throw new InvalidOperationException($"Firestore GET {path} failed ({(int)response.StatusCode}): {text}");
             }
 
             JsonObject document = JsonNode.Parse(text).AsObject();
             return (document, document["updateTime"]?.GetValue<string>());
+        }
+
+        private async Task<(JsonObject document, string updateTime)> GetInTransactionAsync(string path)
+        {
+            // batchGet carries the transaction bytes in JSON, supported by production and emulator.
+            using HttpRequestMessage request = await RequestAsync(HttpMethod.Post, $"{host}/v1/{root}:batchGet");
+            var body = new JsonObject
+            {
+                ["documents"] = new JsonArray($"{root}/{path}"),
+                ["transaction"] = transaction,
+            };
+            request.Content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json");
+            using HttpResponseMessage response = await http.SendAsync(request);
+            string text = await response.Content.ReadAsStringAsync();
+            if (!response.IsSuccessStatusCode)
+            {
+                if (response.StatusCode == System.Net.HttpStatusCode.Conflict ||
+                    text.Contains("ABORTED", StringComparison.Ordinal))
+                    throw new FirestoreConflictException("Transaction read aborted.");
+                throw new InvalidOperationException($"Firestore transaction read failed ({(int)response.StatusCode}): {text}");
+            }
+            JsonArray results = JsonNode.Parse(text).AsArray();
+            foreach (JsonNode result in results)
+            {
+                if (result["found"] is JsonObject document)
+                    return (document, document["updateTime"]?.GetValue<string>());
+                if (result["missing"] != null) return (null, null);
+            }
+            throw new InvalidOperationException("Firestore batchGet returned no document result.");
         }
 
         /// <summary>Every document of a collection (follows page tokens).</summary>
@@ -118,6 +211,13 @@ namespace KLTN.CloudCode.Shared
             return write;
         }
 
+        /// <summary>Deletes an existing document as part of a commit or transaction.</summary>
+        public JsonObject Delete(string path) => new JsonObject
+        {
+            ["delete"] = $"{root}/{path}",
+            ["currentDocument"] = new JsonObject { ["exists"] = true },
+        };
+
         /// <summary>Non-atomic writes (500 per request); returns how many succeeded.</summary>
         public async Task<int> BatchWriteAsync(JsonArray writes)
         {
@@ -182,6 +282,7 @@ namespace KLTN.CloudCode.Shared
         public async Task CommitAsync(JsonArray writes)
         {
             var body = new JsonObject { ["writes"] = writes };
+            if (transaction != null) body["transaction"] = transaction;
             using HttpRequestMessage request = await RequestAsync(HttpMethod.Post, $"{host}/v1/{root}:commit");
             request.Content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json");
             using HttpResponseMessage response = await http.SendAsync(request);
@@ -201,6 +302,7 @@ namespace KLTN.CloudCode.Shared
 
                 throw new InvalidOperationException(message);
             }
+            committed = true;
         }
 
         /// <summary>Adds server-side increments to a write, so counters never lose a concurrent update.</summary>

@@ -49,5 +49,27 @@ class P { static async Task<int> Main() {
   Check(F(u3, "username") == "user000777" && F(p3, "username") == "user000777" && F(p3, "coins") == "5" && F(n3, "uid") == "u3", "account without username gets one (taken name retried), profile fields kept");
   Check(F(u4, "username") == "user000888", "second account without username listed too");
   Check(await SeasonRoster.FillAsync(fs, 3, end1 + 25 * H) == 0, "roster run again writes nothing");
+  // A late roster job must select the historical name for an ended season,
+  // and must accept a custom name without replacing it with a generated one.
+  long renameAt = end1 + 25 * H;
+  await fs.CommitAsync(new System.Text.Json.Nodes.JsonArray
+  {
+    fs.Write("users/renamed", new System.Text.Json.Nodes.JsonObject
+    {
+      ["username"] = FirestoreAdmin.String("Custom Name 01"),
+      ["initialUsername"] = FirestoreAdmin.String("user999999"),
+      ["usernameVersion"] = FirestoreAdmin.Integer(1),
+      ["usernameChangeCount"] = FirestoreAdmin.Integer(1),
+      ["usernameChangedAt"] = FirestoreAdmin.Timestamp(renameAt),
+    })
+  });
+  await SeasonRoster.FillAsync(fs, 3, renameAt + 1);
+  var (historyRow, _) = await fs.GetAsync("seasons/3/entries/renamed");
+  Check(F(historyRow, "username") == "user999999" && F(historyRow, "usernameVersion") == "0",
+    "late roster preserves the name at the closed season boundary");
+  await SeasonRoster.FillAsync(fs, 4, renameAt + 1);
+  var (futureRow, _) = await fs.GetAsync("seasons/4/entries/renamed");
+  Check(F(futureRow, "username") == "Custom Name 01" && F(futureRow, "usernameVersion") == "1",
+    "future roster uses custom name and version without allocating another name");
   return fails;
 } }

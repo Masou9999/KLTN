@@ -87,7 +87,7 @@ namespace KLTN.Game.Domain.Ranking
         }
     }
 
-    /// <summary>Format and validation of the public username "user" + 6 digits.</summary>
+    /// <summary>Canonical public names and legacy "user" + 6 digit generation.</summary>
     public static class UsernamePolicy
     {
         #region Format
@@ -95,6 +95,8 @@ namespace KLTN.Game.Domain.Ranking
         public const string Prefix = "user";
         public const int DigitCount = 6;
         public const int MaxNumber = 999999;
+        public const int MinLength = 4;
+        public const int MaxLength = 16;
 
         #endregion
 
@@ -103,35 +105,55 @@ namespace KLTN.Game.Domain.Ranking
         public static string Format(int number)
         {
             if (number < 0 || number > MaxNumber)
-            {
-                throw new ArgumentOutOfRangeException(nameof(number), number, "Username number must have 6 digits.");
-            }
-
+                throw new ArgumentOutOfRangeException(nameof(number));
             return Prefix + number.ToString("D6", System.Globalization.CultureInfo.InvariantCulture);
         }
 
+        /// <summary>Preserves display casing and collapses ASCII spaces.</summary>
+        public static string DisplayName(string username) =>
+            string.Join(" ", (username ?? string.Empty).Split(
+                new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries));
+
+        /// <summary>Stable reservation key; existing lowercase keys remain unchanged.</summary>
+        public static string Normalize(string username) => DisplayName(username).ToLowerInvariant();
+
+        /// <summary>Reads new names and legacy lowercase names (including underscores).</summary>
         public static bool IsValid(string username)
         {
-            if (username == null || username.Length != Prefix.Length + DigitCount)
-            {
+            if (username == null || username.Length < MinLength || username.Length > 20)
                 return false;
-            }
-
-            if (!username.StartsWith(Prefix, StringComparison.Ordinal))
-            {
-                return false;
-            }
-
-            for (int index = Prefix.Length; index < username.Length; index++)
-            {
-                if (username[index] < '0' || username[index] > '9')
-                {
+            if (ValidateChoice(username) == null) return true;
+            if (username[0] < 'a' || username[0] > 'z') return false;
+            foreach (char c in username)
+                if (!(c >= 'a' && c <= 'z') && !(c >= '0' && c <= '9') && c != '_')
                     return false;
-                }
-            }
-
             return true;
         }
+
+        /// <summary>Returns a stable error code for a newly chosen display name.</summary>
+        public static string ValidateChoice(string username)
+        {
+            string name = DisplayName(username);
+            if (name.Length < MinLength || name.Length > MaxLength) return "invalid_length";
+            foreach (char c in name)
+                if (!(c >= 'a' && c <= 'z') && !(c >= 'A' && c <= 'Z') &&
+                    !(c >= '0' && c <= '9') && c != ' ')
+                    return "special_characters";
+            if (name[0] >= '0' && name[0] <= '9') return "invalid_name";
+            string key = Normalize(name);
+            if (key == "admin" || key == "support" || key == "system" || key == "moderator")
+                return "reserved_name";
+            if (key.StartsWith(Prefix, StringComparison.Ordinal) && key.Length > Prefix.Length)
+            {
+                bool generated = true;
+                for (int i = Prefix.Length; i < key.Length; i++)
+                    if (key[i] < '0' || key[i] > '9') generated = false;
+                if (generated) return "reserved_name";
+            }
+            return null;
+        }
+
+        public static bool CanChoose(string username) => ValidateChoice(username) == null;
 
         #endregion
     }

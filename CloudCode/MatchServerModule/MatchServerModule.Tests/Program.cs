@@ -260,6 +260,7 @@ class P
         await CheckListenMatches(lookup, T + 10 * H);
 
         Console.WriteLine(fails == 0 ? "\nall passed" : $"\n{fails} failed");
+        fails += await UsernameChecks.Run(fs, T);
         return fails;
     }
 

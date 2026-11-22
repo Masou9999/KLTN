@@ -261,9 +261,10 @@ service cloud.firestore {
     // Empty row (0 points = Bronze, 0 %) so a player is listed before their first match.
     function isEmptyStanding(s, uid) {
       let d = request.resource.data;
-      return d.keys().hasOnly(['username', 'points', 'wins', 'losses', 'draws', 'matches', 'winRate', 'updatedAt'])
+      return d.keys().hasOnly(['username', 'usernameVersion', 'points', 'wins', 'losses', 'draws', 'matches', 'winRate', 'updatedAt'])
         && d.points == 0 && d.wins == 0 && d.losses == 0 && d.draws == 0 && d.matches == 0 && d.winRate == 0
         && d.username == get(userPath(uid)).data.username
+        && d.get('usernameVersion', 0) == get(userPath(uid)).data.get('usernameVersion', 0)
         && d.updatedAt == request.time
         && seasonRunning(s);
     }
@@ -272,15 +273,24 @@ service cloud.firestore {
       allow read: if isOwner(uid);
 
       allow create: if isOwner(uid)
-        && request.resource.data.keys().hasOnly(['coins', 'silver', 'schemaVersion', 'createdAt', 'updatedAt', 'username'])
+        && request.resource.data.keys().hasOnly(['coins', 'silver', 'schemaVersion', 'createdAt', 'updatedAt', 'username', 'usernameVersion', 'usernameChangeCount'])
+        && request.resource.data.get('usernameVersion', 0) == 0
+        && request.resource.data.get('usernameChangeCount', 0) == 0
         && request.resource.data.coins == 0
         && request.resource.data.silver == 0
         && (!('username' in request.resource.data)
           || (validUsername(request.resource.data.username)
-            && existsAfter(usernamePath(request.resource.data.username))));
+            && existsAfter(usernamePath(request.resource.data.username))
+            && getAfter(usernamePath(request.resource.data.username)).data.uid == uid));
 
       allow update: if isOwner(uid) && (isPurchase(uid) || isUsernameClaim(uid));
       allow delete: if false;
+
+      // Rename receipts are immutable to clients, including the owner.
+      match /usernameChangeRequests/{requestId} {
+        allow read: if isOwner(uid);
+        allow write: if false;
+      }
 
       // Settings are separate from currency/profile and owned by one Firebase UID.
       match /settings/audio {

@@ -133,6 +133,8 @@ namespace KLTN.Infrastructure.Economy
                             ["coins"] = 0,
                             ["silver"] = 0,
                             ["schemaVersion"] = SchemaVersion,
+                            ["usernameVersion"] = 0,
+                            ["usernameChangeCount"] = 0,
                             ["username"] = username,
                         },
                         "createdAt",
@@ -290,7 +292,9 @@ namespace KLTN.Infrastructure.Economy
                 username = await ClaimUsernameAsync(uid, token);
             }
 
-            return EconomyResult.Ok(new PlayerProfile(uid, username, wallet, owned));
+            return EconomyResult.Ok(new PlayerProfile(uid, username, wallet, owned,
+                (int)FirestoreValueMapper.GetInteger(user.Body, "usernameVersion"),
+                (int)FirestoreValueMapper.GetInteger(user.Body, "usernameChangeCount")));
         }
 
         private async Task<(string uid, string token, EconomyResult error)> SessionAsync()

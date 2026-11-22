@@ -78,6 +78,20 @@ namespace KLTN.CloudCode.MatchServer
             );
         }
 
+        /// <summary>Renames only the Firebase identity linked to the authenticated caller.</summary>
+        [CloudCodeFunction("ChangeUsername")]
+        public async Task<UsernameChangeResult> ChangeUsername(
+            IExecutionContext context, string requestId, string username)
+        {
+            if (string.IsNullOrEmpty(context.PlayerId))
+                throw new InvalidOperationException("A signed-in player is required.");
+            FirestoreAdmin firestore = await FirestoreAsync(context);
+            string uid = await MatchService.ResolveUidAsync(
+                firestore, lookup, context.PlayerId, context.AccessToken, context.ProjectId,
+                DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+            return await UsernameService.ChangeAsync(firestore, uid, requestId, username);
+        }
+
         [CloudCodeFunction("AdmitPlayer")]
         public async Task<AdmitResult> AdmitPlayer(
             IExecutionContext context,

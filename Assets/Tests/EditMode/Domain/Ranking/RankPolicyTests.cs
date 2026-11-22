@@ -61,13 +61,36 @@ namespace KLTN.Game.Domain.Tests
 
         [TestCase(null)]
         [TestCase("")]
-        [TestCase("user12345")]
-        [TestCase("user1234567")]
+        [TestCase("abc")]
         [TestCase("User123456")]
-        [TestCase("user12a456")]
+        [TestCase("1alex")]
         public void Username_RejectsWrongFormat(string name)
         {
             Assert.IsFalse(UsernamePolicy.IsValid(name));
+        }
+
+        [TestCase("John Doe 01", null)]
+        [TestCase("Abcd123456789012", null)]
+        [TestCase("Abcd1234567890123", "invalid_length")]
+        [TestCase("abc", "invalid_length")]
+        [TestCase("Admin", "reserved_name")]
+        [TestCase("SUPPORT", "reserved_name")]
+        [TestCase("1Alex", "invalid_name")]
+        [TestCase("Alex_01", "special_characters")]
+        [TestCase("Alex@01", "special_characters")]
+        [TestCase("Alex\t01", "special_characters")]
+        public void Username_ValidatesNewChoices(string name, string error)
+        {
+            Assert.AreEqual(error, UsernamePolicy.ValidateChoice(name));
+        }
+
+        [Test]
+        public void Username_PreservesDisplayAndLegacyNames()
+        {
+            Assert.AreEqual("John Doe 01", UsernamePolicy.DisplayName(" John  Doe 01 "));
+            Assert.AreEqual("john doe 01", UsernamePolicy.Normalize(" JOHN  Doe 01 "));
+            Assert.IsTrue(UsernamePolicy.IsValid("legacy_name_12345678"));
+            Assert.IsTrue(UsernamePolicy.IsValid("John Doe 01"));
         }
 
         [Test]

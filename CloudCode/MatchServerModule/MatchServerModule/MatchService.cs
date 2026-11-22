@@ -42,7 +42,6 @@ namespace KLTN.CloudCode.MatchServer
     /// </summary>
     public static class MatchService
     {
-        private const int MaxCommitAttempts = 4;
 
         /// <summary>Allowed difference between the match server's clock and ours for matchStartedUtcMs.</summary>
         private const long ClockSkewMs = RankPointsPolicy.MaxHostClockSkewSeconds * 1000L;
@@ -189,17 +188,9 @@ namespace KLTN.CloudCode.MatchServer
 
             SeatId? surrenderedSeat = SurrenderedSeat(report);
 
-            for (int attempt = 1; ; attempt++)
-            {
-                try
-                {
-                    return await TryReportAsync(firestore, report, outcome, surrenderedSeat, nowUtcMs, listenHostPlayerId);
-                }
-                catch (FirestoreConflictException) when (attempt < MaxCommitAttempts)
-                {
-                    // Lost a race (duplicate report, purchase, roster fill): re-read everything.
-                }
-            }
+            // The transaction runner retries the whole read set, including the player profile.
+            return await firestore.RunTransactionAsync(tx =>
+                TryReportAsync(tx, report, outcome, surrenderedSeat, nowUtcMs, listenHostPlayerId));
         }
 
         private static async Task<ReportResultResponse> TryReportAsync(
@@ -281,7 +272,7 @@ namespace KLTN.CloudCode.MatchServer
                     writes,
                     player,
                     uid,
-                    FirestoreAdmin.GetString(FirestoreAdmin.Fields(user), "username"),
+                    FirestoreAdmin.Fields(user),
                     report.MatchId,
                     outcome,
                     seat,
@@ -370,7 +361,7 @@ namespace KLTN.CloudCode.MatchServer
             JsonArray writes,
             PlayerSettlement player,
             string uid,
-            string username,
+            JsonObject profile,
             string matchId,
             MatchOutcome outcome,
             SeatId seat,
@@ -434,7 +425,8 @@ namespace KLTN.CloudCode.MatchServer
 
             var row = new JsonObject
             {
-                ["username"] = FirestoreAdmin.String(FirestoreAdmin.GetString(fields, "username") ?? username ?? string.Empty),
+                ["username"] = FirestoreAdmin.String(SeasonDocuments.UsernameAtEnd(profile, season.Value.EndUtcMs)),
+                ["usernameVersion"] = FirestoreAdmin.Integer(SeasonDocuments.UsernameVersionAtEnd(profile, season.Value.EndUtcMs)),
                 ["points"] = FirestoreAdmin.Integer(after),
                 ["wins"] = FirestoreAdmin.Integer(wins),
                 ["losses"] = FirestoreAdmin.Integer(losses),

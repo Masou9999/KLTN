@@ -92,6 +92,7 @@ namespace KLTN.Game.Editor
             serialized.FindProperty("frame").objectReferenceValue = frame;
             serialized.FindProperty("catalog").objectReferenceValue = catalog;
             serialized.ApplyModifiedPropertiesWithoutUndo();
+            UsernameChangeView.Attach(username);
             EditorSceneManager.MarkSceneDirty(scene);
             EditorSceneManager.SaveScene(scene);
             ValidateAndPreview();

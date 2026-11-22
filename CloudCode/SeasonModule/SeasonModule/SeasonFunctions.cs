@@ -266,8 +266,8 @@ namespace KLTN.CloudCode.Season
     /// Lists every account in the running season: each users/{uid} gets a row with 0 points (Bronze)
     /// and 0 % win rate. Accounts created before usernames existed (and not logged in since) are given
     /// their unique username here, the same way the game does on login. Rows missing "winRate"
-    /// get it computed. Rows use a non-atomic batchWrite with an exists = false precondition,
-    /// so a row the player created meanwhile only fails that one write.
+    /// get it computed. New rows read the profile in a transaction, so a concurrent rename
+    /// cannot be followed by a stale roster write.
     /// </summary>
     public static class SeasonRoster
     {
@@ -299,7 +299,8 @@ namespace KLTN.CloudCode.Season
                     int matches = (int)Long(fields, "matches");
                     writes.Add(firestore.Patch(
                         $"{entries}/{uid}",
-                        new JsonObject { ["winRate"] = FirestoreAdmin.Integer(SeasonStanding.WinRateOf(wins, matches)) }
+                        new JsonObject { ["winRate"] = FirestoreAdmin.Integer(SeasonStanding.WinRateOf(wins, matches)) },
+                        entry["updateTime"]?.GetValue<string>()
                     ));
                 }
             }
@@ -328,7 +329,24 @@ namespace KLTN.CloudCode.Season
                 }
 
                 present.Add(uid);
-                writes.Add(firestore.Write($"{entries}/{uid}", EmptyRow(username, now), exists: false));
+                assigned += await firestore.RunTransactionAsync(async tx =>
+                {
+                    (JsonObject fresh, _) = await tx.GetAsync($"users/{uid}");
+                    (JsonObject existing, _) = await tx.GetAsync($"{entries}/{uid}");
+                    (JsonObject cfg, _) = await tx.GetAsync("config/season");
+                    if (fresh == null || existing != null) return 0;
+                    SeasonConfig? calendar = SeasonDocuments.ParseConfig(cfg);
+                    if (!calendar.HasValue || !calendar.Value.TryGetWindow(seasonId, out SeasonWindow window))
+                        return 0;
+                    JsonObject profile = FirestoreAdmin.Fields(fresh);
+                    string latest = SeasonDocuments.UsernameAtEnd(profile, window.EndUtcMs);
+                    if (!UsernamePolicy.IsValid(latest)) return 0;
+                    JsonObject row = EmptyRow(latest, now);
+                    row["usernameVersion"] = FirestoreAdmin.Integer(
+                        SeasonDocuments.UsernameVersionAtEnd(profile, window.EndUtcMs));
+                    await tx.CommitAsync(new JsonArray { tx.Write($"{entries}/{uid}", row, exists: false) });
+                    return 1;
+                });
             }
 
             int written = writes.Count == 0 ? 0 : await firestore.BatchWriteAsync(writes);

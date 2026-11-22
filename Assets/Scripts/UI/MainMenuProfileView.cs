@@ -29,6 +29,11 @@ namespace KLTN.UI
         private static readonly CultureInfo NumberCulture = CultureInfo.GetCultureInfo("vi-VN");
         private string UserId => AuthManager.Instance != null ? AuthManager.Instance.CurrentUserId : null;
 
+        private void Awake()
+        {
+            UsernameChangeView.Attach(username);
+        }
+
         private void OnEnable()
         {
             profiles = PlayerProfileService.Instance;

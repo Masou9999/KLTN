@@ -8,17 +8,23 @@ namespace KLTN.Infrastructure.Economy
     {
         public string UserId { get; }
 
-        /// <summary>Public unique name "userXXXXXX"; null only if claiming it failed.</summary>
+        /// <summary>Canonical public unique name; null only if claiming it failed.</summary>
         public string Username { get; }
+        public int UsernameVersion { get; }
+        public int UsernameChangeCount { get; }
+        public bool CanChangeUsername => UsernameChangeCount == 0 && UsernameVersion == 0;
         public Wallet Wallet { get; }
         public IReadOnlyCollection<string> OwnedCardIds => owned;
 
         private readonly HashSet<string> owned;
 
-        public PlayerProfile(string userId, string username, Wallet wallet, IEnumerable<string> ownedCardIds)
+        public PlayerProfile(string userId, string username, Wallet wallet, IEnumerable<string> ownedCardIds,
+            int usernameVersion = 0, int usernameChangeCount = 0)
         {
             UserId = userId;
             Username = username;
+            UsernameVersion = usernameVersion;
+            UsernameChangeCount = usernameChangeCount;
             Wallet = wallet;
             owned = new HashSet<string>(ownedCardIds ?? new string[0], System.StringComparer.Ordinal);
         }

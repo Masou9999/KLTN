@@ -221,6 +221,47 @@ await t('client cannot read ugsPlayers', () => assertFails(getDoc(doc(db('alice'
 await t('client cannot link a player to its uid', () => assertFails(setDoc(doc(db('bob'), 'ugsPlayers/p9'), { uid: 'bob' })));
 await t('client cannot read match servers', () => assertFails(getDoc(doc(db('alice'), 'servers/s1'))));
 await t('client cannot reserve a server slot', () => assertFails(updateDoc(doc(db('alice'), 'servers/s1'), { slots: ['mm1', 'mine'] })));
+// Rename fields and receipts are owned exclusively by the backend.
+await t('client cannot change username or reset its allowance', async () => {
+  for (const fields of [{ username: 'alex' }, { usernameVersion: 0 }, { usernameChangeCount: 0 }, { initialUsername: 'fake' }])
+    await assertFails(updateDoc(doc(db('alice'), 'users/alice'), fields));
+});
+await t('client cannot forge or overwrite a rename receipt', async () => {
+  await assertFails(setDoc(doc(db('alice'), 'users/alice/usernameChangeRequests/test'), { username: 'alex' }));
+});
+await t('user cannot create profile pointing at somebody elses reserved name', async () => {
+  await assertFails(setDoc(doc(db('imposter'), 'users/imposter'), { ...zero, username: 'user111111' }));
+});
+await env.withSecurityRulesDisabled(async c => {
+  const a = c.firestore();
+  await setDoc(doc(a, 'users/renamed'), { ...zero, username: 'alex_01', usernameVersion: 1, usernameChangeCount: 1 });
+  await setDoc(doc(a, 'users/renamed/usernameChangeRequests/done'), { username: 'alex_01', usernameVersion: 1 });
+});
+await t('receipt readable only by owner', async () => {
+  await assertSucceeds(getDoc(doc(db('renamed'), 'users/renamed/usernameChangeRequests/done')));
+  await assertFails(getDoc(doc(db('alice'), 'users/renamed/usernameChangeRequests/done')));
+});
+await t('renamed user creates only matching name and version in current season', async () => {
+  const ref = doc(db('renamed'), 'seasons/3/entries/renamed');
+  const row = { username: 'alex_01', usernameVersion: 1, points: 0, wins: 0, losses: 0, draws: 0, matches: 0, winRate: 0, updatedAt: serverTimestamp() };
+  await assertFails(setDoc(ref, { ...row, usernameVersion: 0 }));
+  await assertFails(setDoc(ref, { ...row, username: 'user123456' }));
+  await assertSucceeds(setDoc(ref, row));
+});
+await t('availability reads canonical names and absent keys without claiming them', async () => {
+  await seed(a => setDoc(doc(a, 'usernames/alex 01'), { uid: 'renamed' }));
+  const existing = await assertSucceeds(getDoc(doc(db('alice'), 'usernames/alex 01')));
+  const absent = await assertSucceeds(getDoc(doc(db('alice'), 'usernames/not claimed')));
+  if (!existing.exists() || absent.exists()) throw new Error('Incorrect availability result');
+  await assertFails(setDoc(doc(db('alice'), 'usernames/not claimed'), { uid: 'alice' }));
+});
+await t('new display casing and spaces work in standings; usernameKey remains server-owned', async () => {
+  await seed(a => setDoc(doc(a, 'users/newdisplay'), { ...zero, username: 'Alex 01', usernameKey: 'alex 01', usernameVersion: 1, usernameChangeCount: 1 }));
+  await assertFails(updateDoc(doc(db('newdisplay'), 'users/newdisplay'), { usernameKey: 'other' }));
+  await assertSucceeds(setDoc(doc(db('newdisplay'), 'seasons/3/entries/newdisplay'), {
+    username: 'Alex 01', usernameVersion: 1, points: 0, wins: 0, losses: 0, draws: 0, matches: 0, winRate: 0, updatedAt: serverTimestamp()
+  }));
+});
 await env.cleanup();
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

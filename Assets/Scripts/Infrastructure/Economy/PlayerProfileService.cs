@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using KLTN.Game.Content;
 using KLTN.Game.Domain.Economy;
+using KLTN.Game.Domain.Ranking;
+using KLTN.Infrastructure.Ranking;
 using KLTN.Infrastructure.Firestore;
 using UnityEngine;
 
@@ -27,6 +29,7 @@ namespace KLTN.Infrastructure.Economy
         private IEconomyGateway gateway;
         private Task<EconomyResult> loadTask;
         private int sessionVersion;
+        private bool renameInFlight;
         private string CurrentUserId => AuthManager.Instance != null ? AuthManager.Instance.CurrentUserId : null;
 
         #region Bootstrap
@@ -114,6 +117,71 @@ namespace KLTN.Infrastructure.Economy
         #endregion
 
         #region Commands
+
+        /// <summary>Checks the canonical reservation without claiming it; rename rechecks atomically.</summary>
+        public async Task<string> CheckUsernameAsync(string requestedName)
+        {
+            string error = UsernamePolicy.ValidateChoice(requestedName);
+            if (error != null) return error;
+            if (Current == null || Current.UserId != CurrentUserId) return "not_signed_in";
+            int session = sessionVersion;
+            try
+            {
+                string token = await AuthManager.Instance.GetValidIdTokenAsync();
+                if (string.IsNullOrEmpty(token)) return "not_signed_in";
+                string key = UsernamePolicy.Normalize(requestedName);
+                var response = await new FirestoreRestClient().GetDocumentAsync(
+                    "usernames/" + Uri.EscapeDataString(key), token);
+                if (session != sessionVersion) return "session_changed";
+                if (response.IsNotFound) return null;
+                if (response.Success) return "name_taken";
+                return "availability_unavailable";
+            }
+            catch (Exception)
+            {
+                return "availability_unavailable";
+            }
+        }
+
+        /// <summary>Changes the public name once; late replies cannot mutate another session.</summary>
+        public async Task<UsernameChangeResponse> ChangeUsernameAsync(string requestedName)
+        {
+            string name = UsernamePolicy.DisplayName(requestedName);
+            if (!UsernamePolicy.IsValid(name))
+                return new UsernameChangeResponse { Error = "invalid_name" };
+            if (Current == null || Current.UserId != CurrentUserId)
+                return new UsernameChangeResponse { Error = "not_signed_in" };
+            if (renameInFlight) return new UsernameChangeResponse { Error = "busy" };
+            int session = sessionVersion;
+            string uid = CurrentUserId;
+            renameInFlight = true;
+            try
+            {
+                var result = await UsernameChangeClient.ChangeAsync(uid, name);
+                if (session != sessionVersion || uid != CurrentUserId)
+                    return new UsernameChangeResponse { Error = "session_changed" };
+                if (result.Success && Current != null &&
+                    result.UsernameVersion >= Current.UsernameVersion)
+                {
+                    Apply(new PlayerProfile(uid, result.Username, Current.Wallet,
+                        Current.OwnedCardIds, result.UsernameVersion, result.UsernameChangeCount));
+                    LeaderboardService.Instance?.InvalidateUsername();
+                }
+                if (result.Error == "already_changed")
+                    await EnsureLoadedAsync(forceReload: true);
+                return result;
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning("[Profile] Rename response unavailable: " +
+                    exception.GetType().Name);
+                return new UsernameChangeResponse { Error = "network_unknown" };
+            }
+            finally
+            {
+                renameInFlight = false;
+            }
+        }
 
         /// <summary>Loads (or creates with starter cards) the profile once; later calls reuse it.</summary>
         public Task<EconomyResult> EnsureLoadedAsync(bool forceReload = false)
@@ -214,6 +282,14 @@ namespace KLTN.Infrastructure.Economy
                 return;
             }
 
+            // A wallet/profile read started before rename may finish after its receipt.
+            if (Current != null && Current.UserId == profile.UserId &&
+                profile.UsernameVersion < Current.UsernameVersion)
+            {
+                profile = new PlayerProfile(profile.UserId, Current.Username,
+                    profile.Wallet, profile.OwnedCardIds,
+                    Current.UsernameVersion, Current.UsernameChangeCount);
+            }
             Current = profile;
             ProfileChanged?.Invoke(profile);
         }

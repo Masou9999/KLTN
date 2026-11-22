@@ -26,6 +26,17 @@ namespace KLTN.Infrastructure.Ranking
         public SeasonStanding MyStanding { get; private set; }
 
         public event Action<SeasonStanding> MyStandingChanged;
+        public event Action UsernameChanged;
+        private int usernameRevision;
+
+        /// <summary>Invalidates the own-row cache and any live page cursors after a rename.</summary>
+        public void InvalidateUsername()
+        {
+            ++usernameRevision;
+            MyStanding = null;
+            MyStandingChanged?.Invoke(null);
+            UsernameChanged?.Invoke();
+        }
 
         private int profileFrameSession;
         private int profileFrameRequest;
@@ -136,6 +147,7 @@ namespace KLTN.Infrastructure.Ranking
 
         private void HandleLogout()
         {
+            ++usernameRevision;
             ++profileFrameSession;
             profileFrame = null;
             profileFrameUserId = null;
@@ -168,6 +180,8 @@ namespace KLTN.Infrastructure.Ranking
         /// </summary>
         public async Task<RankTier> GetMyCurrentTierAsync()
         {
+            int revision = usernameRevision;
+            string uid = CurrentUserId;
             RankingResult<SeasonWindow?> season = await RefreshSeasonAsync();
 
             if (!season.Success || !season.Value.HasValue)
@@ -178,7 +192,7 @@ namespace KLTN.Infrastructure.Ranking
             RankingResult<SeasonStanding> standing =
                 await Gateway.GetStandingAsync(season.Value.Value.SeasonId, CurrentUserId);
 
-            if (standing.Success)
+            if (standing.Success && revision == usernameRevision && uid == CurrentUserId)
             {
                 SetMyStanding(standing.Value);
             }
@@ -192,10 +206,13 @@ namespace KLTN.Infrastructure.Ranking
         /// </summary>
         public async Task<RankingResult<SeasonStanding>> EnsureMyStandingAsync(int seasonId)
         {
+            int revision = usernameRevision;
+            string uid = CurrentUserId;
             string username = await ResolveUsernameAsync();
             RankingResult<SeasonStanding> standing = await Gateway.EnsureStandingAsync(seasonId, username);
 
-            if (standing.Success && CurrentSeason.HasValue && CurrentSeason.Value.SeasonId == seasonId)
+            if (standing.Success && revision == usernameRevision && uid == CurrentUserId &&
+                CurrentSeason.HasValue && CurrentSeason.Value.SeasonId == seasonId)
             {
                 SetMyStanding(standing.Value);
             }

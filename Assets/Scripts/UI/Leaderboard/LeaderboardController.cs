@@ -81,6 +81,7 @@ namespace KLTN.UI.Leaderboard
         private async void Start()
         {
             service = LeaderboardService.Instance;
+            if (service != null) service.UsernameChanged += HandleUsernameChanged;
             catalog = RankCatalog.Load();
             settings = RankingSettings.Load();
 
@@ -116,6 +117,26 @@ namespace KLTN.UI.Leaderboard
         }
 
         #endregion
+
+        private void OnDestroy()
+        {
+            if (service != null) service.UsernameChanged -= HandleUsernameChanged;
+        }
+
+        private async void HandleUsernameChanged()
+        {
+            ++loadVersion;
+            nextCursor = null;
+            loadingPage = false;
+            try
+            {
+                await LoadSeasonsAsync();
+            }
+            catch (Exception exception)
+            {
+                if (this != null) SetStatus("Không tải được bảng xếp hạng: " + exception.Message);
+            }
+        }
 
         #region Seasons
 
