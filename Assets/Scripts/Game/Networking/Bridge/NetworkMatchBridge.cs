@@ -29,6 +29,22 @@ namespace KLTN.Game.Networking
 
         #endregion
 
+        #region Serialized Fields
+
+        [Header("Match Seed")]
+        [SerializeField]
+        [Tooltip(
+            "Use Match Seed for every match (editor and development builds only). "
+                + "Release builds always use a random seed."
+        )]
+        private bool useFixedMatchSeed = true;
+
+        [SerializeField]
+        [Tooltip("Main seed. Host draws use seed+1, guest draws seed+2, effects seed+3.")]
+        private int matchSeed = 14;
+
+        #endregion
+
         #region Server State
 
         // Card content is the same for every match, so definitions and mappers are shared.

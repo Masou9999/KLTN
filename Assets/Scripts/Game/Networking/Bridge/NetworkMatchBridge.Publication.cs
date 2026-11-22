@@ -42,11 +42,15 @@ namespace KLTN.Game.Networking
                 IReadOnlyList<CardDefinition> hostDeck = BuildDeckForSeat(session, SeatId.Host);
                 IReadOnlyList<CardDefinition> guestDeck = BuildDeckForSeat(session, SeatId.Guest);
 
-                IRandomSource random = new SeededRandomSource(Environment.TickCount ^ session.MatchId.GetHashCode());
+                var seeds = new MatchSeeds(ResolveMatchSeed(session, out bool fixedSeed));
+                IRandomSource random = new SeededRandomSource(seeds.Effects);
 
                 SeatId firstSeat = random.Next(0, 2) == 0 ? SeatId.Host : SeatId.Guest;
 
-                var factory = new MatchFactory(random);
+                var factory = new MatchFactory(
+                    new SeededRandomSource(seeds.HostDraw),
+                    new SeededRandomSource(seeds.GuestDraw)
+                );
 
                 MatchState state = factory.Create(
                     hostDeck,
@@ -74,6 +78,7 @@ namespace KLTN.Game.Networking
                     $"Match initialized. "
                         + $"MatchId: {session.MatchId}. "
                         + $"Ranked: {session.IsRanked}. "
+                        + $"Seed: {seeds.Main} ({(fixedSeed ? "fixed" : "random")}). "
                         + $"First seat: {state.FirstSeat}. "
                         + $"Deck size: {DeckRules.RequiredCardCount}. "
                         + $"Host hand: {state.Host.DrawHand.Count}, "
@@ -89,6 +94,20 @@ namespace KLTN.Game.Networking
 
                 return false;
             }
+        }
+
+        /// <summary>
+        /// Main seed of a new match: the Inspector seed in the editor and development builds
+        /// when <c>useFixedMatchSeed</c> is on, otherwise a per-match random value. The seed
+        /// stays on the server; clients only receive the resulting snapshots.
+        /// </summary>
+        private int ResolveMatchSeed(MatchSession session, out bool fixedSeed)
+        {
+            fixedSeed = useFixedMatchSeed && Debug.isDebugBuild;
+
+            return fixedSeed
+                ? matchSeed
+                : Environment.TickCount ^ session.MatchId.GetHashCode();
         }
 
         /// <summary>Card definitions are loaded once and shared by every match of the process.</summary>

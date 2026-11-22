@@ -132,6 +132,7 @@ public sealed class DedicatedServerBootstrap : MonoBehaviour
     {
         if (!IsDedicatedRuntime())
         {
+            //Tắt component
             enabled = false;
             return;
         }
@@ -239,9 +240,13 @@ public sealed class DedicatedServerBootstrap : MonoBehaviour
         }
 
         Debug.Log($"Dedicated server listening on 0.0.0.0:{listenPort}");
+
+        //Tạo CancellationToken điều khiển vòng đời server
         lifetimeCancellation = new CancellationTokenSource();
         _ = RunLifetimeAsync(lifetimeCancellation.Token);
 
+        //Kiểm tra xem server này có được cấu hình để hoạt động dưới sự phân phối 
+        // của matchmaker/allocator hay không (đã có danh tính serverId/token hợp lệ từ môi trường)
         if (IsAssigned)
         {
             _ = RunAssignmentPollAsync(lifetimeCancellation.Token);
