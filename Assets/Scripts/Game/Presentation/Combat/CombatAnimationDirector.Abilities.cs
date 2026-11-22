@@ -709,7 +709,9 @@ namespace KLTN.Game.Presentation
             }
 
             CanvasGroup group = revived.GetComponent<CanvasGroup>();
-            float restingAlpha = group != null ? group.alpha : 1f;
+            // Availability is an overlay already set by the latest snapshot; only a
+            // translucent companion rests below full opacity.
+            float restingAlpha = revived.RestingAlpha;
 
             if (group != null)
             {

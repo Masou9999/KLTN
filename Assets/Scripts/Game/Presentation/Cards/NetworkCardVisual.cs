@@ -54,6 +54,15 @@ namespace KLTN.Game.Presentation
         [SerializeField, Range(0.05f, 1f)]
         private float attackCompanionAlpha = 0.45f;
 
+        [Header("Unavailable State")]
+        [Tooltip("Optional. Created at runtime beside the ability-target overlay when empty.")]
+        [SerializeField]
+        private Image unavailableOverlay;
+
+        [Tooltip("Tint laid over a card that cannot be used right now. Opacity is untouched.")]
+        [SerializeField]
+        private Color unavailableOverlayColor = new Color(0f, 0f, 0f, 0.5f);
+
         #endregion
 
         #region Runtime State
@@ -88,9 +97,11 @@ namespace KLTN.Game.Presentation
         /// <summary>
         /// The opacity this card should rest at. Animations that hide or flash the card
         /// must return to this value instead of 1 so a companion stays translucent.
+        /// Availability never changes opacity; it is shown by the unavailable overlay.
         /// </summary>
         public float RestingAlpha => IsAttackCompanion ? attackCompanionAlpha : 1f;
 
+        public bool IsShownUnavailable => !interactableVisual;
         public RectTransform ArtworkMount => artworkMount;
         public RectTransform CardRect => transform as RectTransform;
         public RectTransform ManaAnchor => costText != null ? costText.rectTransform : CardRect;
@@ -368,17 +379,118 @@ namespace KLTN.Game.Presentation
             }
         }
 
+        /// <summary>
+        /// Shows whether the player can use this card now. Unavailable cards keep full
+        /// opacity (stacked cards must not show through each other) and get a light grey
+        /// overlay instead. Face-down cards never get the overlay.
+        /// </summary>
         public void SetInteractableVisual(bool value)
         {
             interactableVisual = value;
             ApplyAlpha();
+
+            bool showOverlay = !value && !string.IsNullOrEmpty(DefinitionId);
+            Image overlay = showOverlay ? EnsureUnavailableOverlay() : unavailableOverlay;
+
+            if (overlay != null)
+            {
+                overlay.color = unavailableOverlayColor;
+                overlay.gameObject.SetActive(showOverlay);
+            }
+        }
+
+        /// <summary>
+        /// Puts the overlay just above the last card label (cost, stats, keywords) so it
+        /// dims them too, while later siblings such as the replace spinner stay on top.
+        /// </summary>
+        private void PlaceUnavailableOverlayAboveCardText(RectTransform overlay)
+        {
+            Transform parent = overlay.parent;
+            int topTextIndex = -1;
+
+            foreach (TMP_Text label in new[]
+            {
+                fallbackNameText, costText, damageText, healthText, keywordText,
+            })
+            {
+                if (label != null && label.transform.parent == parent)
+                {
+                    topTextIndex = Mathf.Max(topTextIndex, label.transform.GetSiblingIndex());
+                }
+            }
+
+            if (topTextIndex < 0)
+            {
+                overlay.SetAsLastSibling();
+                return;
+            }
+
+            // Moving down past the target shifts it, so the slot right after it is its index.
+            int current = overlay.GetSiblingIndex();
+            overlay.SetSiblingIndex(current < topTextIndex ? topTextIndex : topTextIndex + 1);
+        }
+
+        private Image EnsureUnavailableOverlay()
+        {
+            if (unavailableOverlay != null)
+            {
+                return unavailableOverlay;
+            }
+
+            // Share the ability-target overlay's parent and rect so the tint follows the
+            // same card face, including any lift or scale applied to it.
+            RectTransform template = abilityTargetOverlay != null
+                ? abilityTargetOverlay.rectTransform
+                : null;
+            Transform parent = template != null ? template.parent : transform;
+
+            var go = new GameObject("UnavailableOverlay", typeof(RectTransform), typeof(Image));
+            go.layer = gameObject.layer;
+
+            var rect = (RectTransform)go.transform;
+            rect.SetParent(parent, false);
+
+            if (template != null)
+            {
+                rect.anchorMin = template.anchorMin;
+                rect.anchorMax = template.anchorMax;
+                rect.pivot = template.pivot;
+                rect.anchoredPosition = template.anchoredPosition;
+                rect.sizeDelta = template.sizeDelta;
+                rect.localScale = template.localScale;
+                rect.localRotation = template.localRotation;
+            }
+            else
+            {
+                rect.anchorMin = Vector2.zero;
+                rect.anchorMax = Vector2.one;
+                rect.offsetMin = Vector2.zero;
+                rect.offsetMax = Vector2.zero;
+            }
+
+            PlaceUnavailableOverlayAboveCardText(rect);
+
+            unavailableOverlay = go.GetComponent<Image>();
+            unavailableOverlay.raycastTarget = false;
+            unavailableOverlay.color = unavailableOverlayColor;
+
+            // Match the template's shape (e.g. rounded card frame) when it has one.
+            if (abilityTargetOverlay != null && abilityTargetOverlay.sprite != null)
+            {
+                unavailableOverlay.sprite = abilityTargetOverlay.sprite;
+                unavailableOverlay.type = abilityTargetOverlay.type;
+                unavailableOverlay.pixelsPerUnitMultiplier =
+                    abilityTargetOverlay.pixelsPerUnitMultiplier;
+            }
+
+            return unavailableOverlay;
         }
 
         private void ApplyAlpha()
         {
             if (canvasGroup != null)
             {
-                canvasGroup.alpha = interactableVisual ? RestingAlpha : RestingAlpha * 0.55f;
+                canvasGroup.alpha = RestingAlpha;
             }
         }
 

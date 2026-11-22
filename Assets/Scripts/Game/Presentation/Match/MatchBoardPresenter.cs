@@ -811,7 +811,9 @@ namespace KLTN.Game.Presentation
             rect.localRotation = Quaternion.identity;
 
             view.SetPending(true);
-            view.SetInteractableVisual(false);
+
+            // The card being played stays clear; the grey overlay is for unusable cards.
+            view.SetInteractableVisual(true);
         }
 
         private void RenderOpponentHand(MatchSnapshotDto snapshot)

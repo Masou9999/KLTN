@@ -1517,6 +1517,9 @@ MonoBehaviour:
   pendingOverlay: {fileID: 7235548608503371256}
   abilityTargetOverlay: {fileID: 5956853112919561396}
   canvasGroup: {fileID: 4427555894340445109}
+  attackCompanionAlpha: 0.45
+  unavailableOverlay: {fileID: 0}
+  unavailableOverlayColor: {r: 0, g: 0, b: 0, a: 0.7058824}
 --- !u!114 &3241616671404702880
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1547,6 +1550,7 @@ MonoBehaviour:
   reserveSize: {x: 150, y: 210}
   boardSize: {x: 250, y: 350}
   abilitySelectionSize: {x: 200, y: 280}
+  mulliganSize: {x: 260, y: 360}
 --- !u!114 &6268654889630839125
 MonoBehaviour:
   m_ObjectHideFlags: 0
