@@ -118,7 +118,11 @@ namespace KLTN.Game.Domain
             return found;
         }
 
-        /// <summary>Validates and commits one seat's mulligan, including the timeout keep-hand fallback.</summary>
+        /// <summary>
+        /// Validates and commits one seat's mulligan, including the timeout keep-hand fallback.
+        /// It never starts round 1: the adapter calls <see cref="MatchState.BeginFirstRound"/>
+        /// once both clients finished the swap animation, for confirmations and timeouts alike.
+        /// </summary>
         public CommandResult TryMulligan(MatchState state, SeatId actor, ulong[] cardIdsToReplace)
         {
             if (state == null) return CommandResult.Reject(CommandRejectionReason.MatchNotReady);
@@ -136,11 +140,6 @@ namespace KLTN.Game.Domain
             player.PerformMulligan(cardIdsToReplace, new Random());
             if (actor == SeatId.Host) state.HostMulliganDone = true;
             else state.GuestMulliganDone = true;
-            if (state.IsMulliganPhaseComplete)
-            {
-                state.BeginFirstRound();
-                state.LastEvent = "Giai đoạn đổi bài kết thúc. Trận đấu bắt đầu!";
-            }
             return CommandResult.Success();
         }
     }

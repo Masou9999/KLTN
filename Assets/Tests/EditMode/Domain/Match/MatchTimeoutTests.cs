@@ -38,5 +38,33 @@ namespace KLTN.Game.Domain.Tests
             Assert.AreEqual(1, state.RoundNumber);
         }
 
+        [Test]
+        public void MulliganTimeout_AfterOpponentConfirmed_CompletesWithoutStartingRound()
+        {
+            var mulligan = new MatchState();
+            Assert.IsTrue(engine.TryMulligan(mulligan, SeatId.Host, Array.Empty<ulong>()).Accepted);
+
+            Assert.IsTrue(engine.TryTimeout(mulligan, SeatId.Guest).Accepted);
+
+            Assert.IsTrue(mulligan.IsMulliganPhaseComplete);
+            Assert.AreEqual(0, mulligan.RoundNumber);
+            Assert.AreEqual(MatchPhase.Mulligan, mulligan.Phase);
+            Assert.AreEqual(0, mulligan.Guest.ConsecutiveTimeouts);
+        }
+
+        [Test]
+        public void MulliganTimeout_BothSeats_LeavesRoundStartToAdapter()
+        {
+            var mulligan = new MatchState();
+
+            Assert.IsTrue(engine.TryTimeout(mulligan, SeatId.Host).Accepted);
+            Assert.IsTrue(engine.TryTimeout(mulligan, SeatId.Guest).Accepted);
+
+            Assert.IsTrue(mulligan.IsMulliganPhaseComplete);
+            Assert.AreEqual(0, mulligan.RoundNumber);
+
+            mulligan.BeginFirstRound();
+            Assert.AreEqual(1, mulligan.RoundNumber);
+        }
     }
 }

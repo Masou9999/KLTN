@@ -145,6 +145,9 @@ namespace KLTN.Game.Networking
             public Coroutine GraceCoroutine;
             public Coroutine LoadoutTimeoutCoroutine;
             public bool LoadoutTimeoutElapsed;
+            public Coroutine FirstRoundCoroutine;
+            // Thời điểm animation đổi bài của người xác nhận trước kết thúc (Time.time).
+            public float FirstMulliganSwapReadyTime;
             public ListenRegistration Listen;
             public readonly Dictionary<SeatId, PlayerProfileDto> Profiles =
                 new Dictionary<SeatId, PlayerProfileDto>();
@@ -173,6 +176,12 @@ namespace KLTN.Game.Networking
             {
                 StopCoroutine(runtime.LoadoutTimeoutCoroutine);
                 runtime.LoadoutTimeoutCoroutine = null;
+            }
+
+            if (runtime.FirstRoundCoroutine != null)
+            {
+                StopCoroutine(runtime.FirstRoundCoroutine);
+                runtime.FirstRoundCoroutine = null;
             }
         }
 

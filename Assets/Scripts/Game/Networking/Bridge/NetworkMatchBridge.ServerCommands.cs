@@ -14,8 +14,6 @@ namespace KLTN.Game.Networking
     {
         #region Server Command Pipeline
 
-        private float firstPlayerSwapReadyTime;
-
         // Every command is routed by MatchCommandService from the sender's connection to its own
         // match (seat, started, not paused, growing command ID) before the rules engine runs.
 
@@ -178,71 +176,77 @@ namespace KLTN.Game.Networking
                 senderClientId,
                 commandId,
                 decisionId,
-                (session, actor) => ApplyMulligan(session.State, actor, cardIdsToReplace)
+                (session, actor) => session.Rules.TryMulligan(session.State, actor, cardIdsToReplace)
             );
 
             FinishCommand(senderClientId, outcome);
 
-            if (!outcome.Accepted || outcome.Session == null || outcome.Session.State.RoundNumber != 0)
+            if (outcome.Accepted && outcome.Session != null)
+            {
+                OnMulliganCommitted(outcome.Session, cardIdsToReplace?.Length ?? 0);
+            }
+        }
+
+        /// <summary>
+        /// Shared follow-up of a committed mulligan, whether confirmed by the player or
+        /// applied by the turn timer. Once both seats are done it tells both clients to
+        /// finish the swap animation and starts round 1 after that delay. Each match keeps
+        /// its own swap timing in <see cref="MatchRuntime"/>.
+        /// </summary>
+        private void OnMulliganCommitted(MatchSession session, int replaceCount)
+        {
+            MatchState state = session.State;
+
+            if (state == null || state.RoundNumber != 0)
             {
                 return;
             }
 
-            int replaceCount = cardIdsToReplace != null ? cardIdsToReplace.Length : 0;
-            float currentPlayerSwapDuration = CalculateSwapAnimationDuration(replaceCount);
+            MatchRuntime runtime = RuntimeOf(session);
+            float swapDuration = CalculateSwapAnimationDuration(replaceCount);
 
-            if (!outcome.Session.State.IsMulliganPhaseComplete)
+            if (!state.IsMulliganPhaseComplete)
             {
-                firstPlayerSwapReadyTime = Time.time + currentPlayerSwapDuration;
+                runtime.FirstMulliganSwapReadyTime = Time.time + swapDuration;
+                return;
             }
-            else
+
+            if (runtime.FirstRoundCoroutine != null)
             {
-                float remainingFirstPlayerSwap = Mathf.Max(0f, firstPlayerSwapReadyTime - Time.time);
-                float effectiveSwapDuration = Mathf.Max(currentPlayerSwapDuration, remainingFirstPlayerSwap);
-
-                NotifyBothMulliganConfirmedRpc(effectiveSwapDuration);
-
-                float totalDelayBeforeRound1 = effectiveSwapDuration + 1.5f + 0.65f + 0.25f;
-                StartCoroutine(BeginFirstRoundAfterMulliganDelayCoroutine(outcome.Session, totalDelayBeforeRound1));
+                return;
             }
+
+            float remainingFirstSwap = Mathf.Max(0f, runtime.FirstMulliganSwapReadyTime - Time.time);
+            float effectiveSwapDuration = Mathf.Max(swapDuration, remainingFirstSwap);
+
+            foreach (SeatId seat in new[] { SeatId.Host, SeatId.Guest })
+            {
+                foreach (ulong clientId in session.ConnectionsOf(seat))
+                {
+                    NotifyBothMulliganConfirmedRpc(
+                        effectiveSwapDuration,
+                        RpcTarget.Single(clientId, RpcTargetUse.Temp)
+                    );
+                }
+            }
+
+            float totalDelayBeforeRound1 = effectiveSwapDuration + 1.5f + 0.65f + 0.25f;
+            runtime.FirstRoundCoroutine = StartCoroutine(
+                BeginFirstRoundAfterMulliganDelayCoroutine(session, totalDelayBeforeRound1)
+            );
         }
 
-        [Rpc(SendTo.ClientsAndHost, InvokePermission = RpcInvokePermission.Server)]
-        private void NotifyBothMulliganConfirmedRpc(float swapWaitDuration)
+        [Rpc(SendTo.SpecifiedInParams, InvokePermission = RpcInvokePermission.Server)]
+        private void NotifyBothMulliganConfirmedRpc(
+            float swapWaitDuration,
+            RpcParams rpcParams = default
+        )
         {
             MulliganPresenter presenter = FindAnyObjectByType<MulliganPresenter>(FindObjectsInactive.Include);
             if (presenter != null)
             {
                 presenter.NotifyBothPlayersConfirmed(swapWaitDuration);
             }
-        }
-
-        private static CommandResult ApplyMulligan(MatchState state, SeatId actor, ulong[] cardIdsToReplace)
-        {
-            if (state == null) return CommandResult.Reject(CommandRejectionReason.MatchNotReady);
-            if (state.IsFinished) return CommandResult.Reject(CommandRejectionReason.MatchFinished);
-            if (actor != SeatId.Host && actor != SeatId.Guest)
-                return CommandResult.Reject(CommandRejectionReason.InvalidSeat);
-            if (state.Phase != MatchPhase.Mulligan || state.RoundNumber != 0
-                || (actor == SeatId.Host ? state.HostMulliganDone : state.GuestMulliganDone))
-                return CommandResult.Reject(CommandRejectionReason.InvalidPhase);
-
-            var unique = new HashSet<ulong>();
-            PlayerState player = state.Player(actor);
-            foreach (ulong id in cardIdsToReplace ?? Array.Empty<ulong>())
-            {
-                if (!unique.Add(id) || !player.DrawHand.Exists(card => card.InstanceId == id))
-                    return CommandResult.Reject(CommandRejectionReason.CardNotInHand);
-            }
-
-            player.PerformMulligan(cardIdsToReplace, new System.Random());
-
-            if (actor == SeatId.Host)
-                state.HostMulliganDone = true;
-            else
-                state.GuestMulliganDone = true;
-
-            return CommandResult.Success();
         }
 
         private static float CalculateSwapAnimationDuration(int replaceCount)
@@ -257,6 +261,11 @@ namespace KLTN.Game.Networking
         private IEnumerator BeginFirstRoundAfterMulliganDelayCoroutine(MatchSession session, float delaySeconds)
         {
             yield return new WaitForSeconds(delaySeconds);
+
+            if (session != null && runtimeByMatch.TryGetValue(session.MatchId, out MatchRuntime runtime))
+            {
+                runtime.FirstRoundCoroutine = null;
+            }
 
             if (!IsServer || session == null || session.State == null)
             {

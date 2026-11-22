@@ -164,7 +164,11 @@ namespace KLTN.Game.ApplicationLayer.Tests
             Assert.IsFalse(other.State.GuestMulliganDone);
             Assert.AreEqual(22, other.TurnTimer.For(SeatId.Guest).Deadline);
             other.TurnTimer.Expire(other, SeatId.Guest, 22.3);
-            Assert.AreEqual(1, other.State.RoundNumber);
+            // Round 1 starts from the adapter after the swap animation, like a confirmation.
+            Assert.IsTrue(other.State.IsMulliganPhaseComplete);
+            Assert.AreEqual(0, other.State.RoundNumber);
+            Assert.IsNull(other.TurnTimer.For(SeatId.Host));
+            Assert.IsNull(other.TurnTimer.For(SeatId.Guest));
             Assert.AreEqual(0, other.State.Host.ConsecutiveTimeouts);
             Assert.AreEqual(0, other.State.Guest.ConsecutiveTimeouts);
             Assert.AreEqual(SeatId.Host, session.State.ActiveSeat, "another match must be isolated");

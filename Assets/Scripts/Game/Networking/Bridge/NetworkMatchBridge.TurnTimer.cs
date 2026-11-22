@@ -24,6 +24,7 @@ namespace KLTN.Game.Networking
             session.TurnTimer.Reconcile(session, now);
             foreach (SeatId seat in new[] { SeatId.Host, SeatId.Guest })
             {
+                bool inMulligan = session.State.Phase == MatchPhase.Mulligan;
                 CommandResult result = session.TurnTimer.Expire(session, seat, now);
                 if (result == null) continue;
                 if (!result.Accepted)
@@ -32,6 +33,8 @@ namespace KLTN.Game.Networking
                     continue;
                 }
                 BroadcastUpdate(session, result.Resolution, result.RoundTransition);
+                // Hết giờ mulligan đi cùng luồng với bấm xác nhận (giữ nguyên tay bài).
+                if (inMulligan) OnMulliganCommitted(session, 0);
                 TrySettleFinishedMatch(session);
             }
         }

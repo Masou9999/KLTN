@@ -11,6 +11,16 @@ using DG.Tweening;
 
 public class MulliganPresenter : MonoBehaviour
 {
+    #region Constants
+
+    // Giới hạn chờ cờ animation cục bộ; quá hạn thì đóng Mulligan thay vì kẹt màn hình.
+    private const float MaxLocalWaitSeconds = 5f;
+
+    // TopBar nằm trên backdrop Mulligan (Phase 620) để vẫn mở được Settings/đầu hàng.
+    private const int TopBarAboveMulliganOffset = 30;
+
+    #endregion
+
     #region Serialized Fields
 
     [Header("UI References")]
@@ -50,6 +60,10 @@ public class MulliganPresenter : MonoBehaviour
     private bool hasMovedToHand;
     private bool isTransitioningToMatch;
     private bool hideRealHandCards;
+    private Canvas topBarCanvas;
+    private int topBarSortingLayerId;
+    private int topBarSortingOrder;
+    private bool topBarRaised;
 
     #endregion
 
@@ -157,16 +171,13 @@ public class MulliganPresenter : MonoBehaviour
 
         if (snapshot.opponent == null)
         {
-            SetRealHandVisibility(true);
-            SetTopBarVisibility(true);
-            gameObject.SetActive(false);
-            ClearViews();
+            ForceClose();
             return;
         }
 
         if (snapshot.roundNumber == 0)
         {
-            SetTopBarVisibility(false);
+            SetTopBarAboveMulligan(true);
             UpdateTurnOrderText(snapshot);
         }
 
@@ -176,6 +187,9 @@ public class MulliganPresenter : MonoBehaviour
             && !string.IsNullOrEmpty(snapshot.matchId)
             && snapshot.turnClock != null
             && snapshot.turnClock.self == null
+            // Snapshot "đang chờ" trước khi chia bài cũng không có đồng hồ: chưa phải hết giờ.
+            && snapshot.self?.hand != null
+            && snapshot.self.hand.Length > 0
         )
         {
             LockCardsOnServerTimeout();
@@ -194,7 +208,7 @@ public class MulliganPresenter : MonoBehaviour
             hasMovedToHand = false;
             gameObject.SetActive(true);
             SetRealHandVisibility(false);
-            SetTopBarVisibility(false);
+            SetTopBarAboveMulligan(true);
 
             if (actionButtonText != null)
             {
@@ -239,10 +253,7 @@ public class MulliganPresenter : MonoBehaviour
 
             if (hasMovedToHand && !isTransitioningToMatch)
             {
-                SetRealHandVisibility(true);
-                SetTopBarVisibility(true);
-                if (gameObject.activeInHierarchy) gameObject.SetActive(false);
-                ClearViews();
+                ForceClose();
             }
             else if (!isTransitioningToMatch && gameObject.activeInHierarchy)
             {
@@ -250,9 +261,7 @@ public class MulliganPresenter : MonoBehaviour
             }
             else if (!isTransitioningToMatch && !gameObject.activeInHierarchy)
             {
-                SetRealHandVisibility(true);
-                SetTopBarVisibility(true);
-                ClearViews();
+                ForceClose();
             }
         }
     }
@@ -583,8 +592,9 @@ public class MulliganPresenter : MonoBehaviour
         isTransitioningToMatch = true;
 
         float confirmedAtTime = Time.time;
+        float waitDeadline = Time.time + MaxLocalWaitSeconds;
 
-        while (!hasSpawnedNewCards || isReturningToDeck || isAnimating)
+        while ((!hasSpawnedNewCards || isReturningToDeck || isAnimating) && Time.time < waitDeadline)
         {
             yield return null;
         }
@@ -601,13 +611,9 @@ public class MulliganPresenter : MonoBehaviour
 
         yield return StartCoroutine(AnimateCardsToHandRoutine());
 
-        SetRealHandVisibility(true);
-        SetTopBarVisibility(true);
-        DestroyMulliganCardObjects();
-
         hasMovedToHand = true;
         isTransitioningToMatch = false;
-        gameObject.SetActive(false);
+        ForceClose();
     }
 
     private IEnumerator WaitAndCloseMulliganRoutine(MatchSnapshotDto snapshot)
@@ -628,10 +634,14 @@ public class MulliganPresenter : MonoBehaviour
             hasSpawnedNewCards = true;
         }
 
-        while (isReturningToDeck || isAnimating || isTransitioningToMatch)
+        float waitDeadline = Time.time + MaxLocalWaitSeconds;
+
+        while ((isReturningToDeck || isAnimating || isTransitioningToMatch) && Time.time < waitDeadline)
         {
             yield return null;
         }
+
+        isTransitioningToMatch = false;
 
         if (!hasMovedToHand)
         {
@@ -640,10 +650,7 @@ public class MulliganPresenter : MonoBehaviour
             );
         }
 
-        SetRealHandVisibility(true);
-        SetTopBarVisibility(true);
-        if (gameObject.activeInHierarchy) gameObject.SetActive(false);
-        ClearViews();
+        ForceClose();
     }
 
     private IEnumerator AnimateCardsToHandRoutine()
@@ -749,6 +756,54 @@ public class MulliganPresenter : MonoBehaviour
         if (topBar != null && topBar.activeSelf != visible)
         {
             topBar.SetActive(visible);
+        }
+    }
+
+    /// <summary>
+    /// Keeps the TopBar visible and lifts its canvas above the Mulligan backdrop while the
+    /// opening-hand screen is open, then restores the authored HUD sorting.
+    /// </summary>
+    private void SetTopBarAboveMulligan(bool raised)
+    {
+        SetTopBarVisibility(true);
+
+        if (topBar == null || raised == topBarRaised) return;
+
+        if (topBarCanvas == null)
+        {
+            topBarCanvas = topBar.GetComponent<Canvas>();
+            if (topBarCanvas == null) return;
+
+            topBarSortingLayerId = topBarCanvas.sortingLayerID;
+            topBarSortingOrder = topBarCanvas.sortingOrder;
+        }
+
+        if (raised)
+        {
+            MatchSorting.Apply(topBarCanvas, MatchSorting.Phase, TopBarAboveMulliganOffset);
+        }
+        else
+        {
+            topBarCanvas.sortingLayerID = topBarSortingLayerId;
+            topBarCanvas.sortingOrder = topBarSortingOrder;
+        }
+
+        topBarRaised = raised;
+    }
+
+    /// <summary>
+    /// Closes the Mulligan screen from any state: shows the real hand, restores the TopBar
+    /// and clears every transition flag, so a missed message can never leave it stuck.
+    /// </summary>
+    private void ForceClose()
+    {
+        SetRealHandVisibility(true);
+        SetTopBarAboveMulligan(false);
+        ClearViews();
+
+        if (gameObject.activeSelf)
+        {
+            gameObject.SetActive(false);
         }
     }
 
