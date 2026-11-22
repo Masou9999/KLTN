@@ -597,9 +597,10 @@ namespace KLTN.Game.Domain
             if (cardIdsToReplace == null || cardIdsToReplace.Length == 0)
                 return;
 
-            int replaceCount = 0;
+            var replacedIndices = new List<int>(cardIdsToReplace.Length);
+            var returnedCards = new List<CardInstance>(cardIdsToReplace.Length);
 
-            for (int i = DrawHand.Count - 1; i >= 0; i--)
+            for (int i = 0; i < DrawHand.Count; i++)
             {
                 bool shouldReplace = Array.Exists(
                     cardIdsToReplace,
@@ -611,19 +612,54 @@ namespace KLTN.Game.Domain
                     continue;
                 }
 
-                CardInstance card = DrawHand[i];
+                replacedIndices.Add(i);
+                returnedCards.Add(DrawHand[i]);
+            }
 
-                DrawHand.RemoveAt(i);
-                card.MoveTo(CardZone.Deck);
-                Deck.Add(card);
-                replaceCount++;
+            if (replacedIndices.Count == 0)
+            {
+                return;
             }
 
             ShuffleDeck(rng);
 
-            for (int i = 0; i < replaceCount; i++)
+            bool returnedToDeckEarly = false;
+            for (int i = 0; i < replacedIndices.Count; i++)
             {
-                DrawOne();
+                if (Deck.Count == 0 && !returnedToDeckEarly)
+                {
+                    for (int j = 0; j < returnedCards.Count; j++)
+                    {
+                        CardInstance returnedCard = returnedCards[j];
+                        returnedCard.MoveTo(CardZone.Deck);
+                        Deck.Add(returnedCard);
+                    }
+                    returnedToDeckEarly = true;
+                    ShuffleDeck(rng);
+                }
+
+                if (Deck.Count == 0)
+                {
+                    break;
+                }
+
+                int handSlotIndex = replacedIndices[i];
+                CardInstance replacementCard = Deck[0];
+                Deck.RemoveAt(0);
+                replacementCard.MoveTo(CardZone.DrawHand);
+                DrawHand[handSlotIndex] = replacementCard;
+            }
+
+            if (!returnedToDeckEarly)
+            {
+                for (int i = 0; i < returnedCards.Count; i++)
+                {
+                    CardInstance returnedCard = returnedCards[i];
+                    returnedCard.MoveTo(CardZone.Deck);
+                    Deck.Add(returnedCard);
+                }
+
+                ShuffleDeck(rng);
             }
         }
 

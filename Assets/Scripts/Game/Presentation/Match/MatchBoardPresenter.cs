@@ -1018,6 +1018,15 @@ namespace KLTN.Game.Presentation
                     && abilitySelectionSourceRoot != null
                     && existing.transform is RectTransform existingRect)
                 {
+                    RectTransform previousReserveParent =
+                        existingRect.parent == selfReserveRoot || existingRect.parent == opponentReserveRoot
+                            ? existingRect.parent as RectTransform
+                            : null;
+                    int previousReserveSiblingIndex = previousReserveParent != null
+                        ? existingRect.GetSiblingIndex()
+                        : -1;
+                    Vector2 previousReserveSize = existingRect.rect.size;
+
                     // Preserve the actual staged pose, including parent scale, before
                     // changing layout. The local card already occupies its Reserve slot.
                     existingRect.DOKill();
@@ -1028,6 +1037,15 @@ namespace KLTN.Game.Presentation
                         Vector3.up * existingRect.rect.height).magnitude;
                     Quaternion rotation = existingRect.rotation;
                     existingRect.SetParent(abilitySelectionSourceRoot, true);
+
+                    if (previousReserveParent != null && previousReserveParent.childCount > 0)
+                    {
+                        SpawnCollapsingReservePlaceholder(
+                            previousReserveParent,
+                            previousReserveSiblingIndex,
+                            previousReserveSize
+                        );
+                    }
                     existing.GetComponent<CardVisualLayout>()?.Apply(
                         CardVisualLocation.AbilitySelection);
                     CenterAbilitySelectionSource(existing);
@@ -1451,27 +1469,191 @@ namespace KLTN.Game.Presentation
 
         public void IgnoreCardInReserveLayout(NetworkCardVisual targetView)
         {
+            CreateCollapseCardInReserveTween(targetView, 0.22f);
+        }
+
+        public IEnumerator AnimateCollapseCardInReserveLayout(
+            NetworkCardVisual targetView,
+            float duration = 0.22f
+        )
+        {
+            Tween collapseTween = CreateCollapseCardInReserveTween(targetView, duration);
+            if (collapseTween != null)
+            {
+                yield return collapseTween.WaitForCompletion();
+            }
+        }
+
+        private Tween CreateCollapseCardInReserveTween(
+            NetworkCardVisual targetView,
+            float duration
+        )
+        {
             if (targetView == null)
             {
-                return;
+                return null;
             }
 
             Transform parent = targetView.transform.parent;
             if (parent != selfReserveRoot && parent != opponentReserveRoot)
             {
+                return null;
+            }
+
+            RectTransform reserveRect = parent as RectTransform;
+            RectTransform targetRect = targetView.transform as RectTransform;
+            LayoutElement element = targetView.GetComponent<LayoutElement>();
+
+            if (reserveRect == null || targetRect == null)
+            {
+                if (element != null)
+                {
+                    element.ignoreLayout = true;
+                }
+                return null;
+            }
+
+            if (element != null && element.ignoreLayout)
+            {
+                return null;
+            }
+
+            CanvasGroup cardGroup = targetView.GetComponent<CanvasGroup>();
+            if (cardGroup == null)
+            {
+                cardGroup = targetView.gameObject.AddComponent<CanvasGroup>();
+            }
+            cardGroup.alpha = 0f;
+            cardGroup.blocksRaycasts = false;
+
+            float startWidth = targetRect.rect.width;
+            if (startWidth <= 0f && element != null && element.preferredWidth > 0f)
+            {
+                startWidth = element.preferredWidth;
+            }
+
+            if (startWidth <= 0.5f || duration <= 0.01f)
+            {
+                if (element != null)
+                {
+                    element.ignoreLayout = true;
+                }
+                LayoutRebuilder.ForceRebuildLayoutImmediate(reserveRect);
+                return null;
+            }
+
+            float currentWidth = startWidth;
+            targetRect.DOKill();
+
+            return DOTween
+                .To(
+                    () => currentWidth,
+                    w =>
+                    {
+                        currentWidth = w;
+                        if (targetRect == null)
+                        {
+                            return;
+                        }
+
+                        if (element != null)
+                        {
+                            element.preferredWidth = w;
+                        }
+                        targetRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, w);
+                        if (reserveRect != null)
+                        {
+                            LayoutRebuilder.ForceRebuildLayoutImmediate(reserveRect);
+                        }
+                    },
+                    0f,
+                    duration
+                )
+                .SetEase(Ease.InOutQuad)
+                .SetTarget(targetRect)
+                .SetLink(targetView.gameObject)
+                .OnComplete(() =>
+                {
+                    if (element != null)
+                    {
+                        element.ignoreLayout = true;
+                    }
+                    if (reserveRect != null)
+                    {
+                        LayoutRebuilder.ForceRebuildLayoutImmediate(reserveRect);
+                    }
+                });
+        }
+
+        private void SpawnCollapsingReservePlaceholder(
+            RectTransform reserveRoot,
+            int siblingIndex,
+            Vector2 cardSize,
+            float duration = 0.22f
+        )
+        {
+            if (reserveRoot == null)
+            {
                 return;
             }
 
-            LayoutElement element = targetView.GetComponent<LayoutElement>();
-            if (element != null)
+            if (cardSize.x <= 0f || cardSize.y <= 0f)
             {
-                element.ignoreLayout = true;
+                cardSize = new Vector2(150f, 210f);
             }
 
-            if (parent is RectTransform reserveRect)
+            RectTransform placeholderRect = CreateReserveSlotPlaceholder(reserveRoot, cardSize);
+            spawnedViews.Add(placeholderRect.gameObject);
+
+            if (siblingIndex >= 0 && siblingIndex < reserveRoot.childCount)
             {
-                LayoutRebuilder.ForceRebuildLayoutImmediate(reserveRect);
+                placeholderRect.SetSiblingIndex(siblingIndex);
             }
+
+            LayoutElement element = placeholderRect.GetComponent<LayoutElement>();
+            float currentWidth = cardSize.x;
+
+            DOTween
+                .To(
+                    () => currentWidth,
+                    w =>
+                    {
+                        currentWidth = w;
+                        if (placeholderRect == null)
+                        {
+                            return;
+                        }
+
+                        if (element != null)
+                        {
+                            element.preferredWidth = w;
+                        }
+                        placeholderRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, w);
+                        if (reserveRoot != null)
+                        {
+                            LayoutRebuilder.ForceRebuildLayoutImmediate(reserveRoot);
+                        }
+                    },
+                    0f,
+                    Mathf.Max(0.05f, duration)
+                )
+                .SetEase(Ease.InOutQuad)
+                .SetTarget(placeholderRect)
+                .SetLink(placeholderRect.gameObject)
+                .OnComplete(() =>
+                {
+                    if (placeholderRect != null)
+                    {
+                        spawnedViews.Remove(placeholderRect.gameObject);
+                        placeholderRect.SetParent(null, false);
+                        placeholderRect.gameObject.SetActive(false);
+                        Destroy(placeholderRect.gameObject);
+                    }
+                    if (reserveRoot != null)
+                    {
+                        LayoutRebuilder.ForceRebuildLayoutImmediate(reserveRoot);
+                    }
+                });
         }
 
         public IEnumerator AnimateAbilitySourceReturnToReserve(
@@ -1521,6 +1703,7 @@ namespace KLTN.Game.Presentation
             );
 
             RectTransform placeholderRect = CreateReserveSlotPlaceholder(reserveRoot, reserveSize);
+            spawnedViews.Add(placeholderRect.gameObject);
             if (targetSiblingIndex >= 0 && targetSiblingIndex < reserveRoot.childCount)
             {
                 placeholderRect.SetSiblingIndex(targetSiblingIndex);
@@ -1538,12 +1721,57 @@ namespace KLTN.Game.Presentation
                 sourceRect.DOScale(Vector3.one * reserveScaleRatio, abilityReturnToReserveDuration).SetEase(Ease.InOutQuad)
             );
 
+            if (reserveRoot.childCount > 1 && placeholderRect != null)
+            {
+                LayoutElement placeholderElement = placeholderRect.GetComponent<LayoutElement>();
+                float currentWidth = 0f;
+                if (placeholderElement != null)
+                {
+                    placeholderElement.preferredWidth = 0f;
+                }
+                placeholderRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, 0f);
+                LayoutRebuilder.ForceRebuildLayoutImmediate(reserveRoot);
+
+                returnSeq.Join(
+                    DOTween
+                        .To(
+                            () => currentWidth,
+                            w =>
+                            {
+                                currentWidth = w;
+                                if (placeholderRect == null)
+                                {
+                                    return;
+                                }
+
+                                if (placeholderElement != null)
+                                {
+                                    placeholderElement.preferredWidth = w;
+                                }
+                                placeholderRect.SetSizeWithCurrentAnchors(
+                                    RectTransform.Axis.Horizontal,
+                                    w
+                                );
+                                if (reserveRoot != null)
+                                {
+                                    LayoutRebuilder.ForceRebuildLayoutImmediate(reserveRoot);
+                                }
+                            },
+                            reserveSize.x,
+                            abilityReturnToReserveDuration * 0.85f
+                        )
+                        .SetEase(Ease.OutCubic)
+                        .SetLink(placeholderRect.gameObject)
+                );
+            }
+
             yield return returnSeq.WaitForCompletion();
 
             int dockSiblingIndex = -1;
             if (placeholderRect != null)
             {
                 dockSiblingIndex = placeholderRect.GetSiblingIndex();
+                spawnedViews.Remove(placeholderRect.gameObject);
                 placeholderRect.SetParent(null, false);
                 placeholderRect.gameObject.SetActive(false);
                 Destroy(placeholderRect.gameObject);
@@ -1561,6 +1789,8 @@ namespace KLTN.Game.Presentation
             public RectTransform cardRect;
             public RectTransform reserveRoot;
             public RectTransform placeholderRect;
+            public Vector3 targetWorldPos;
+            public float reserveWidth;
             public float scaleRatio;
         }
 
@@ -1663,6 +1893,8 @@ namespace KLTN.Game.Presentation
                         cardRect = cardRect,
                         reserveRoot = reserveRoot,
                         placeholderRect = placeholderRect,
+                        targetWorldPos = Vector3.zero,
+                        reserveWidth = reserveSize.x,
                         scaleRatio = scaleRatio,
                     }
                 );
@@ -1683,6 +1915,18 @@ namespace KLTN.Game.Presentation
                 LayoutRebuilder.ForceRebuildLayoutImmediate(opponentReserveRoot);
             }
 
+            for (int i = 0; i < plans.Count; i++)
+            {
+                CombatSurvivorReturnPlan plan = plans[i];
+                if (plan.placeholderRect != null)
+                {
+                    plan.targetWorldPos = plan.placeholderRect.TransformPoint(
+                        plan.placeholderRect.rect.center
+                    );
+                }
+                plans[i] = plan;
+            }
+
             RectTransform effectiveMotionLayer = motionLayer != null ? motionLayer : dragLayer;
             Sequence masterSeq = DOTween.Sequence();
 
@@ -1694,9 +1938,61 @@ namespace KLTN.Game.Presentation
                     continue;
                 }
 
-                Vector3 targetWorldPos = plan.placeholderRect.TransformPoint(
-                    plan.placeholderRect.rect.center
-                );
+                Vector3 targetWorldPos = plan.targetWorldPos;
+                float delay = i * Mathf.Max(0f, combatReturnToReserveStagger);
+
+                LayoutElement placeholderLayout = plan.placeholderRect.GetComponent<LayoutElement>();
+                if (
+                    placeholderLayout != null
+                    && plan.reserveRoot != null
+                    && plan.reserveRoot.childCount > 1
+                )
+                {
+                    float targetWidth = plan.reserveWidth > 0f ? plan.reserveWidth : 150f;
+                    float currentWidth = 0f;
+                    placeholderLayout.preferredWidth = 0f;
+                    plan.placeholderRect.SetSizeWithCurrentAnchors(
+                        RectTransform.Axis.Horizontal,
+                        0f
+                    );
+
+                    RectTransform capturedReserveRoot = plan.reserveRoot;
+                    RectTransform capturedPlaceholderRect = plan.placeholderRect;
+                    masterSeq.Insert(
+                        delay,
+                        DOTween
+                            .To(
+                                () => currentWidth,
+                                w =>
+                                {
+                                    currentWidth = w;
+                                    if (
+                                        capturedPlaceholderRect == null
+                                        || placeholderLayout == null
+                                    )
+                                    {
+                                        return;
+                                    }
+
+                                    placeholderLayout.preferredWidth = w;
+                                    capturedPlaceholderRect.SetSizeWithCurrentAnchors(
+                                        RectTransform.Axis.Horizontal,
+                                        w
+                                    );
+                                    if (capturedReserveRoot != null)
+                                    {
+                                        LayoutRebuilder.ForceRebuildLayoutImmediate(
+                                            capturedReserveRoot
+                                        );
+                                    }
+                                },
+                                targetWidth,
+                                combatReturnToReserveDuration * 0.85f
+                            )
+                            .SetEase(Ease.OutCubic)
+                            .SetLink(capturedPlaceholderRect.gameObject)
+                    );
+                }
 
                 plan.cardRect.DOKill();
 
@@ -1708,7 +2004,6 @@ namespace KLTN.Game.Presentation
 
                 plan.view.GetComponent<CardShadowVFX>()?.ShowFixedShadow();
 
-                float delay = i * Mathf.Max(0f, combatReturnToReserveStagger);
                 masterSeq.Insert(
                     delay,
                     plan.cardRect.DOMove(targetWorldPos, combatReturnToReserveDuration)
@@ -1721,6 +2016,15 @@ namespace KLTN.Game.Presentation
                         combatReturnToReserveDuration
                     ).SetEase(Ease.InOutQuad)
                 );
+            }
+
+            if (hasSelfSurvivor && selfReserveRoot != null)
+            {
+                LayoutRebuilder.ForceRebuildLayoutImmediate(selfReserveRoot);
+            }
+            if (hasOpponentSurvivor && opponentReserveRoot != null)
+            {
+                LayoutRebuilder.ForceRebuildLayoutImmediate(opponentReserveRoot);
             }
 
             yield return masterSeq.WaitForCompletion();
