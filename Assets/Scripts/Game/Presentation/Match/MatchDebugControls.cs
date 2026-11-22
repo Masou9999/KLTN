@@ -26,6 +26,15 @@ namespace KLTN.Game.Presentation
         private TMP_Text actionLabel;
 
         [SerializeField]
+        private Image actionBackground;
+
+        [SerializeField]
+        private Sprite actionAvailableSprite;
+
+        [SerializeField]
+        private Sprite actionUnavailableSprite;
+
+        [SerializeField]
         private TMP_Text localStatusLabel;
 
         [SerializeField]

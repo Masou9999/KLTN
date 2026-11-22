@@ -243,6 +243,10 @@ namespace KLTN.Game.Presentation
                 actionButton.interactable = canInteract;
             }
 
+            // Every enabled label (confirm ability/block, summon, attack, end round,
+            // pass) uses the Available art; processing/select-target/waiting use Unavailable.
+            ApplyActionBackground(canInteract);
+
             if (actionLabel == null)
             {
                 return;
@@ -281,6 +285,21 @@ namespace KLTN.Game.Presentation
             else
             {
                 actionLabel.text = "BỎ LƯỢT";
+            }
+        }
+
+        private void ApplyActionBackground(bool available)
+        {
+            if (actionBackground == null)
+            {
+                return;
+            }
+
+            Sprite sprite = available ? actionAvailableSprite : actionUnavailableSprite;
+
+            if (sprite != null && actionBackground.sprite != sprite)
+            {
+                actionBackground.sprite = sprite;
             }
         }
 

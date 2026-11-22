@@ -26,6 +26,11 @@ namespace KLTN.Game.Presentation
         [SerializeField]
         private TMP_Text opponentManaLabel;
 
+        [Header("Mana Ring")]
+        [Tooltip("Upper arc = opponent mana, lower arc = own mana (with staged costs).")]
+        [SerializeField]
+        private ManaRingView manaRing;
+
         [Header("Formatting")]
         [SerializeField]
         private bool showMaximumMana;
@@ -121,6 +126,7 @@ namespace KLTN.Game.Presentation
             RenderSelfMana(snapshot.self);
             RenderHealth(snapshot.opponent, opponentHealthLabel);
             RenderMana(snapshot.opponent, opponentManaLabel, reservedMana: 0);
+            RenderOpponentManaRing(snapshot.opponent);
         }
 
         private void RenderHealth(PlayerViewDto player, TMP_Text healthLabel)
@@ -137,6 +143,24 @@ namespace KLTN.Game.Presentation
         private void RenderSelfMana(PlayerViewDto self)
         {
             RenderMana(self, selfManaLabel, pendingManaCost);
+
+            if (manaRing == null)
+            {
+                return;
+            }
+
+            // The ring shows the staged cost as Reserved slots instead of subtracting it.
+            bool available = IsAvailable(self);
+            manaRing.Self.SetMana(available ? self.mana : 0);
+            manaRing.Self.SetReserved(available ? pendingManaCost : 0);
+        }
+
+        private void RenderOpponentManaRing(PlayerViewDto opponent)
+        {
+            if (manaRing != null)
+            {
+                manaRing.Opponent.SetMana(IsAvailable(opponent) ? opponent.mana : 0);
+            }
         }
 
         private void RenderMana(
@@ -166,6 +190,11 @@ namespace KLTN.Game.Presentation
             SetText(selfManaLabel, unavailableText);
             SetText(opponentHealthLabel, unavailableText);
             SetText(opponentManaLabel, unavailableText);
+
+            if (manaRing != null)
+            {
+                manaRing.Show(0, 0, 0);
+            }
         }
 
         #endregion

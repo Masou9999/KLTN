@@ -132,14 +132,30 @@ namespace KLTN.Game.Presentation
             RestorePendingVisuals();
             ClearPendingReferences();
 
-            // Lý do từ chối chỉ phục vụ gỡ lỗi; người chơi chỉ nghe âm báo lỗi.
+            // Lý do gốc luôn ghi log; chỉ một số lý do được hiện thành thông báo.
             Debug.LogWarning(
                 $"[MatchDebugControls] Host từ chối lệnh: {reason}",
                 this
             );
-            PlayActionRejectedSfx();
+            RejectLocalAction(BuildRejectionStatus(reason));
 
             RefreshControls();
+        }
+
+        /// <summary>
+        /// Maps a host rejection to a player-facing message. Reasons without a mapping
+        /// return an empty string so the player only hears the rejection sound.
+        /// </summary>
+        private static string BuildRejectionStatus(CommandRejectionReason reason)
+        {
+            switch (reason)
+            {
+                case CommandRejectionReason.NoValidAbilityTargets:
+                    return "Thiếu mục tiêu để kích hoạt kỹ năng của lá bài.";
+
+                default:
+                    return string.Empty;
+            }
         }
 
         #endregion
