@@ -1,4 +1,7 @@
 using System;
+#if UNITY_WEBGL && !UNITY_EDITOR
+using System.Runtime.InteropServices;
+#endif
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
@@ -41,6 +44,10 @@ public class GoogleAuthService : MonoBehaviour
     [SerializeField] private string clientSecret = "CLIENT_SECRET";
     [SerializeField] private string scopes = "openid email profile";
 
+    [Header("WebGL (Firebase JS SDK)")]
+    [Tooltip("Firebase project used by the browser popup; authDomain is <id>.firebaseapp.com.")]
+    [SerializeField] private string firebaseProjectId = "unity-kltn";
+
     #endregion
 
     #region Events and Properties
@@ -63,6 +70,24 @@ public class GoogleAuthService : MonoBehaviour
 
     #endregion
 
+#if UNITY_WEBGL && !UNITY_EDITOR
+    #region Browser Bridge
+
+    [DllImport("__Internal")]
+    private static extern void KltnFirebasePreload();
+
+    [DllImport("__Internal")]
+    private static extern void KltnGoogleSignIn(
+        string apiKey,
+        string authDomain,
+        string projectId,
+        string targetObject,
+        string successMethod,
+        string failureMethod);
+
+    #endregion
+#endif
+
     #region Unity Lifecycle
 
     private void Awake()
@@ -73,7 +98,12 @@ public class GoogleAuthService : MonoBehaviour
             return;
         }
         Instance = this;
+#if UNITY_WEBGL && !UNITY_EDITOR
+        // The popup needs the Firebase JS SDK; fetch it before the player clicks.
+        KltnFirebasePreload();
+#else
         LoadAuthConfig();
+#endif
     }
 
     #endregion
@@ -148,6 +178,20 @@ public class GoogleAuthService : MonoBehaviour
     public async void StartGoogleLogin()
     {
         LastErrorMessage = "";
+#if UNITY_WEBGL && !UNITY_EDITOR
+        await StartBrowserGoogleLoginAsync();
+        return;
+#else
+        await StartDesktopGoogleLoginAsync();
+#endif
+    }
+
+    /// <summary>
+    /// Desktop flow: opens the system browser and receives the OAuth code on a loopback
+    /// listener (PKCE). Not available in WebGL, which cannot open sockets.
+    /// </summary>
+    private async Task StartDesktopGoogleLoginAsync()
+    {
         int port = GetRandomUnusedPort();
         string redirectUri = $"http://127.0.0.1:{port}/";
         codeVerifier = GenerateRandomString(64);
@@ -278,15 +322,24 @@ public class GoogleAuthService : MonoBehaviour
         string jsonResult = request.downloadHandler.text;
         GoogleTokenResponse tokenData = JsonUtility.FromJson<GoogleTokenResponse>(jsonResult);
         Debug.Log("[GoogleAuth] Đổi token thành công!");
-        ExtractUserInfoFromIdToken(tokenData.id_token);
+        await CompleteGoogleLoginAsync(tokenData.id_token, tokenData.refresh_token);
+    }
+
+    /// <summary>
+    /// Stores the Google ID token and signs in through Firebase and UGS. Shared by the
+    /// desktop loopback flow and the WebGL popup; only desktop receives a refresh token.
+    /// </summary>
+    private async Task CompleteGoogleLoginAsync(string idToken, string googleRefreshToken)
+    {
+        ExtractUserInfoFromIdToken(idToken);
 
         // Lưu tokens vào PlayerPrefs
-        PlayerPrefs.SetString(PREF_ID_TOKEN, tokenData.id_token);
-        if (!string.IsNullOrEmpty(tokenData.refresh_token)) { PlayerPrefs.SetString(PREF_REFRESH_TOKEN, tokenData.refresh_token); }
+        PlayerPrefs.SetString(PREF_ID_TOKEN, idToken);
+        if (!string.IsNullOrEmpty(googleRefreshToken)) { PlayerPrefs.SetString(PREF_REFRESH_TOKEN, googleRefreshToken); }
         PlayerPrefs.SetString(PREF_DISPLAY_NAME, DisplayName);
         PlayerPrefs.SetString(PREF_EMAIL, Email);
         PlayerPrefs.Save();
-        bool success = await AuthManager.Instance.ProcessGoogleLogin(tokenData.id_token);
+        bool success = await AuthManager.Instance.ProcessGoogleLogin(idToken);
 
         if (success)
         {
@@ -359,6 +412,68 @@ public class GoogleAuthService : MonoBehaviour
         PlayerPrefs.Save();
         Debug.Log("[GoogleAuth] Refresh token thành công, đang đăng nhập lại...");
         return await TrySignInWithIdToken(tokenData.id_token);
+    }
+
+    #endregion
+
+    #region Browser Popup Flow
+
+    /// <summary>
+    /// WebGL flow: asks the Firebase JS SDK popup for a Google ID token. The result comes
+    /// back through <see cref="OnBrowserGoogleSignInSucceeded"/> or
+    /// <see cref="OnBrowserGoogleSignInFailed"/> (SendMessage, so this object must be active).
+    /// </summary>
+    private async Task StartBrowserGoogleLoginAsync()
+    {
+        string apiKey = await FirebaseAuthConfig.LoadApiKeyAsync();
+
+        if (string.IsNullOrEmpty(apiKey))
+        {
+            LastErrorMessage = "Thiếu cấu hình Firebase (firebase-auth-config.json).";
+            OnGoogleLoginFailed?.Invoke();
+            return;
+        }
+
+#if UNITY_WEBGL && !UNITY_EDITOR
+        KltnGoogleSignIn(
+            apiKey,
+            firebaseProjectId + ".firebaseapp.com",
+            firebaseProjectId,
+            gameObject.name,
+            nameof(OnBrowserGoogleSignInSucceeded),
+            nameof(OnBrowserGoogleSignInFailed));
+#else
+        Debug.LogWarning("[GoogleAuth] Browser popup flow only runs in WebGL builds.");
+        OnGoogleLoginFailed?.Invoke();
+#endif
+    }
+
+    // Called from FirebaseGoogleSignIn.jslib via SendMessage.
+    private async void OnBrowserGoogleSignInSucceeded(string idToken)
+    {
+        Debug.Log("[GoogleAuth] Popup Google trả về id_token.");
+        await CompleteGoogleLoginAsync(idToken, null);
+    }
+
+    // Called from FirebaseGoogleSignIn.jslib via SendMessage with {"code","message"}.
+    private void OnBrowserGoogleSignInFailed(string json)
+    {
+        BrowserSignInError error = JsonUtility.FromJson<BrowserSignInError>(json);
+        string code = error?.code ?? string.Empty;
+        Debug.LogWarning($"[GoogleAuth] Popup Google thất bại: {code} {error?.message}");
+
+        LastErrorMessage = code switch
+        {
+            "auth/popup-closed-by-user" or "auth/cancelled-popup-request" =>
+                "Bạn đã đóng cửa sổ đăng nhập Google.",
+            "auth/popup-blocked" =>
+                "Trình duyệt đã chặn cửa sổ đăng nhập. Hãy cho phép pop-up rồi thử lại.",
+            "auth/unauthorized-domain" =>
+                "Tên miền này chưa được cấp phép trong Firebase Authentication.",
+            "auth/network-request-failed" => NetworkErrorMessage,
+            _ => "",
+        };
+        OnGoogleLoginFailed?.Invoke();
     }
 
     #endregion
@@ -462,6 +577,13 @@ public class GoogleAuthService : MonoBehaviour
         public int expires_in;
         public string token_type;
         public string refresh_token;
+    }
+
+    [Serializable]
+    private class BrowserSignInError
+    {
+        public string code;
+        public string message;
     }
 
     [Serializable]

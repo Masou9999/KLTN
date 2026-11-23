@@ -58,7 +58,11 @@ public sealed class LoadTestClient : MonoBehaviour
 
         networkManager.NetworkConfig.ConnectionApproval = true;
         networkManager.NetworkConfig.ConnectionData = payload.ToBytes();
-        networkManager.GetComponent<UnityTransport>().SetConnectionData(host, port);
+        TransportProfile.ConfigureDedicatedClient(
+            networkManager.GetComponent<UnityTransport>(),
+            host,
+            port
+        );
         networkManager.OnClientDisconnectCallback += OnDisconnected;
 
         Debug.Log($"[LoadTest] {payload.playerId} connecting to {host}:{port}.");

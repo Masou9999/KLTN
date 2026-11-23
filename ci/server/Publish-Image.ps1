@@ -26,7 +26,7 @@ try {
         if ($logs.Contains('Dedicated server listening on 0.0.0.0:7777')) { $ready = $true; break }
         Start-Sleep -Seconds 2
     }
-    if (-not $ready) { throw 'Local server did not open UDP 7777 within 90 seconds.' }
+    if (-not $ready) { throw 'Local server did not open WebSocket 7777 within 90 seconds.' }
 } finally {
     New-Item Logs -ItemType Directory -Force | Out-Null
     & docker logs $container *> Logs/server-container.log

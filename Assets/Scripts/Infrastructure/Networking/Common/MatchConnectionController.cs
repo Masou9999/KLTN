@@ -450,7 +450,7 @@ public static bool IsDedicatedMatch
         try
         {
             UnityTransport transport = networkManager.GetComponent<UnityTransport>();
-            transport.SetConnectionData(dedicatedIp, dedicatedPort);
+            TransportProfile.ConfigureDedicatedClient(transport, dedicatedIp, dedicatedPort);
             DedicatedMatchmakerClient.ConfigureConnectionApproval(networkManager, dedicatedMatchId);
             return networkManager.StartClient();
         }

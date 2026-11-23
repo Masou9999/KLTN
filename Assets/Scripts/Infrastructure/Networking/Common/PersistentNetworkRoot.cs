@@ -37,7 +37,15 @@ public sealed class PersistentNetworkRoot : MonoBehaviour
 
         UnityTransport transport = GetComponent<UnityTransport>();
 
-        if (transport != null && disconnectTimeoutMilliseconds > 0)
+        if (transport == null)
+        {
+            return;
+        }
+
+        // Listen-host is the default route; dedicated routes switch to WebSocket on demand.
+        TransportProfile.ConfigureListen(transport);
+
+        if (disconnectTimeoutMilliseconds > 0)
         {
             transport.DisconnectTimeoutMS = disconnectTimeoutMilliseconds;
         }

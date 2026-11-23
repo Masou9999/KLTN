@@ -72,7 +72,7 @@ class FakeApi:
             self.deployments["smoke"] = {
                 "request_id": "smoke", "app_name": "kltn", "running": True,
                 "current_status": "Status.READY", "error": self.fail_smoke,
-                "ports": {"gameport": {"internal": 7777, "external": 30000, "protocol": "UDP"}},
+                "ports": {"gameport": {"internal": 7777, "external": 30000, "protocol": "WS"}},
             }
             return {"request_id": "smoke"}
         raise AssertionError((method, path))
@@ -82,7 +82,7 @@ class ReleaseTests(unittest.TestCase):
     def setUp(self):
         self.api = FakeApi()
         config = {"req_cpu": 1536, "req_memory": 3072,
-                  "ports": [{"name": "gameport", "port": 7777, "protocol": "UDP"}]}
+                  "ports": [{"name": "gameport", "port": 7777, "protocol": "WS", "tls_upgrade": True}]}
         self.payload = release.make_payload(config, NEW, "registry.edgegap.com/project/kltn", "user", "secret")
         # Exercise production wait loop without spending wall-clock time on simulated stops.
         self.wait_patch = patch.object(release, "wait_for", side_effect=self.fast_wait)
@@ -160,7 +160,7 @@ class ReleaseTests(unittest.TestCase):
         self.assertIn(OLD, self.api.tags)
 
     def test_rejects_wrong_port(self):
-        with self.assertRaisesRegex(ValueError, "UDP 7777"):
+        with self.assertRaisesRegex(ValueError, "WS 7777"):
             release.make_payload({"req_cpu": 1536, "req_memory": 3072}, NEW,
                                  "registry.edgegap.com/project/kltn", "user", "secret")
 
@@ -183,7 +183,7 @@ class TimeoutTests(unittest.TestCase):
                 return super().request(method, path, body)
         api = ScopedApi()
         payload = release.make_payload({"req_cpu": 1536, "req_memory": 3072,
-            "ports": [{"name": "gameport", "port": 7777, "protocol": "UDP"}]},
+            "ports": [{"name": "gameport", "port": 7777, "protocol": "WS", "tls_upgrade": True}]},
             NEW, "registry.edgegap.com/project/kltn", "user", "secret")
         with patch.object(release, "wait_for", side_effect=ReleaseTests.fast_wait):
             release.release(api, 'kltn', payload, 'project/kltn', apply=True)

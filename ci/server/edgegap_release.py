@@ -127,9 +127,11 @@ def make_payload(config, version, repository, username, password):
     payload = copy.deepcopy(config)
     if payload.get("req_cpu", 0) < 256 or payload.get("req_memory", 0) < 256:
         raise ValueError("Invalid CPU/memory configuration.")
+    # WebGL clients need WebSocket; Edgegap's TLS upgrade turns it into wss://<fqdn>.
     if not any(p.get("name") == "gameport" and p.get("port") == 7777
-               and p.get("protocol") == "UDP" for p in payload.get("ports", [])):
-        raise ValueError("KLTN requires the gameport mapping UDP 7777.")
+               and p.get("protocol") == "WS" and p.get("tls_upgrade") is True
+               for p in payload.get("ports", [])):
+        raise ValueError("KLTN requires the gameport mapping WS 7777 with tls_upgrade.")
     if any(env.get("is_hidden") for env in payload.get("envs", [])):
         raise ValueError("Do not commit secrets in version.json; allocator injects runtime secrets.")
     registry, image = repository.split("/", 1)
@@ -231,10 +233,10 @@ def release(api, app, payload, registry_image, apply=False, timeout=600):
                 raise RuntimeError("Smoke deployment failed or terminated.")
             port = details.get("ports", {}).get("gameport", {})
             return (details.get("running") is True and details.get("current_status") == "Status.READY"
-                    and port.get("internal") == 7777 and port.get("protocol", "").upper() == "UDP"
+                    and port.get("internal") == 7777 and port.get("protocol", "").upper() in ("WS", "WSS")
                     and bool(port.get("external")))
 
-        wait_for(ready, "smoke deployment readiness and UDP mapping", timeout)
+        wait_for(ready, "smoke deployment readiness and WebSocket mapping", timeout)
         stop(api, smoke_id)
         wait_for(lambda: stopped(api, smoke_id), "smoke deployment stopping", timeout)
         smoke_id = None

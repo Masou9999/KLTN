@@ -10,13 +10,13 @@ GitHub Actions nhận job; PC Windows của bạn chạy self-hosted runner đ�
 3. Unity 6000.5.4f1 build Linux x86_64 Dedicated Server, chỉ gồm:
    - `Assets/Scenes/ServerBootstrap.unity` (scene khởi động).
    - `Assets/Scenes/GameScene.unity`.
-4. Docker build, chạy thử local và kiểm tra log đã mở UDP 7777.
+4. Docker build, chạy thử local và kiểm tra log đã mở WebSocket TCP 7777.
 5. Push image tag `sha-<12 ký tự commit>` lên Edgegap registry.
 6. Kiểm tra API và tag mới tồn tại; nếu lỗi thì chưa đụng version cũ.
 7. Disable app `kltn`, chặn allocator nhận match mới, dừng deployment thuộc app.
 8. Xóa version cũ → chờ xóa xong → tạo version mới.
 9. Enable app; version mới có `KLTN_RELEASE_READY=false`, allocator vẫn bị chặn.
-10. Deploy thử, chờ Edgegap báo `Status.READY` và có mapping `gameport` UDP 7777.
+10. Deploy thử, chờ Edgegap báo `Status.READY` và có mapping `gameport` WS 7777 (bật TLS upgrade).
 11. Dừng deployment thử để trả slot free, đổi marker thành `true` cho matchmaking.
 12. Xóa tag image của version cũ nếu cùng registry/repository. Giữ image mới.
 
@@ -52,7 +52,7 @@ Máy phải bật trong lúc chạy job. `Library` giữ trên đĩa runner đ�
 - App phải có tên **`kltn`**, còn không quá một version trước lần chạy đầu.
   Nếu có hai version, tự xác định bản cần giữ rồi xóa bản không dùng. Script không tự đoán.
 - Mở `ci/server/version.json`, đối chiếu cấu hình đang chạy được trong dashboard:
-  CPU 1536 units (1.5 vCPU), RAM 3072 MiB, UDP 7777, port name **`gameport`**.
+  CPU 1536 units (1.5 vCPU), RAM 3072 MiB, WS 7777 + **TLS upgrade**, port name **`gameport`**.
 - File này là cấu hình nguồn cho version mới; không tự sao chép những cấu hình đặc biệt
   từ version cũ. Cần thêm lại endpoint storage hoặc biến môi trường không bí mật nếu bạn đang dùng.
 - Không đưa service account, MATCH_TOKEN hoặc bí mật vào JSON/Docker image.

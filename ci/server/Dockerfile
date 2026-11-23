@@ -7,5 +7,5 @@ WORKDIR /app
 COPY --chown=gameserver:gameserver . /app/
 RUN chmod +x /app/KLTNServer.x86_64
 USER gameserver
-EXPOSE 7777/udp
+EXPOSE 7777/tcp
 ENTRYPOINT ["/app/KLTNServer.x86_64", "-batchmode", "-nographics", "-logFile", "-"]

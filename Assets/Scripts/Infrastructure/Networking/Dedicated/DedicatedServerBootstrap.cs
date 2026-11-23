@@ -230,7 +230,8 @@ public sealed class DedicatedServerBootstrap : MonoBehaviour
         networkManager.ConnectionApprovalCallback = ApproveConnection;
         networkManager.OnClientConnectedCallback += OnClientConnected;
         networkManager.OnClientDisconnectCallback += OnClientDisconnected;
-        transport.SetConnectionData("0.0.0.0", listenPort, "0.0.0.0");
+        // WebSocket so browser (WebGL) clients can join; Edgegap adds TLS in front.
+        TransportProfile.ConfigureDedicatedServer(transport, listenPort);
 
         if (!networkManager.StartServer())
         {

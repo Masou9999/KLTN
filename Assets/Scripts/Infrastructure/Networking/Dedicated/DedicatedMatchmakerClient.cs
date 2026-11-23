@@ -442,8 +442,11 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
         }
 
         ushort port = checked((ushort)assignment.Port.Value);
-        Debug.Log($"Connecting to Edgegap endpoint {assignment.Ip}:{port}");
-        transport.SetConnectionData(assignment.Ip, port);
+        Debug.Log(
+            $"Connecting to Edgegap endpoint {assignment.Ip}:{port} "
+                + $"({(TransportProfile.RequiresTls(assignment.Ip) ? "wss" : "ws")})"
+        );
+        TransportProfile.ConfigureDedicatedClient(transport, assignment.Ip, port);
         ConfigureConnectionApproval(networkManager, assignment.MatchId);
 
         // Remembered so a lost connection can be retried within the 30 s grace period.
@@ -489,7 +492,10 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
         networkManager.OnClientStopped += RestoreListenConfig;
     }
 
-    /// <summary>Host/Join (listen-host) runs without approval; undo the dedicated settings.</summary>
+    /// <summary>
+    /// Host/Join (listen-host) runs without approval over Relay; undo the dedicated
+    /// approval payload and WebSocket/TLS settings.
+    /// </summary>
     private static void RestoreListenConfig(bool wasHost)
     {
         NetworkManager networkManager = NetworkManager.Singleton;
@@ -502,6 +508,13 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
         networkManager.OnClientStopped -= RestoreListenConfig;
         networkManager.NetworkConfig.ConnectionApproval = false;
         networkManager.NetworkConfig.ConnectionData = Array.Empty<byte>();
+
+        UnityTransport transport = networkManager.GetComponent<UnityTransport>();
+
+        if (transport != null)
+        {
+            TransportProfile.ConfigureListen(transport);
+        }
     }
 
     private void OnClientConnected(ulong clientId)
