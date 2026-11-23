@@ -79,6 +79,9 @@ sysinfo.txt
 *.unitypackage.meta
 *.app
 
+# Burst output from WebGL builds (regenerated on every build)
+/[Dd]ata/[Pp]lugins/
+
 # Crashlytics generated file
 crashlytics-build.properties
 
