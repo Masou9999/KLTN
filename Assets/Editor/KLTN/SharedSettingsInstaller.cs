@@ -174,20 +174,17 @@ namespace KLTN.Game.Editor
         private static void AddUiSoundSlider(GameObject panel)
         {
             Transform window = panel.transform.Find("SettingsWindow");
-            ResolutionSettingsControls.ApplyLayout(window);
             if (window.Find("UiSoundSlider") == null)
             {
                 Transform ui = Object.Instantiate(window.Find("SFXSlider"), window, false);
                 ui.name = "UiSoundSlider";
             }
-            foreach (var row in new[]
-                { ("Music", 160f), ("UiSound", 88f), ("SFX", 16f) })
+            foreach (string row in new[] { "Music", "UiSound", "SFX" })
             {
-                var slider = (RectTransform)window.Find(row.Item1 + "Slider");
-                slider.anchoredPosition = new Vector2(70, row.Item2);
-                Transform label = window.Find(row.Item1 + "Label");
+                Transform label = window.Find(row + "Label");
                 if (label != null) Object.DestroyImmediate(label.gameObject);
             }
+            SettingsPanelLayout.ApplyLayout(window);
         }
 
         private static void AddMuteButtons(GameObject panel)
