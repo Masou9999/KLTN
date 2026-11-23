@@ -49,7 +49,7 @@ namespace KLTN.Game.Networking
             try
             {
                 await Task.WhenAny(registration.Guest.Task,
-                    Task.Delay(55000, cancellationToken));
+                    FrameDelay.Delay(55000, cancellationToken));
                 cancellationToken.ThrowIfCancellationRequested();
                 var response = await ListenMatchClient.GetProfilesAsync(
                     session.MatchId, cancellationToken);

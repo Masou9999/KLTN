@@ -149,7 +149,7 @@ public sealed class ListenSessionController : MonoBehaviour
         // Wait briefly for the Relay-backed host to start.
         for (int frame = 0; frame < 120 && networkManager != null && !networkManager.IsHost && !leaving && !MatchConnectionController.IsLeaving; frame++)
         {
-            await Task.Yield();
+            await FrameDelay.NextFrame();
         }
 
         if (this == null || !isActiveAndEnabled || leaving || MatchConnectionController.IsLeaving) return;

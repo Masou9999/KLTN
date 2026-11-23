@@ -501,7 +501,7 @@ public static bool IsDedicatedMatch
 
             while (networkManager != null && networkManager.ShutdownInProgress)
             {
-                await System.Threading.Tasks.Task.Yield();
+                await FrameDelay.NextFrame();
             }
 
             // Leave GameScene so the host's scene synchronization loads a clean copy.
@@ -584,7 +584,7 @@ public static bool IsDedicatedMatch
     private static async Task<bool> ReturnToMainMenuCoreAsync()
     {
         // Publish the in-flight task before callbacks or a synchronous SDK completion can reenter.
-        await Task.Yield();
+        await FrameDelay.NextFrame();
         Forget();
         try
         {

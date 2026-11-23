@@ -31,7 +31,7 @@ namespace KLTN.Infrastructure.CloudCode
                 CloudCodeMatchResultReporter.ModuleName,
                 "GetTicketTier"
             );
-            Task finished = await Task.WhenAny(call, Task.Delay(TicketTierTimeoutMilliseconds));
+            Task finished = await Task.WhenAny(call, FrameDelay.Delay(TicketTierTimeoutMilliseconds));
 
             if (finished != call)
             {

@@ -306,7 +306,7 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
 
             if (ticketStatus == null || ticketStatus.Type == typeof(NoneAssignment))
             {
-                await Task.Delay(PollDelayMilliseconds, cancellationToken);
+                await FrameDelay.Delay(PollDelayMilliseconds, cancellationToken);
                 continue;
             }
 
@@ -351,7 +351,7 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
                     );
             }
 
-            await Task.Delay(PollDelayMilliseconds, cancellationToken);
+            await FrameDelay.Delay(PollDelayMilliseconds, cancellationToken);
         }
     }
 

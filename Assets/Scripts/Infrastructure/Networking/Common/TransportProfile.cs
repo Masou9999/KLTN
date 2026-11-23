@@ -80,12 +80,21 @@ public static class TransportProfile
     }
 
     /// <summary>
-    /// Restores the listen-host (Relay) profile. Relay encrypts on its own, and the Relay
-    /// SDK picks WSS on WebGL and DTLS elsewhere, so only the socket type has to match.
+    /// Restores the listen-host (Relay) profile. Relay encrypts on its own; only the socket
+    /// type has to match the protocol the Relay SDK picks.
     /// </summary>
+    /// <remarks>
+    /// The Multiplayer SDK's <c>RelayProtocol.Default</c> is WSS whenever the build target is
+    /// WebGL, including Play Mode in the Editor, so this follows <c>UNITY_WEBGL</c> rather
+    /// than <see cref="IsBrowser"/>.
+    /// </remarks>
     public static void ConfigureListen(UnityTransport transport)
     {
-        transport.UseWebSockets = IsBrowser;
+#if UNITY_WEBGL
+        transport.UseWebSockets = true;
+#else
+        transport.UseWebSockets = false;
+#endif
         transport.UseEncryption = false;
     }
 

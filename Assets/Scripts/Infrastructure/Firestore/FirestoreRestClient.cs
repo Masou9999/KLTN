@@ -390,7 +390,7 @@ namespace KLTN.Infrastructure.Firestore
 
                 TimeSpan delay = RetryPolicy.GetDelay(attempt - 1, RetryJitter.NextDouble());
                 Debug.LogWarning($"[Firestore] {method} {url} failed ({response.ErrorStatus}), retry {attempt}/{RetryPolicy.MaxAttempts - 1} in {delay.TotalSeconds:0.0} s.");
-                await Task.Delay(delay);
+                await FrameDelay.Delay(delay);
             }
         }
 

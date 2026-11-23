@@ -443,7 +443,7 @@ public class GoogleAuthService : MonoBehaviour
             nameof(OnBrowserGoogleSignInSucceeded),
             nameof(OnBrowserGoogleSignInFailed));
 #else
-        Debug.LogWarning("[GoogleAuth] Browser popup flow only runs in WebGL builds.");
+        Debug.LogWarning($"[GoogleAuth] Browser popup flow ({firebaseProjectId}) only runs in WebGL builds.");
         OnGoogleLoginFailed?.Invoke();
 #endif
     }

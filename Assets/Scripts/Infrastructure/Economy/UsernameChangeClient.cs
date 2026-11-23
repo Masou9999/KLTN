@@ -45,7 +45,7 @@ namespace KLTN.Infrastructure.Economy
                     ["requestId"] = requestId,
                     ["username"] = name,
                 });
-            if (await Task.WhenAny(call, Task.Delay(20000)) != call)
+            if (await Task.WhenAny(call, FrameDelay.Delay(20000)) != call)
             {
                 _ = call.ContinueWith(task => { _ = task.Exception; },
                     TaskContinuationOptions.OnlyOnFaulted);

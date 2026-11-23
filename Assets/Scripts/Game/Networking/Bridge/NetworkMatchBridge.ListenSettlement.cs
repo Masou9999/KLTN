@@ -154,7 +154,7 @@ namespace KLTN.Game.Networking
                 // The guest may disconnect after backend registration but before its ACK.
                 // The backend roster remains authoritative even when that ACK was lost.
                 await Task.WhenAny(registration.Guest.Task,
-                    Task.Delay(55000, cancellationToken));
+                    FrameDelay.Delay(55000, cancellationToken));
                 cancellationToken.ThrowIfCancellationRequested();
                 MatchSettlementResult result = await ListenMatchClient.ReportAsync(
                     matchId, outcome, surrenderedSeat, roundNumber, cancellationToken);

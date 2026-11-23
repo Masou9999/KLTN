@@ -418,7 +418,7 @@ public class FirebaseRestAuthService : IAuthService
             TimeSpan delay = RetryPolicy.GetDelay(attempt - 1, RetryJitter.NextDouble());
             Debug.LogWarning($"[FirebaseAuth] Request failed ({request.responseCode} {request.error}), retry {attempt}/{RetryPolicy.MaxAttempts - 1} in {delay.TotalSeconds:0.0} s.");
             request.Dispose();
-            await Task.Delay(delay);
+            await FrameDelay.Delay(delay);
         }
     }
 
