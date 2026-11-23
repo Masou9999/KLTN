@@ -123,6 +123,7 @@ namespace KLTN.Game.Presentation
 
             ClearPendingReferences();
             RefreshControls();
+            RefreshBoardDropHints();
         }
 
         private void OnCommandRejected(CommandRejectionReason reason)

@@ -129,7 +129,7 @@ namespace KLTN.Game.Editor
         {
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
-            var cameraObject = new GameObject("Main Camera", typeof(Camera));
+            var cameraObject = new GameObject("Main Camera", typeof(Camera), typeof(AudioListener));
             Camera camera = cameraObject.GetComponent<Camera>();
             camera.clearFlags = CameraClearFlags.SolidColor;
             camera.backgroundColor = Background;

@@ -3,6 +3,7 @@
     "rootNamespace": "",
     "references": [
         "KLTN.Game.Presentation.ManaRing",
+        "KLTN.Game.Presentation.BoardSlots",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

@@ -442,11 +442,11 @@ namespace KLTN.UI.Leaderboard
             }
         }
 
+        /// <summary>Formats a remaining duration as dd:hh:mm:ss (days:hours:minutes:seconds).</summary>
         private static string FormatDuration(long milliseconds)
         {
-            TimeSpan span = TimeSpan.FromMilliseconds(milliseconds);
-            int hours = (int)span.TotalHours;
-            return $"{hours:00}:{span.Minutes:00}:{span.Seconds:00}";
+            TimeSpan span = TimeSpan.FromMilliseconds(Math.Max(0L, milliseconds));
+            return $"{span.Days:00}:{span.Hours:00}:{span.Minutes:00}:{span.Seconds:00}";
         }
 
         private void SetStatus(string message)

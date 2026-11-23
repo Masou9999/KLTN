@@ -54,6 +54,7 @@ namespace KLTN.Game.Presentation
         private bool canDrag;
         private bool dragging;
         private bool dropAccepted;
+        private bool reserveDragAnnounced;
         private RectTransform homePlaceholder;
         private LayoutElement homePlaceholderLayout;
         private Tween placeholderWidthTween;
@@ -66,6 +67,12 @@ namespace KLTN.Game.Presentation
         #endregion
 
         #region Properties
+
+        /// <summary>Raised when a Reserve card starts being dragged.</summary>
+        public static event System.Action<DraggableHandCard> ReserveDragBegan;
+
+        /// <summary>Raised when a Reserve drag ends, is dropped, or is interrupted.</summary>
+        public static event System.Action<DraggableHandCard> ReserveDragEnded;
 
         public NetworkCardVisual Visual => visual;
         public bool IsPending => isPending;
@@ -86,6 +93,8 @@ namespace KLTN.Game.Presentation
 
         private void OnDisable()
         {
+            AnnounceReserveDragEnded();
+
             KillActiveTweens();
             DestroyHomePlaceholderImmediate();
             DestroyPendingPlaceholderImmediate();
@@ -205,6 +214,12 @@ namespace KLTN.Game.Presentation
             rectTransform.pivot = new Vector2(0.5f, 0.5f);
             canvasGroup.blocksRaycasts = false;
             MoveToPointer(eventData);
+
+            if (homeLocation == CardVisualLocation.Reserve)
+            {
+                reserveDragAnnounced = true;
+                ReserveDragBegan?.Invoke(this);
+            }
         }
 
         public void OnDrag(PointerEventData eventData)
@@ -268,6 +283,8 @@ namespace KLTN.Game.Presentation
 
                 combatGlow?.HideEffects();
             }
+
+            AnnounceReserveDragEnded();
 
             if (dropAccepted)
             {
@@ -1131,6 +1148,17 @@ namespace KLTN.Game.Presentation
             }
 
             return false;
+        }
+
+        private void AnnounceReserveDragEnded()
+        {
+            if (!reserveDragAnnounced)
+            {
+                return;
+            }
+
+            reserveDragAnnounced = false;
+            ReserveDragEnded?.Invoke(this);
         }
 
         private void MoveToPointer(PointerEventData eventData)

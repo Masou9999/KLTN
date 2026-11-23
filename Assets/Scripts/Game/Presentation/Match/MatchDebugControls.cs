@@ -111,6 +111,7 @@ namespace KLTN.Game.Presentation
             projection = MatchProjectionRegistry.Current;
             projection.SnapshotChanged += OnSnapshotChanged;
             projection.CommandRejected += OnCommandRejected;
+            SubscribeReserveDragEvents();
 
             if (actionButton != null)
             {
@@ -125,6 +126,7 @@ namespace KLTN.Game.Presentation
         private void OnDisable()
         {
             localStatusSequence?.Kill();
+            UnsubscribeReserveDragEvents();
 
             if (projection != null)
             {

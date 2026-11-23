@@ -9,6 +9,7 @@
   <Project Path="KLTN.Infrastructure.Resilience.csproj" />
   <Project Path="KLTN.Game.Application.csproj" />
   <Project Path="KLTN.Client.Tests.csproj" />
+  <Project Path="KLTN.Game.Presentation.BoardSlots.csproj" />
   <Project Path="Firebase.App.Internal.csproj" />
   <Project Path="KLTN.Game.Presentation.ManaRing.Tests.csproj" />
   <Project Path="KLTN.Authentication.Validation.csproj" />

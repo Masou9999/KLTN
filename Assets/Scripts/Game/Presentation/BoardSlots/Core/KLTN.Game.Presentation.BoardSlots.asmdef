@@ -1,0 +1,14 @@
+{
+    "name": "KLTN.Game.Presentation.BoardSlots",
+    "rootNamespace": "KLTN.Game.Presentation",
+    "references": [],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}
