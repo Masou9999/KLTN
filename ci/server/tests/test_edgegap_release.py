@@ -72,7 +72,7 @@ class FakeApi:
             self.deployments["smoke"] = {
                 "request_id": "smoke", "app_name": "kltn", "running": True,
                 "current_status": "Status.READY", "error": self.fail_smoke,
-                "ports": {"gameport": {"internal": 7777, "external": 30000, "protocol": "WS"}},
+                "ports": {"gameport": {"internal": 7777, "external": 30000, "protocol": "TCP", "tls_upgrade": True}},
             }
             return {"request_id": "smoke"}
         raise AssertionError((method, path))

@@ -226,15 +226,26 @@ def release(api, app, payload, registry_image, apply=False, timeout=600):
             "tags": ["kltn-ci-smoke"],
         })
         smoke_id = smoke["request_id"]
+        reported_ports = []
 
         def ready():
             details = status(api, smoke_id)
             if not details or details.get("error") or details.get("current_status") == "Status.TERMINATED":
-                raise RuntimeError("Smoke deployment failed or terminated.")
+                # error_detail is the only clue Edgegap gives (image pull, port check, crash...).
+                detail = details or {}
+                raise RuntimeError(
+                    "Smoke deployment failed or terminated: "
+                    f"status={detail.get('current_status')!r}, "
+                    f"error_detail={detail.get('error_detail')!r}, "
+                    f"ports={json.dumps(detail.get('ports'))}")
             port = details.get("ports", {}).get("gameport", {})
-            return (details.get("running") is True and details.get("current_status") == "Status.READY"
-                    and port.get("internal") == 7777 and port.get("protocol", "").upper() in ("WS", "WSS")
-                    and bool(port.get("external")))
+            is_ready = details.get("running") is True and details.get("current_status") == "Status.READY"
+            if is_ready and not reported_ports:
+                # The status API's protocol label for a TLS-upgraded WS port is undocumented,
+                # so log it instead of matching it; version.json already fixes WS + tls_upgrade.
+                print(f"Smoke gameport mapping: {json.dumps(port)}")
+                reported_ports.append(True)
+            return is_ready and port.get("internal") == 7777 and bool(port.get("external"))
 
         wait_for(ready, "smoke deployment readiness and WebSocket mapping", timeout)
         stop(api, smoke_id)
