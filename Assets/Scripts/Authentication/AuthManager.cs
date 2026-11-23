@@ -70,9 +70,10 @@ public class AuthManager : MonoBehaviour
 
     private void InitializeAuth()
     {
-#if UNITY_STANDALONE
+#if UNITY_STANDALONE || UNITY_WEBGL
+        // WebGL also uses REST: the key is downloaded from StreamingAssets on first use.
         authService = new FirebaseRestAuthService();
-        Debug.Log("Initialized Firebase REST Auth for Standalone platform.");
+        Debug.Log("Initialized Firebase REST Auth for Standalone/WebGL platform.");
 
 #elif UNITY_ANDROID || UNITY_IOS
         authService = new FirebaseSDKAuthService();

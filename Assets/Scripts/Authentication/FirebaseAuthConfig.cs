@@ -91,7 +91,10 @@ public static class FirebaseAuthConfig
 
         if (request.result != UnityWebRequest.Result.Success)
         {
-            Debug.LogError($"[FirebaseAuth] Không tải được {url}: {request.error}");
+            // responseCode 0 means the browser got no HTTP response (blocked/aborted request).
+            Debug.LogError(
+                $"[FirebaseAuth] Không tải được {url}: HTTP {request.responseCode}, "
+                    + $"{request.result}, {request.error}");
             return string.Empty;
         }
 
