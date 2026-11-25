@@ -24,6 +24,10 @@ namespace KLTN.Game.Domain
         public int RoundDamageModifier { get; private set; }
         public int RoundHealthModifier { get; private set; }
 
+        /// <summary>Buffs that last only while this unit stays on the board.</summary>
+        public int BoardDamageModifier { get; private set; }
+        public int BoardHealthModifier { get; private set; }
+
         public int PermanentCostModifier { get; private set; }
         public int RoundCostModifier { get; private set; }
 
@@ -72,6 +76,7 @@ namespace KLTN.Game.Domain
             return Math.Max(
                 0,
                 definition.BaseDamage + PermanentDamageModifier + RoundDamageModifier
+                    + BoardDamageModifier
             );
         }
 
@@ -85,6 +90,7 @@ namespace KLTN.Game.Domain
             return Math.Max(
                 0,
                 definition.BaseHealth + PermanentHealthModifier + RoundHealthModifier
+                    + BoardHealthModifier
             );
         }
 
@@ -153,6 +159,11 @@ namespace KLTN.Game.Domain
                     RoundHealthModifier += healthAmount;
                     break;
 
+                case EffectDuration.WhileOnBoard:
+                    BoardDamageModifier += damageAmount;
+                    BoardHealthModifier += healthAmount;
+                    break;
+
                 default:
                     throw new ArgumentOutOfRangeException(nameof(duration));
             }
@@ -172,6 +183,22 @@ namespace KLTN.Game.Domain
             RoundDamageModifier = 0;
             RoundHealthModifier = 0;
             RoundCostModifier = 0;
+            BoardDamageModifier = 0;
+            BoardHealthModifier = 0;
+
+            CurrentHealth = Math.Min(CurrentHealth, GetMaximumHealth(definition));
+        }
+
+        /// <summary>Drops while-on-board buffs; call before the unit leaves the board.</summary>
+        public void ClearBoardModifiers(CardDefinition definition)
+        {
+            if (definition == null)
+            {
+                throw new ArgumentNullException(nameof(definition));
+            }
+
+            BoardDamageModifier = 0;
+            BoardHealthModifier = 0;
 
             CurrentHealth = Math.Min(CurrentHealth, GetMaximumHealth(definition));
         }
@@ -188,6 +215,8 @@ namespace KLTN.Game.Domain
             RoundDamageModifier = 0;
             RoundHealthModifier = 0;
             RoundCostModifier = 0;
+            BoardDamageModifier = 0;
+            BoardHealthModifier = 0;
         }
 
         public void ResetToBase(CardDefinition definition)
@@ -204,6 +233,8 @@ namespace KLTN.Game.Domain
             RoundDamageModifier = 0;
             RoundHealthModifier = 0;
             RoundCostModifier = 0;
+            BoardDamageModifier = 0;
+            BoardHealthModifier = 0;
 
             CurrentHealth = definition.BaseHealth;
 

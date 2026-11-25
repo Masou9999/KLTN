@@ -110,6 +110,12 @@ namespace KLTN.Game.Domain
     {
         Permanent,
         ThisRound,
+
+        /// <summary>
+        /// Ends when the unit leaves the board: after combat, at round end, on death or
+        /// when an effect returns it. Appended so serialized card assets keep their values.
+        /// </summary>
+        WhileOnBoard,
     }
 
     /// <summary>

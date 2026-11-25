@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: QuyCau
   m_EditorClassIdentifier: Assembly-CSharp::CMCMProductions.Card
   cardName: "Qu\u1EF7 C\u1EA9u"
-  rulesText: "H\u1ED7 tr\u1EE3 khi t\u1EA5n c\xF4ng ho\u1EB7c ph\xF2ng th\u1EE7: \u0111\u1ED3ng minh b\xEAn ph\u1EA3i nh\u1EADn +2|+0 trong v\xF2ng n\xE0y."
+  rulesText: "H\u1ED7 tr\u1EE3 khi t\u1EA5n c\xF4ng ho\u1EB7c ph\xF2ng th\u1EE7: \u0111\u1ED3ng minh b\xEAn ph\u1EA3i nh\u1EADn +2|+0 khi c\xF2n tr\xEAn s\xE2n."
   cardType: 
   health: 2
   damage: 3
@@ -33,7 +33,7 @@ MonoBehaviour:
       amount: 2
       secondaryAmount: 0
       count: 1
-      duration: 1
+      duration: 2
       cardDefinitionId: 
   passiveRules:
     costReductionPerAlliedDeathThisGame: 0

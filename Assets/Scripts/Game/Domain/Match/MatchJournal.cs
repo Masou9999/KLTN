@@ -86,7 +86,8 @@ namespace KLTN.Game.Domain
                         return $"{prefix}hồi {e.TargetAfter.Health - e.TargetBefore.Health} máu cho {name}: {e.TargetBefore.Health} → {e.TargetAfter.Health}.";
                     case EffectKind.Buff:
                         return $"{prefix}tăng chỉ số {name}: {e.TargetBefore.Damage}|{e.TargetBefore.Health} → {e.TargetAfter.Damage}|{e.TargetAfter.Health}" +
-                            (duration == EffectDuration.ThisRound ? " trong vòng này." : " lâu dài.");
+                            (duration == EffectDuration.ThisRound ? " trong vòng này."
+                                : duration == EffectDuration.WhileOnBoard ? " khi còn trên sân." : " lâu dài.");
                     case EffectKind.ReduceCost:
                         if (target.Owner != viewer && target.Zone == CardZone.DrawHand)
                             return $"{prefix}giảm năng lượng tiêu hao của một lá bài trên tay đối thủ.";

@@ -300,7 +300,13 @@ namespace KLTN.Game.Domain
                 {
                     var before = CaptureCard(target, state);
                     if (state.Player(target.Owner).TryMoveBoardCardToReserve(target))
+                    {
+                        // While-on-board buffs end as the unit leaves the board.
+                        if (definitionsById.TryGetValue(target.DefinitionId,
+                                out CardDefinition definition))
+                            target.ClearBoardModifiers(definition);
                         RecordJournalCard(state, triggeredAbility, effect.Kind, before, CaptureCard(target, state));
+                    }
                 }
             }
         }

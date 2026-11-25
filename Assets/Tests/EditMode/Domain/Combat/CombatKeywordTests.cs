@@ -831,7 +831,7 @@ namespace KLTN.Game.Domain.Tests
                     EffectTarget.TriggerSubject,
                     amount: 2,
                     secondaryAmount: 0,
-                    duration: EffectDuration.ThisRound
+                    duration: EffectDuration.WhileOnBoard
                 )
             );
 
@@ -878,7 +878,7 @@ namespace KLTN.Game.Domain.Tests
             Assert.AreEqual(5, combat.Resolution.Steps[1].HostCard.DamageBefore);
 
             Assert.AreEqual(CardZone.Graveyard, maDa.Zone);
-            Assert.AreEqual(0, maDa.RoundDamageModifier);
+            Assert.AreEqual(0, maDa.BoardDamageModifier);
             Assert.AreEqual(3, maDa.GetDamage(maDaDefinition));
 
             Assert.AreEqual(1, state.RoundHistory.CurrentRoundDeaths.Count);
@@ -886,7 +886,7 @@ namespace KLTN.Game.Domain.Tests
         }
 
         [Test]
-        public void AdjacentBlockerSupport_BuffsRightBlockerBeforeCombat_ThenExpires()
+        public void AdjacentBlockerSupport_BuffsRightBlockerBeforeCombat_ThenEndsInReserve()
         {
             AbilityDefinition supportAbility = Ability(
                 "quy_cau_support",
@@ -896,7 +896,7 @@ namespace KLTN.Game.Domain.Tests
                     EffectTarget.TriggerSubject,
                     amount: 2,
                     secondaryAmount: 0,
-                    duration: EffectDuration.ThisRound
+                    duration: EffectDuration.WhileOnBoard
                 )
             );
 
@@ -935,11 +935,11 @@ namespace KLTN.Game.Domain.Tests
 
             Assert.IsTrue(combat.Accepted);
             Assert.AreEqual(3, combat.Resolution.Steps[1].GuestCard.DamageBefore);
-            Assert.AreEqual(3, supported.GetDamage(supportedDefinition));
-            Assert.AreEqual(CardZone.Reserve, supported.Zone);
 
-            Assert.IsTrue(engine.TryPass(state, SeatId.Guest).Accepted);
-            Assert.IsTrue(engine.TryPass(state, SeatId.Host).Accepted);
+            // The Support buff lasts only while on the board: back in Reserve after
+            // combat, the unit shows its base damage even though the round continues.
+            Assert.AreEqual(CardZone.Reserve, supported.Zone);
+            Assert.AreEqual(0, supported.BoardDamageModifier);
             Assert.AreEqual(1, supported.GetDamage(supportedDefinition));
         }
 
