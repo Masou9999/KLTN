@@ -33,6 +33,9 @@ public sealed class MatchConnectionController : MonoBehaviour
     private const string BackToMenuText = "Về menu";
     private const string RejoinText = "Vào lại";
 
+    // NGO prefixes the reasons it builds from transport events; server-sent reasons have none.
+    private const string GeneratedReasonPrefix = "[Disconnect Event]";
+
     #endregion
 
     #region Types
@@ -59,6 +62,8 @@ public sealed class MatchConnectionController : MonoBehaviour
 
     private MatchConnectionOverlay overlay;
     private NetworkManager hookedManager;
+    private string lastDisconnectReason;
+    private NetworkTransport.DisconnectEvents? lastDisconnectEvent;
     private Route route;
     private string dedicatedIp;
     private ushort dedicatedPort;
@@ -71,6 +76,7 @@ public sealed class MatchConnectionController : MonoBehaviour
     private bool reconnecting;
     private bool attemptActive;
     private bool attemptStopped;
+    private string attemptReason;
     private float reconnectDeadline;
 
     private ulong bannerRevision = ulong.MaxValue;
@@ -176,6 +182,7 @@ public static bool IsDedicatedMatch
         if (hookedManager != null)
         {
             hookedManager.OnClientStopped -= OnClientStopped;
+            hookedManager.OnClientDisconnectCallback -= OnLocalClientDisconnected;
             hookedManager = null;
         }
     }
@@ -278,20 +285,53 @@ public static bool IsDedicatedMatch
         if (hookedManager != null)
         {
             hookedManager.OnClientStopped -= OnClientStopped;
+            hookedManager.OnClientDisconnectCallback -= OnLocalClientDisconnected;
         }
 
         hookedManager = networkManager;
         hookedManager.OnClientStopped += OnClientStopped;
+        hookedManager.OnClientDisconnectCallback += OnLocalClientDisconnected;
         leavingOnPurpose = false;
+    }
+
+    /// <summary>
+    /// Captures why the connection dropped. NGO then shuts the client down itself, which
+    /// overwrites DisconnectReason with a generic "TransportShutdown" before OnClientStopped.
+    /// </summary>
+    private void OnLocalClientDisconnected(ulong clientId)
+    {
+        NetworkManager networkManager = hookedManager;
+
+        if (networkManager == null || networkManager.IsServer || clientId != networkManager.LocalClientId)
+        {
+            return;
+        }
+
+        lastDisconnectEvent = networkManager.DisconnectEvent;
+        lastDisconnectReason = networkManager.DisconnectReason;
+    }
+
+    /// <summary>A reason sent by the server, not one NGO generated from a transport event.</summary>
+    public static bool IsServerReason(string reason)
+    {
+        return !string.IsNullOrWhiteSpace(reason)
+            && !reason.StartsWith(GeneratedReasonPrefix, StringComparison.Ordinal);
     }
 
     private void OnClientStopped(bool wasHost)
     {
+        string reason = lastDisconnectReason
+            ?? (hookedManager != null ? hookedManager.DisconnectReason : null);
+        NetworkTransport.DisconnectEvents? disconnectEvent = lastDisconnectEvent;
+        lastDisconnectReason = null;
+        lastDisconnectEvent = null;
+
         // A final snapshot can arrive in the same frame as shutdown, before Update runs.
         RememberFinishedSnapshot();
         if (attemptActive)
         {
             attemptStopped = true;
+            attemptReason = reason;
             return;
         }
 
@@ -308,13 +348,13 @@ public static bool IsDedicatedMatch
 
         matchRunning = false;
         overlay.HideBanner();
-        string reason = hookedManager != null ? hookedManager.DisconnectReason : null;
-        Debug.LogWarning($"[Reconnect] Lost connection mid-match ({route}). Reason: {reason}");
+        Debug.LogWarning(
+            $"[Reconnect] Lost connection mid-match ({route}). Event: {disconnectEvent?.ToString() ?? "unknown"}. Reason: {reason}");
 
         switch (route)
         {
             case Route.Dedicated:
-                if (!string.IsNullOrWhiteSpace(reason))
+                if (IsServerReason(reason))
                 {
                     // The server closed the connection on purpose, e.g. the seat expired.
                     ShowFinal($"Mất kết nối: {reason}");
@@ -389,6 +429,7 @@ public static bool IsDedicatedMatch
         {
             attemptActive = true;
             attemptStopped = false;
+            attemptReason = null;
             bool started = StartDedicatedClient(networkManager);
             float attemptEnd = Mathf.Min(reconnectDeadline, Time.realtimeSinceStartup + AttemptTimeoutSeconds);
 
@@ -413,9 +454,10 @@ public static bool IsDedicatedMatch
                 yield break;
             }
 
-            if (!string.IsNullOrWhiteSpace(networkManager.DisconnectReason))
+            // Only a server-sent reason (e.g. the seat expired) is worth showing to the player.
+            if (IsServerReason(attemptReason))
             {
-                lastReason = networkManager.DisconnectReason;
+                lastReason = attemptReason;
             }
 
             if (networkManager.IsListening || networkManager.ShutdownInProgress)

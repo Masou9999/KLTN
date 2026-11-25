@@ -20,6 +20,11 @@ public sealed class PersistentNetworkRoot : MonoBehaviour
     [SerializeField]
     private int disconnectTimeoutMilliseconds = 5000;
 
+    // Browsers throttle or pause hidden tabs and block the single main thread while loading
+    // scenes, so 5 s of silence is normal there. Still well inside the 30 s seat hold.
+    [SerializeField]
+    private int browserDisconnectTimeoutMilliseconds = 15000;
+
     #endregion
 
     #region Unity Lifecycle
@@ -45,9 +50,13 @@ public sealed class PersistentNetworkRoot : MonoBehaviour
         // Listen-host is the default route; dedicated routes switch to WebSocket on demand.
         TransportProfile.ConfigureListen(transport);
 
-        if (disconnectTimeoutMilliseconds > 0)
+        int timeout = TransportProfile.IsBrowser
+            ? browserDisconnectTimeoutMilliseconds
+            : disconnectTimeoutMilliseconds;
+
+        if (timeout > 0)
         {
-            transport.DisconnectTimeoutMS = disconnectTimeoutMilliseconds;
+            transport.DisconnectTimeoutMS = timeout;
         }
     }
 

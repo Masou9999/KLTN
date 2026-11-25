@@ -573,10 +573,11 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
         string reason = networkManager.DisconnectReason;
         SetActionLabel("Tìm trận");
 
+        Debug.LogWarning($"[Matchmaker] Disconnected ({networkManager.DisconnectEvent}): {reason}");
         ShowResultState(
-            string.IsNullOrWhiteSpace(reason)
-                ? "Đã mất kết nối với server."
-                : $"Mất kết nối: {reason}"
+            MatchConnectionController.IsServerReason(reason)
+                ? $"Mất kết nối: {reason}"
+                : "Đã mất kết nối với server."
         );
 
         if (matchmakingButton != null)
