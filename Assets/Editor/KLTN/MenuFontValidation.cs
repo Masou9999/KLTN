@@ -19,8 +19,19 @@ namespace KLTN.Game.Editor
             "Assets/Scenes/MainMenu.unity",
             "Assets/Scenes/ShopScene.unity",
             "Assets/Scenes/LeaderboardScene.unity",
+            "Assets/Scenes/GameScene.unity",
         };
-        private static readonly string[] Prefabs = { "Assets/Prefabs/UI/ShopCardItem.prefab" };
+        private static readonly string[] Prefabs =
+        {
+            "Assets/Prefabs/UI/ShopCardItem.prefab",
+            "Assets/Prefabs/Networking/NetworkCardView.prefab",
+        };
+        // Components that build TMP text at runtime from a serialized "font" field.
+        private static readonly string[] RuntimeFontOwners =
+        {
+            "KLTN.Game.Presentation.OpponentProfileView",
+            "KLTN.Game.Presentation.MatchLogModal",
+        };
 
         [MenuItem("Tools/KLTN/Validate Menu Fonts")]
         public static void Validate()
@@ -38,6 +49,7 @@ namespace KLTN.Game.Editor
                 foreach (var root in scene.GetRootGameObjects())
                 {
                     Check(scenePath, root, errors);
+                    CheckRuntimeFonts(scenePath, root, errors);
                 }
             }
             foreach (string prefabPath in Prefabs)
@@ -67,6 +79,23 @@ namespace KLTN.Game.Editor
                     errors.Add($"{owner}: {Path(text.transform)} uses " +
                         $"'{(text.font != null ? text.font.name : "null")}'" +
                         (material ? "" : " with a mismatched material"));
+                }
+            }
+        }
+
+        private static void CheckRuntimeFonts(string owner, GameObject root, List<string> errors)
+        {
+            foreach (var behaviour in root.GetComponentsInChildren<MonoBehaviour>(true))
+            {
+                if (behaviour == null || !RuntimeFontOwners.Contains(behaviour.GetType().FullName))
+                {
+                    continue;
+                }
+                var font = new SerializedObject(behaviour).FindProperty("font")?.objectReferenceValue;
+                if (font == null || !AssetDatabase.GetAssetPath(font).StartsWith(FontFolder + "BeVietnamPro-"))
+                {
+                    errors.Add($"{owner}: {Path(behaviour.transform)} {behaviour.GetType().Name}.font " +
+                        $"is '{(font != null ? font.name : "null")}'");
                 }
             }
         }
