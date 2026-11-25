@@ -175,7 +175,13 @@ namespace KLTN.Sandbox.Editor
             Play(model, "MaDoi");
             model.BuildUpdate();
             Play(model, "MaTranh");
-            Check(model.State.Guest.Reserve.Count == 1, "Ma Tranh same-round condition");
+            Check(model.State.Guest.Reserve.Count == 3, "Ma Tranh ignores same-round death");
+            model = Create();
+            Play(model, "MaDoi");
+            model.BuildUpdate();
+            model.AdvanceRoundForPreview();
+            Play(model, "MaTranh");
+            Check(model.State.Guest.Reserve.Count == 1, "Ma Tranh previous-round condition");
             model = Create();
             Play(model, "MaTranh");
             Check(model.State.Guest.Reserve.Count == 3, "Ma Tranh no death condition");

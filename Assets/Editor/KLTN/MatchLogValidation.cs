@@ -35,7 +35,7 @@ namespace KLTN.Game.Editor
             var snapshot = new MatchSnapshotDto { matchId = "log-validation", viewerSeat = 0, roundNumber = 5 };
             var samples = new MatchLogDto[40];
             string[] texts = {
-                "Ma Trành của đối thủ khi được triệu hồi (đã có đồng minh chết trong vòng này): tiêu diệt Quỷ Cẩu của bạn, chuyển vào nghĩa địa.",
+                "Ma Trành của đối thủ khi được triệu hồi (đã có đồng minh chết ở vòng trước): tiêu diệt Quỷ Cẩu của bạn, chuyển vào nghĩa địa.",
                 "Ma Lai của bạn (ô 1) gây 3 sát thương lên Ma Mặt Mâm của đối thủ: 3 → 0. Lá bài bị tiêu diệt, chuyển vào nghĩa địa.",
                 "Ma Mặt Mâm của đối thủ kích hoạt Trăn trối: hồi 2 máu cho đối thủ: 10 → 12.",
                 "Ma Lai của bạn kích hoạt Hút máu: hồi 3 máu cho bạn: 14 → 17."

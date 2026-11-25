@@ -147,7 +147,7 @@ namespace KLTN.Sandbox.Editor
                 Check(button != null && button.interactable, "Ma Tranh preview shortcut exists");
                 button.onClick.Invoke();
                 Check(runner.Model.Count("MaTranh", false) == 1
-                    && runner.Model.State.RoundHistory.HasDeathThisRound(KLTN.Game.Domain.SeatId.Host),
+                    && runner.Model.State.RoundHistory.HasDeathPreviousRound(KLTN.Game.Domain.SeatId.Host),
                     "Preview shortcut supplies card and death condition");
                 return;
             }
@@ -163,6 +163,7 @@ namespace KLTN.Sandbox.Editor
                 state.Host.Reserve.Remove(ally);
                 ally.MoveTo(KLTN.Game.Domain.CardZone.Graveyard);
                 state.Host.Graveyard.Add(ally);
+                runner.Model.AdvanceRoundForPreview();
             }
             if (scenario == 2) state.Guest.Reserve.RemoveRange(1, state.Guest.Reserve.Count - 1);
             if (scenario == 3) state.Guest.Reserve.Clear();

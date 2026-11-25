@@ -223,7 +223,7 @@ namespace KLTN.Game.Editor
                 8,
                 UnitKeyword.Fearsome,
                 "Đáng sợ. Summon: nếu một đồng minh đã chết "
-                    + "trong vòng này, giết 2 kẻ địch yếu nhất.",
+                    + "ở vòng trước, giết 2 kẻ địch yếu nhất.",
                 Passive(),
                 Ability(
                     "ma_tranh_summon",
@@ -232,7 +232,7 @@ namespace KLTN.Game.Editor
                     {
                         Effect(EffectKind.Kill, EffectTarget.WeakestEnemies, count: 2),
                     },
-                    condition: AbilityCondition.AllyDiedThisRound
+                    condition: AbilityCondition.AllyDiedPreviousRound
                 )
             );
 

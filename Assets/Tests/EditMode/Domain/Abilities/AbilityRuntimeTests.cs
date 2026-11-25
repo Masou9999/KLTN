@@ -128,8 +128,13 @@ namespace KLTN.Game.Domain.Tests
             Assert.AreEqual(3, summoned.GetDamage(definitions["summoned"]));
         }
 
-        [Test]
-        public void ConditionalSummon_KillsTwoWeakestEnemiesAfterAlliedDeath()
+        [TestCase(1, true)]
+        [TestCase(0, false)]
+        [TestCase(2, false)]
+        public void ConditionalSummon_KillsWeakestOnlyAfterPreviousRoundDeath(
+            int roundsBetweenDeathAndSummon,
+            bool expectKills
+        )
         {
             MatchState state = CreateReadyState();
 
@@ -144,7 +149,7 @@ namespace KLTN.Game.Domain.Tests
                         count: 2
                     ),
                 },
-                condition: AbilityCondition.AllyDiedThisRound
+                condition: AbilityCondition.AllyDiedPreviousRound
             );
 
             var maTranhDefinition = new CardDefinition(
@@ -205,6 +210,12 @@ namespace KLTN.Game.Domain.Tests
                 allyDefinition.BaseHealth
             );
 
+            for (int i = 0; i < roundsBetweenDeathAndSummon; i++)
+            {
+                state.RoundNumber++;
+                state.RoundHistory.AdvanceToRound(state.RoundNumber);
+            }
+
             CardInstance source = AddHandCard(
                 state.Host,
                 2,
@@ -249,9 +260,29 @@ namespace KLTN.Game.Domain.Tests
             );
 
             Assert.IsTrue(result.Accepted);
+
+            if (!expectKills)
+            {
+                CollectionAssert.Contains(state.Guest.Reserve, weak);
+                CollectionAssert.Contains(state.Guest.Reserve, medium);
+                CollectionAssert.Contains(state.Guest.Reserve, strong);
+                return;
+            }
+
             CollectionAssert.Contains(state.Guest.Graveyard, weak);
             CollectionAssert.Contains(state.Guest.Graveyard, medium);
             CollectionAssert.Contains(state.Guest.Reserve, strong);
+
+            const string ConditionText = "(đã có đồng minh chết ở vòng trước)";
+            bool journalExplainsCondition = false;
+            foreach (var entry in state.Journal.Entries)
+            {
+                if (entry.TextFor(SeatId.Host).Contains(ConditionText))
+                {
+                    journalExplainsCondition = true;
+                }
+            }
+            Assert.IsTrue(journalExplainsCondition);
 
             AbilityResolution visual = state.TakeAbilityResolution();
             Assert.AreEqual(2, visual.Events.Count);

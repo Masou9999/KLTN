@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CMCMProductions.Card
   cardName: "Ma Tr\xE0nh"
   rulesText: "\u0110\xE1ng s\u1EE3. Summon: n\u1EBFu m\u1ED9t \u0111\u1ED3ng minh \u0111\xE3
-    ch\u1EBFt trong v\xF2ng n\xE0y, gi\u1EBFt 2 k\u1EBB \u0111\u1ECBch y\u1EBFu nh\u1EA5t."
+    ch\u1EBFt \u1EDF v\xF2ng tr\u01B0\u1EDBc, gi\u1EBFt 2 k\u1EBB \u0111\u1ECBch y\u1EBFu nh\u1EA5t."
   cardType: 
   health: 6
   damage: 8
@@ -23,7 +23,7 @@ MonoBehaviour:
   abilities:
   - abilityId: ma_tranh_summon
     trigger: 1
-    condition: 1
+    condition: 2
     oncePerRound: 0
     oncePerMatch: 0
     missingTargetPolicy: 0

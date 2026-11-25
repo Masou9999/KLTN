@@ -63,12 +63,13 @@ UGS session, network host, opponent client, or build is required.
 - **RESET** also works during animation and restores cards, Nexus health, mana,
   deck, selection and ability history. It does not reset audio preferences.
 - **TEST MA TRÀNH** next to RESET prepares a fresh fixture with one allied death
-  recorded this round and Ma Trành already in hand. Drag it to Reserve and press
+  recorded in the previous round and Ma Trành already in hand. Drag it to Reserve and press
   **TRIỆU HỒI** to see the bite. Press the shortcut again to prepare another test.
   RESET restores the ordinary fixture with no allied deaths. This shortcut only
   exists in the Editor sandbox and does not change production ability rules.
-- For a manual Ma Tranh test, first sacrifice an ally in this round. With a full Reserve,
-  remove a unit through the modal to make room. Reset replenishes enemy targets.
+- Ma Trành only triggers when an ally died in the previous round. The sandbox has
+  no round transition, so use **TEST MA TRÀNH**; a death in the current sandbox
+  round does not trigger it. Reset replenishes enemy targets.
 - Draw effects draw from a deterministic 25-card deck of test units. Any draws
   beyond the sandbox hand limit are returned to the bottom of that local deck.
 

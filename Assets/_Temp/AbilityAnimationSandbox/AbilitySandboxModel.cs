@@ -92,8 +92,19 @@ namespace KLTN.Sandbox
             State.Host.Reserve.Remove(ally);
             ally.MoveTo(CardZone.Graveyard);
             State.Host.Graveyard.Add(ally);
+            AdvanceRoundForPreview();
             Add(SeatId.Host, "MaTranh", CardZone.DrawHand);
-            State.LastEvent = "Test Ma Trành • Đã có đồng minh chết • Kéo Ma Trành để triệu hồi";
+            State.LastEvent = "Test Ma Trành • Đồng minh đã chết ở vòng trước • Kéo Ma Trành để triệu hồi";
+        }
+
+        /// <summary>
+        /// Fixture-only round step: moves this round's deaths into previous-round
+        /// history without running combat, mana or draw transitions.
+        /// </summary>
+        public void AdvanceRoundForPreview()
+        {
+            State.RoundNumber++;
+            State.RoundHistory.AdvanceToRound(State.RoundNumber);
         }
 
         /// <summary>
