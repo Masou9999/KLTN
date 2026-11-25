@@ -783,7 +783,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "Tho\xE1t"
+  m_text: Credits
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 55dd22ba78cfaaf428f5457decb7ca1e, type: 2}
   m_sharedMaterial: {fileID: -6647283621761926692, guid: 55dd22ba78cfaaf428f5457decb7ca1e, type: 2}
@@ -9547,7 +9547,7 @@ GameObject:
   - component: {fileID: 2015684754}
   - component: {fileID: 2015684755}
   m_Layer: 5
-  m_Name: QuitButton
+  m_Name: CreditsButton
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -9631,7 +9631,7 @@ MonoBehaviour:
         m_CallState: 2
       - m_Target: {fileID: 1745696296}
         m_TargetAssemblyTypeName: MainMenuController, Assembly-CSharp
-        m_MethodName: Quit
+        m_MethodName: OpenCredits
         m_Mode: 0
         m_Arguments:
           m_ObjectArgument: {fileID: 0}

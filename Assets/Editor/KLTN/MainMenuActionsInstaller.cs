@@ -110,10 +110,12 @@ namespace KLTN.Game.Editor
             var controller = Object.FindAnyObjectByType<MainMenuController>();
             var canvas = Object.FindObjectsByType<Canvas>().First(c => c.isRootCanvas);
             var buttons = canvas.GetComponentsInChildren<Button>(true);
-            var quit = buttons.FirstOrDefault(b => b.name == "QuitButton") ?? buttons.First(b => b.name == "LogoutButton");
-            quit.name = "QuitButton";
-            quit.GetComponentInChildren<TMP_Text>().text = "Thoát";
-            SetAction(quit, controller.Quit);
+            var quit = buttons.FirstOrDefault(b => b.name == "CreditsButton")
+                ?? buttons.FirstOrDefault(b => b.name == "QuitButton")
+                ?? buttons.First(b => b.name == "LogoutButton");
+            quit.name = "CreditsButton";
+            quit.GetComponentInChildren<TMP_Text>().text = "Credits";
+            SetAction(quit, controller.OpenCredits);
             var shortcuts = canvas.transform.Find("MenuShortcuts");
             BuildLogoutShortcut(shortcuts, controller);
 

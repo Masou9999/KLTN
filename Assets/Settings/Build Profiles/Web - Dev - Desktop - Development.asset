@@ -52,6 +52,9 @@ MonoBehaviour:
   - m_enabled: 1
     m_path: Assets/Scenes/LeaderboardScene.unity
     m_guid: 53ad49c9f5266224fbabdcb5bb6a88c3
+  - m_enabled: 1
+    m_path: Assets/Scenes/CreditsScene.unity
+    m_guid: 8dc5cd0f81494d85b57499318f1e238e
   m_HasScriptingDefines: 0
   m_ScriptingDefines: []
   m_PlayerSettingsYaml:
