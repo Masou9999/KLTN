@@ -112,3 +112,15 @@ Tools/LoadTest/results-*/
 # Công cụ kiểm tra dùng một lần và kết quả test cục bộ
 /CloudCode/UsernameClient.Tests/
 /TestResults*.xml
+
+# Tài liệu/ghi chú do coding agent tạo (chỉ giữ local)
+/Assets/**/README.md
+/Assets/**/README.md.meta
+/Assets/**/SourceNotes.txt
+/Assets/**/SourceNotes.txt.meta
+/Assets/**/*.prompt.txt
+/Assets/**/*.prompt.txt.meta
+/Firebase/USERNAME.md
+/CloudCode/SeasonModule/README.md
+/CloudCode/EdgegapAllocator/README.md
+/ci/server/README.md

@@ -1,9 +1,0 @@
-Source: user-provided "VFXs skill phase 2/Ma Da" folder, 2026-11-16.
-WaterSplash.png is the unchanged ma_da_water_splash_spritesheet.png.
-WaterSplash.mp3 is the unchanged Water Splash.mp3.
-
-Atlas: 1432 x 1074, transparent RGBA, 4 columns x 3 rows.
-12 square 358 x 358 cells, read left-to-right then top-to-bottom.
-Early cells include the card artwork: do not overlay a second live card.
-Texture settings: original NPOT size, no mipmaps, clamp, bilinear, uncompressed.
-See Assets/Resources/VFX/MaDaDeath.asset for timing and alignment.
