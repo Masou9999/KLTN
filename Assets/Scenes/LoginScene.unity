@@ -561,10 +561,9 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 1514955092}
-        m_TargetAssemblyTypeName: KLTN.UI.Authentication.ImprovedAuthNavigation,
-          Assembly-CSharp
-        m_MethodName: ShowRegister
+      - m_Target: {fileID: 81038398}
+        m_TargetAssemblyTypeName: KLTN.Audio.UIButtonSound, Assembly-CSharp
+        m_MethodName: PlayClick
         m_Mode: 0
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -574,9 +573,10 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
-      - m_Target: {fileID: 81038398}
-        m_TargetAssemblyTypeName: KLTN.Audio.UIButtonSound, Assembly-CSharp
-        m_MethodName: PlayClick
+      - m_Target: {fileID: 1514955092}
+        m_TargetAssemblyTypeName: KLTN.UI.Authentication.ImprovedAuthNavigation,
+          Assembly-CSharp
+        m_MethodName: ShowRegister
         m_Mode: 0
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -1751,9 +1751,9 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 1136158299}
-        m_TargetAssemblyTypeName: LoginUI, Assembly-CSharp
-        m_MethodName: OnLoginButtonClicked
+      - m_Target: {fileID: 174440814}
+        m_TargetAssemblyTypeName: KLTN.Audio.UIButtonSound, Assembly-CSharp
+        m_MethodName: PlayClick
         m_Mode: 0
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -1763,9 +1763,9 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
-      - m_Target: {fileID: 174440814}
-        m_TargetAssemblyTypeName: KLTN.Audio.UIButtonSound, Assembly-CSharp
-        m_MethodName: PlayClick
+      - m_Target: {fileID: 1136158299}
+        m_TargetAssemblyTypeName: LoginUI, Assembly-CSharp
+        m_MethodName: OnLoginButtonClicked
         m_Mode: 0
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -2850,10 +2850,9 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 1514955092}
-        m_TargetAssemblyTypeName: KLTN.UI.Authentication.ImprovedAuthNavigation,
-          Assembly-CSharp
-        m_MethodName: SendRecovery
+      - m_Target: {fileID: 348434689}
+        m_TargetAssemblyTypeName: KLTN.Audio.UIButtonSound, Assembly-CSharp
+        m_MethodName: PlayClick
         m_Mode: 0
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -2863,9 +2862,10 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
-      - m_Target: {fileID: 348434689}
-        m_TargetAssemblyTypeName: KLTN.Audio.UIButtonSound, Assembly-CSharp
-        m_MethodName: PlayClick
+      - m_Target: {fileID: 1514955092}
+        m_TargetAssemblyTypeName: KLTN.UI.Authentication.ImprovedAuthNavigation,
+          Assembly-CSharp
+        m_MethodName: SendRecovery
         m_Mode: 0
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -3045,9 +3045,9 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 823973960}
-        m_TargetAssemblyTypeName: RegisterUI, Assembly-CSharp
-        m_MethodName: OnRegisterButtonClicked
+      - m_Target: {fileID: 374089910}
+        m_TargetAssemblyTypeName: KLTN.Audio.UIButtonSound, Assembly-CSharp
+        m_MethodName: PlayClick
         m_Mode: 0
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -3057,9 +3057,9 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
-      - m_Target: {fileID: 374089910}
-        m_TargetAssemblyTypeName: KLTN.Audio.UIButtonSound, Assembly-CSharp
-        m_MethodName: PlayClick
+      - m_Target: {fileID: 823973960}
+        m_TargetAssemblyTypeName: RegisterUI, Assembly-CSharp
+        m_MethodName: OnRegisterButtonClicked
         m_Mode: 0
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -5433,10 +5433,9 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 1514955092}
-        m_TargetAssemblyTypeName: KLTN.UI.Authentication.ImprovedAuthNavigation,
-          Assembly-CSharp
-        m_MethodName: ShowLogin
+      - m_Target: {fileID: 756539298}
+        m_TargetAssemblyTypeName: KLTN.Audio.UIButtonSound, Assembly-CSharp
+        m_MethodName: PlayClick
         m_Mode: 0
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -5446,9 +5445,10 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
-      - m_Target: {fileID: 756539298}
-        m_TargetAssemblyTypeName: KLTN.Audio.UIButtonSound, Assembly-CSharp
-        m_MethodName: PlayClick
+      - m_Target: {fileID: 1514955092}
+        m_TargetAssemblyTypeName: KLTN.UI.Authentication.ImprovedAuthNavigation,
+          Assembly-CSharp
+        m_MethodName: ShowLogin
         m_Mode: 0
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -7832,10 +7832,9 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 1041173879}
-        m_TargetAssemblyTypeName: KLTN.UI.Authentication.PasswordVisibilityToggle,
-          Assembly-CSharp
-        m_MethodName: Toggle
+      - m_Target: {fileID: 1041173878}
+        m_TargetAssemblyTypeName: KLTN.Audio.UIButtonSound, Assembly-CSharp
+        m_MethodName: PlayClick
         m_Mode: 0
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -7845,9 +7844,10 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
-      - m_Target: {fileID: 1041173878}
-        m_TargetAssemblyTypeName: KLTN.Audio.UIButtonSound, Assembly-CSharp
-        m_MethodName: PlayClick
+      - m_Target: {fileID: 1041173879}
+        m_TargetAssemblyTypeName: KLTN.UI.Authentication.PasswordVisibilityToggle,
+          Assembly-CSharp
+        m_MethodName: Toggle
         m_Mode: 0
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -8057,10 +8057,9 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 1514955092}
-        m_TargetAssemblyTypeName: KLTN.UI.Authentication.ImprovedAuthNavigation,
-          Assembly-CSharp
-        m_MethodName: ShowRecovery
+      - m_Target: {fileID: 1085540854}
+        m_TargetAssemblyTypeName: KLTN.Audio.UIButtonSound, Assembly-CSharp
+        m_MethodName: PlayClick
         m_Mode: 0
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -8070,9 +8069,10 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
-      - m_Target: {fileID: 1085540854}
-        m_TargetAssemblyTypeName: KLTN.Audio.UIButtonSound, Assembly-CSharp
-        m_MethodName: PlayClick
+      - m_Target: {fileID: 1514955092}
+        m_TargetAssemblyTypeName: KLTN.UI.Authentication.ImprovedAuthNavigation,
+          Assembly-CSharp
+        m_MethodName: ShowRecovery
         m_Mode: 0
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -11036,9 +11036,9 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 2001385483}
-        m_TargetAssemblyTypeName: GoogleLoginUI, Assembly-CSharp
-        m_MethodName: OnGoogleLoginClicked
+      - m_Target: {fileID: 1641531073}
+        m_TargetAssemblyTypeName: KLTN.Audio.UIButtonSound, Assembly-CSharp
+        m_MethodName: PlayClick
         m_Mode: 0
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -11048,9 +11048,9 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
-      - m_Target: {fileID: 1641531073}
-        m_TargetAssemblyTypeName: KLTN.Audio.UIButtonSound, Assembly-CSharp
-        m_MethodName: PlayClick
+      - m_Target: {fileID: 2001385483}
+        m_TargetAssemblyTypeName: GoogleLoginUI, Assembly-CSharp
+        m_MethodName: OnGoogleLoginClicked
         m_Mode: 0
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -11635,10 +11635,9 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 1514955092}
-        m_TargetAssemblyTypeName: KLTN.UI.Authentication.ImprovedAuthNavigation,
-          Assembly-CSharp
-        m_MethodName: ShowLogin
+      - m_Target: {fileID: 1765768142}
+        m_TargetAssemblyTypeName: KLTN.Audio.UIButtonSound, Assembly-CSharp
+        m_MethodName: PlayClick
         m_Mode: 0
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -11648,9 +11647,10 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
-      - m_Target: {fileID: 1765768142}
-        m_TargetAssemblyTypeName: KLTN.Audio.UIButtonSound, Assembly-CSharp
-        m_MethodName: PlayClick
+      - m_Target: {fileID: 1514955092}
+        m_TargetAssemblyTypeName: KLTN.UI.Authentication.ImprovedAuthNavigation,
+          Assembly-CSharp
+        m_MethodName: ShowLogin
         m_Mode: 0
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -11847,10 +11847,9 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 1783120807}
-        m_TargetAssemblyTypeName: KLTN.UI.Authentication.PasswordVisibilityToggle,
-          Assembly-CSharp
-        m_MethodName: Toggle
+      - m_Target: {fileID: 1783120806}
+        m_TargetAssemblyTypeName: KLTN.Audio.UIButtonSound, Assembly-CSharp
+        m_MethodName: PlayClick
         m_Mode: 0
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -11860,9 +11859,10 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
-      - m_Target: {fileID: 1783120806}
-        m_TargetAssemblyTypeName: KLTN.Audio.UIButtonSound, Assembly-CSharp
-        m_MethodName: PlayClick
+      - m_Target: {fileID: 1783120807}
+        m_TargetAssemblyTypeName: KLTN.UI.Authentication.PasswordVisibilityToggle,
+          Assembly-CSharp
+        m_MethodName: Toggle
         m_Mode: 0
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -13866,10 +13866,9 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 2108409849}
-        m_TargetAssemblyTypeName: KLTN.UI.Authentication.PasswordVisibilityToggle,
-          Assembly-CSharp
-        m_MethodName: Toggle
+      - m_Target: {fileID: 2108409848}
+        m_TargetAssemblyTypeName: KLTN.Audio.UIButtonSound, Assembly-CSharp
+        m_MethodName: PlayClick
         m_Mode: 0
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -13879,9 +13878,10 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
-      - m_Target: {fileID: 2108409848}
-        m_TargetAssemblyTypeName: KLTN.Audio.UIButtonSound, Assembly-CSharp
-        m_MethodName: PlayClick
+      - m_Target: {fileID: 2108409849}
+        m_TargetAssemblyTypeName: KLTN.UI.Authentication.PasswordVisibilityToggle,
+          Assembly-CSharp
+        m_MethodName: Toggle
         m_Mode: 0
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
