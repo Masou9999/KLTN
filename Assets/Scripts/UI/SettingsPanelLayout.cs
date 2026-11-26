@@ -6,17 +6,17 @@ namespace KLTN.UI
     /// <summary>Shared geometry for the audio settings modal in every scene.</summary>
     public static class SettingsPanelLayout
     {
-        public const float StatusY = -130f;
-        public const float ActionY = -200f;
+        public const float StatusY = -162f;
+        public const float ActionY = -236f;
 
         private static readonly (string Name, float Y)[] Rows =
-            { ("Music", 120f), ("UiSound", 48f), ("SFX", -24f) };
+            { ("Music", 110f), ("UiSound", 30f), ("SFX", -50f) };
 
         /// <summary>Uses one frame size for the surface and all four stretched edges.</summary>
         public static void ApplyLayout(Transform window)
         {
             var panel = (RectTransform)window.parent;
-            panel.sizeDelta = new Vector2(900, 560);
+            panel.sizeDelta = new Vector2(900, 640);
             var surface = (RectTransform)window;
             surface.anchorMin = Vector2.zero;
             surface.anchorMax = Vector2.one;
@@ -36,11 +36,14 @@ namespace KLTN.UI
                 edge.GetComponent<Image>().raycastTarget = false;
             }
             if (window.Find("TitleText") is RectTransform title)
-                Place(title, new Vector2(0, 210), new Vector2(720, 65));
+                Place(title, new Vector2(0, 255), new Vector2(720, 65));
             foreach (var row in Rows)
             {
-                Position(window, row.Name + "MuteControl", -220, row.Y);
-                Position(window, row.Name + "Slider", 70, row.Y);
+                // Mute icon | long slider; the icon is the row's only label.
+                Position(window, row.Name + "MuteControl", -300, row.Y);
+                Position(window, row.Name + "Slider", 50, row.Y);
+                if (window.Find(row.Name + "Slider") is RectTransform slider)
+                    slider.sizeDelta = new Vector2(540, slider.sizeDelta.y);
             }
         }
 

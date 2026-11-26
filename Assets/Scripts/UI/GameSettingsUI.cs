@@ -24,6 +24,10 @@ public class GameSettingsUI : MonoBehaviour
     [SerializeField] private AudioSource musicAudioSource;
     [SerializeField] private AudioSource sfxAudioSource;
 
+    [Header("Style")]
+    [Tooltip("LoginScene modal sprites; leave empty to keep the authored look.")]
+    [SerializeField] private ModalTheme theme = new ModalTheme();
+
     #endregion
 
     private Button saveButton;
@@ -44,6 +48,8 @@ public class GameSettingsUI : MonoBehaviour
         if (closeButton != null)
         {
             SettingsPanelLayout.ApplyLayout(closeButton.transform.parent);
+            SettingsModalStyle.ApplySettings(
+                (RectTransform)closeButton.transform.parent, theme);
         }
         Refresh();
     }
@@ -196,6 +202,8 @@ public class GameSettingsUI : MonoBehaviour
             saveButton.interactable = !AudioVolumeSettings.IsSaving
                 && AudioVolumeSettings.CanSave;
             saveLabel.text = AudioVolumeSettings.IsSaving ? "Đang lưu…" : "Lưu";
+            // The button tint does not reach its TMP label; fade the label with it.
+            saveLabel.alpha = saveButton.interactable ? 1f : .45f;
             saveStatus.text = AudioVolumeSettings.Status
                 ?? (AudioVolumeSettings.HasChanges ? "Có thay đổi chưa lưu" : "");
         }
