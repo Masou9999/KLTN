@@ -108,3 +108,7 @@ Tools/LoadTest/results-*/
 
 # Local MatchServerModule guide
 /CloudCode/MatchServerModule/README.md
+
+# Công cụ kiểm tra dùng một lần và kết quả test cục bộ
+/CloudCode/UsernameClient.Tests/
+/TestResults*.xml
