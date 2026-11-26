@@ -11280,24 +11280,10 @@ RectTransform:
   m_Father: {fileID: 789479150}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 1, y: 1}
+  m_AnchorMax: {x: 0, y: 0}
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &1604558753
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 704558752}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 86710e43de46f6f4bac7c8e50813a599, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.AspectRatioFitter
-  m_AspectMode: 4
-  m_AspectRatio: 1.7777778
 --- !u!114 &704558754
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -12583,6 +12569,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   downArrow: 1
+  ringColor: {r: 0.64705884, g: 0.6, b: 0.59607846, a: 1}
 --- !u!1 &818161360
 GameObject:
   m_ObjectHideFlags: 0
@@ -16736,7 +16723,8 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "B\u1EA1n s\u1EBD thua tr\u1EADn n\xE0y. B\u1EA1n c\xF3 ch\u1EAFc mu\u1ED1n \u0111\u1EA7u h\xE0ng?"
+  m_text: "B\u1EA1n s\u1EBD thua tr\u1EADn n\xE0y. B\u1EA1n c\xF3 ch\u1EAFc mu\u1ED1n
+    \u0111\u1EA7u h\xE0ng?"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: b7b03748255b86b4c8426840cd398b32, type: 2}
   m_sharedMaterial: {fileID: -5065287980516127845, guid: b7b03748255b86b4c8426840cd398b32, type: 2}
@@ -19333,7 +19321,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &1274952530
 RectTransform:
   m_ObjectHideFlags: 0
@@ -21791,6 +21779,11 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!224 &1530553021 stripped
+RectTransform:
+  m_CorrespondingSourceObject: {fileID: 1530553021, guid: e48cd1f712d04b6687784965fb91c20b, type: 3}
+  m_PrefabInstance: {fileID: 4810000001}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &1566909089
 GameObject:
   m_ObjectHideFlags: 0
@@ -22131,6 +22124,20 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1600858207}
   m_CullTransparentMesh: 1
+--- !u!114 &1604558753
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 704558752}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 86710e43de46f6f4bac7c8e50813a599, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.AspectRatioFitter
+  m_AspectMode: 4
+  m_AspectRatio: 1.7777778
 --- !u!1 &1607381320
 GameObject:
   m_ObjectHideFlags: 0
@@ -26172,6 +26179,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   downArrow: 0
+  ringColor: {r: 0.64705884, g: 0.6, b: 0.59607846, a: 1}
 --- !u!1 &1877460825
 GameObject:
   m_ObjectHideFlags: 0
@@ -30198,6 +30206,19 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!1001 &4810000001
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 124752687}
+    m_Modifications: []
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: e48cd1f712d04b6687784965fb91c20b, type: 3}
 --- !u!222 &220135262415265803
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -30701,21 +30722,3 @@ SceneRoots:
   - {fileID: 1780385326}
   - {fileID: 409254758}
   - {fileID: 1255209033}
---- !u!1001 &4810000001
-PrefabInstance:
-  m_ObjectHideFlags: 0
-  serializedVersion: 2
-  m_Modification:
-    serializedVersion: 3
-    m_TransformParent: {fileID: 124752687}
-    m_Modifications: []
-    m_RemovedComponents: []
-    m_RemovedGameObjects: []
-    m_AddedGameObjects: []
-    m_AddedComponents: []
-  m_SourcePrefab: {fileID: 100100000, guid: e48cd1f712d04b6687784965fb91c20b, type: 3}
---- !u!224 &1530553021 stripped
-RectTransform:
-  m_CorrespondingSourceObject: {fileID: 1530553021, guid: e48cd1f712d04b6687784965fb91c20b, type: 3}
-  m_PrefabInstance: {fileID: 4810000001}
-  m_PrefabAsset: {fileID: 0}

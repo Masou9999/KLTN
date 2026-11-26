@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.InteropServices;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -34,8 +35,24 @@ namespace KLTN.UI
         private bool busy;
         private bool roomReady;
         private bool leaving;
+#if UNITY_WEBGL && !UNITY_EDITOR
+        private bool copyArmed;
+#endif
 
         #endregion
+
+#if UNITY_WEBGL && !UNITY_EDITOR
+        #region Browser Clipboard
+
+        // GUIUtility.systemCopyBuffer only fills Unity's internal buffer on WebGL.
+        [DllImport("__Internal")]
+        private static extern void KltnClipboardArm(string text, string target, string method);
+
+        [DllImport("__Internal")]
+        private static extern void KltnClipboardCopy(string text, string target, string method);
+
+        #endregion
+#endif
 
         #region Unity Lifecycle
 
@@ -46,6 +63,14 @@ namespace KLTN.UI
             roomCodeGroup.SetActive(false);
             copyIcon.sprite = copySprite;
             statusLabel.text = string.Empty;
+#if UNITY_WEBGL && !UNITY_EDITOR
+            // Arm on pointer-down so the browser write runs inside its own pointerup
+            // gesture; a Unity Button click arrives a frame later, outside the gesture.
+            var trigger = copyButton.gameObject.AddComponent<EventTrigger>();
+            var press = new EventTrigger.Entry { eventID = EventTriggerType.PointerDown };
+            press.callback.AddListener(_ => ArmCopy());
+            trigger.triggers.Add(press);
+#endif
         }
 
         private void OnEnable()
@@ -138,9 +163,37 @@ namespace KLTN.UI
             ConfirmJoin();
         }
 
+        private bool CanCopy => roomReady && !leaving && !joinModal.activeSelf
+            && copyButton.interactable && !string.IsNullOrEmpty(roomCode.text);
+
+        private void ArmCopy()
+        {
+#if UNITY_WEBGL && !UNITY_EDITOR
+            if (!CanCopy) return;
+            copyArmed = true;
+            KltnClipboardArm(roomCode.text, gameObject.name, nameof(OnClipboardResult));
+#endif
+        }
+
+        /// <summary>Receives the browser clipboard result ("1" copied, "0" refused).</summary>
+        public void OnClipboardResult(string result)
+        {
+#if UNITY_WEBGL && !UNITY_EDITOR
+            copyArmed = false;
+#endif
+            bool copied = result == "1";
+            copyIcon.sprite = copied ? checkedSprite : copySprite;
+            if (!copied) ShowCopyFailure();
+        }
+
         private void CopyRoomCode()
         {
             if (!roomReady || leaving || string.IsNullOrEmpty(roomCode.text)) return;
+#if UNITY_WEBGL && !UNITY_EDITOR
+            // Pointer clicks were already armed; keyboard activation copies directly.
+            if (!copyArmed)
+                KltnClipboardCopy(roomCode.text, gameObject.name, nameof(OnClipboardResult));
+#else
             try
             {
                 GUIUtility.systemCopyBuffer = roomCode.text;
@@ -155,11 +208,17 @@ namespace KLTN.UI
                 copyIcon.sprite = copySprite;
                 ShowCopyFailure();
             }
+#endif
         }
 
         private void ShowCopyFailure()
         {
+#if UNITY_WEBGL && !UNITY_EDITOR
+            // Selecting the code and pressing Ctrl+C also stays inside Unity on WebGL.
+            statusLabel.text = "Trình duyệt chặn sao chép. Hãy gửi mã phòng hiển thị ở trên.";
+#else
             statusLabel.text = "Chưa thể sao chép. Hãy bôi đen mã và nhấn Ctrl+C.";
+#endif
         }
 
         private void RefreshControls()
