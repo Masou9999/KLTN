@@ -25,7 +25,6 @@ namespace KLTN.Game.Editor
 
         private const string Art = "Assets/ConMaConMa/UI/Menu/";
         private static TMP_FontAsset font;
-        private static readonly Color Cream = new Color(0.91f, 0.85f, 0.74f);
 
         #endregion
 
@@ -47,9 +46,6 @@ namespace KLTN.Game.Editor
                 Slice("SoundOff", 480, 250, 380, 390),
                 Slice("MusicOn", 900, 250, 380, 390),
                 Slice("MusicOff", 1315, 250, 380, 390));
-            ImportSprites("PlayModes.png",
-                Slice("PrivateRoom", 80, 45, 735, 680),
-                Slice("Matchmaking", 935, 45, 780, 680));
             InstallMainMenu();
             InstallLogin();
             InstallFindMatch();
@@ -107,49 +103,18 @@ namespace KLTN.Game.Editor
             UnityEventTools.AddPersistentListener(leaderboard.onClick,
                 controller.OpenLeaderboard);
 
-            RectTransform overlay = Panel("PlayModeOverlay", canvas.transform,
-                new Color(0, 0, 0, 0.72f));
-            Stretch(overlay, Vector2.zero, Vector2.one);
-            CanvasGroup modalGroup = overlay.gameObject.AddComponent<CanvasGroup>();
-            modalGroup.ignoreParentGroups = true;
-            RectTransform panel = Panel("ModePanel", overlay,
-                new Color(0.075f, 0.065f, 0.09f, 0.98f));
-            Stretch(panel, new Vector2(0.15f, 0.15f), new Vector2(0.85f, 0.85f));
-            var outline = panel.gameObject.AddComponent<Outline>();
-            outline.effectColor = new Color(0.55f, 0.26f, 0.16f);
-            outline.effectDistance = new Vector2(3, -3);
-            Text("Title", panel, "CHỌN CHẾ ĐỘ", new Vector2(0.1f, 0.83f),
-                new Vector2(0.9f, 0.96f), 44);
-            Button privateRoom = ModeOption(panel, "PrivateRoomOption", "Phòng Riêng",
-                Sprite("PlayModes.png", "PrivateRoom"), 0.06f, 0.47f);
-            Button match = ModeOption(panel, "MatchmakingOption", "Ghép Trận",
-                Sprite("PlayModes.png", "Matchmaking"), 0.53f, 0.94f);
-            UnityEventTools.AddPersistentListener(privateRoom.onClick,
-                controller.OpenHostClientMenu);
-            UnityEventTools.AddPersistentListener(
-                match.onClick, controller.OpenFindMatch);
-
+            GameObject overlay =
+                PlayModeModalInstaller.Build(canvas, controller, play, font);
             var modal = canvas.GetComponent<PlayModeModal>();
-            if (modal == null)
-            {
-                modal = canvas.gameObject.AddComponent<PlayModeModal>();
-            }
-            Set(modal, "modalRoot", overlay.gameObject);
-            Set(modal, "menuGroup", menuGroup);
-            Set(modal, "playButton", play);
-            Set(modal, "firstOption", privateRoom);
-            Button close = PlainButton("CloseModeButton", panel, "×");
-            TopRight(close, -42, -42, 64);
-            UnityEventTools.AddPersistentListener(close.onClick, modal.Close);
             UnityEventTools.AddPersistentListener(play.onClick, modal.Open);
-            overlay.gameObject.SetActive(false);
+            overlay.SetActive(false);
             ConfigureAudio(false);
             InstallButtonSounds();
             Save();
             Preview("MainMenu");
-            overlay.gameObject.SetActive(true);
+            overlay.SetActive(true);
             Preview("PlayModeModal");
-            overlay.gameObject.SetActive(false);
+            overlay.SetActive(false);
         }
 
         private static void InstallLogin()
@@ -230,7 +195,7 @@ namespace KLTN.Game.Editor
             }
         }
 
-        private static void InstallButtonSounds()
+        internal static void InstallButtonSounds()
         {
             foreach (Button button in Object.FindObjectsByType<Button>(
                 FindObjectsInactive.Include))
@@ -383,46 +348,6 @@ namespace KLTN.Game.Editor
             image.sprite = artwork;
             image.raycastTarget = false;
             button.targetGraphic = image;
-        }
-
-        private static void Text(string name, Transform parent, string value,
-            Vector2 min, Vector2 max, float size)
-        {
-            RectTransform rect = Rect(name, parent);
-            Stretch(rect, min, max);
-            var label = rect.gameObject.AddComponent<TextMeshProUGUI>();
-            label.font = font;
-            label.text = value;
-            label.fontSize = size;
-            label.color = Cream;
-            label.alignment = TextAlignmentOptions.Center;
-            label.raycastTarget = false;
-        }
-
-        private static Button PlainButton(string name, Transform parent, string label)
-        {
-            Button button = Icon(name, parent, null);
-            button.GetComponent<Image>().color = new Color(0.35f, 0.12f, 0.10f);
-            Text("Label", button.transform, label, Vector2.zero, Vector2.one, 42);
-            return button;
-        }
-
-        private static Button ModeOption(Transform parent, string name, string label,
-            Sprite illustration, float minX, float maxX)
-        {
-            Button button = Icon(name, parent, null);
-            button.GetComponent<Image>().color = new Color(0.19f, 0.16f, 0.17f);
-            Stretch((RectTransform)button.transform, new Vector2(minX, 0.10f),
-                new Vector2(maxX, 0.80f));
-            RectTransform art = Rect("Illustration", button.transform);
-            Stretch(art, new Vector2(0.08f, 0.23f), new Vector2(0.92f, 0.95f));
-            var image = art.gameObject.AddComponent<Image>();
-            image.sprite = illustration;
-            image.preserveAspect = true;
-            image.raycastTarget = false;
-            Text("Label", button.transform, label, new Vector2(0.02f, 0.03f),
-                new Vector2(0.98f, 0.22f), 44);
-            return button;
         }
 
         private static T Find<T>(string name) where T : Component

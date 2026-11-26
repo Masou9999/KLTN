@@ -56,6 +56,7 @@ namespace KLTN.Game.Editor
             modal.Close();
             Require(!overlay.activeSelf && menu.interactable,
                 "Close must restore underlying menu navigation.");
+            ValidateModeLayout();
 
             Open("LoginScene");
             ValidateSounds();
@@ -97,6 +98,56 @@ namespace KLTN.Game.Editor
                 "Back requires a visible disabled appearance.");
             Debug.Log("[MenuPolish] Validation passed: scene wiring, button audio, " +
                 "modal isolation, audio icons, Back lock/recovery.");
+        }
+
+        #endregion
+
+        #region Play Mode Layout
+
+        private static void ValidateModeLayout()
+        {
+            var frame = Find<RectTransform>("ModeFrame");
+            Require(frame != null, "Play mode frame is missing.");
+            var close = (RectTransform)Find<Button>("CloseModeButton").transform;
+            Require(close.parent == frame && close.anchorMin == Vector2.one &&
+                close.anchorMax == Vector2.one &&
+                close.anchoredPosition == Vector2.zero &&
+                close.pivot == new Vector2(0.5f, 0.5f),
+                "Close button must be centred on the frame's top-right corner.");
+            Require(close.GetSiblingIndex() == frame.childCount - 1,
+                "Close button must draw above the frame decorations.");
+
+            Vector2 half = frame.rect.size * 0.5f;
+            var cards = new[] { "PrivateRoomOption", "MatchmakingOption" }
+                .Select(name => Find<PlayModeOptionHover>(name)).ToArray();
+            var bounds = new Rect[cards.Length];
+            for (int i = 0; i < cards.Length; i++)
+            {
+                Require(cards[i] != null, "Mode option requires PlayModeOptionHover.");
+                var serialized = new SerializedObject(cards[i]);
+                var visual = serialized.FindProperty("visual").objectReferenceValue
+                    as RectTransform;
+                Require(visual != null && visual.parent == cards[i].transform &&
+                    serialized.FindProperty("border").objectReferenceValue != null,
+                    "Hover must scale the whole card visual and tint its border.");
+                var glow = serialized.FindProperty("glow").objectReferenceValue
+                    as Graphic;
+                Require(glow != null && glow.transform.parent == visual &&
+                    glow.transform.GetSiblingIndex() <
+                    visual.Find("Illustration").GetSiblingIndex() &&
+                    glow.color.a == 0 &&
+                    serialized.FindProperty("label").objectReferenceValue != null,
+                    "Hover glow must start hidden below the artwork; label must tint.");
+                float scale = serialized.FindProperty("highlightScale").floatValue;
+                var rect = (RectTransform)cards[i].transform;
+                Vector2 size = visual.rect.size * scale;
+                bounds[i] = new Rect(rect.anchoredPosition - size * 0.5f, size);
+                Require(bounds[i].xMin > -half.x && bounds[i].xMax < half.x &&
+                    bounds[i].yMin > -half.y && bounds[i].yMax < half.y,
+                    cards[i].name + " leaves the frame when enlarged.");
+            }
+            Require(!bounds[0].Overlaps(bounds[1]),
+                "Enlarged mode cards must not overlap.");
         }
 
         #endregion
