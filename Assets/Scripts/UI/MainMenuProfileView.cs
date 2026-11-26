@@ -31,7 +31,7 @@ namespace KLTN.UI
 
         private void Awake()
         {
-            UsernameChangeView.Attach(username);
+            PlayerInformationView.Attach(username);
         }
 
         private void OnEnable()

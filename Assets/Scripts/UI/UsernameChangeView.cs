@@ -37,10 +37,135 @@ namespace KLTN.UI
         private string confirmedName;
         private string openedUid;
         private int generation;
+        private bool themed;
 
         #endregion
 
         #region Construction
+
+        public bool IsOpen => (modal != null && modal.activeSelf)
+            || (confirmationModal != null && confirmationModal.activeSelf);
+
+        /// <summary>Moves the existing trigger without changing rename authorization or flow.</summary>
+        public void MoveTriggerTo(Transform parent, Vector2 position)
+        {
+            editButton.transform.SetParent(parent, false);
+            editButton.gameObject.SetActive(true);
+            var rect = (RectTransform)editButton.transform;
+            rect.anchorMin = rect.anchorMax = new Vector2(.5f, .5f);
+            rect.anchoredPosition = position;
+            rect.sizeDelta = new Vector2(44, 44);
+        }
+
+        /// <summary>
+        /// Restyles the authored rename and confirmation modals to the profile modal's
+        /// frame. Only visuals and layout change; references and the rename flow do not.
+        /// </summary>
+        public void ApplyTheme(ModalTheme theme, TMP_FontAsset font)
+        {
+            if (themed || modal == null || confirmationModal == null) return;
+            themed = true;
+            TMP_FontAsset heading = theme.titleFont != null ? theme.titleFont : font;
+            Color cream = ModalChrome.Cream;
+
+            var trigger = (Image)editButton.targetGraphic;
+            var icon = editButton.transform.Find("Icon")?.GetComponent<Image>();
+            if (icon != null)
+            {
+                // Black glyph becomes a cream outline icon inside the username box.
+                trigger.color = new Color(0, 0, 0, 0);
+                icon.material = theme.tint;
+                icon.color = cream;
+                icon.rectTransform.sizeDelta = new Vector2(34, 34);
+                editButton.targetGraphic = icon;
+            }
+
+            var panel = modal.transform.Find("Panel").GetComponent<Image>();
+            panel.rectTransform.sizeDelta = new Vector2(700, 420);
+            ModalChrome.Frame(panel, theme, 62);
+            var title = panel.transform.Find("Title").GetComponent<TMP_Text>();
+            Place(title.rectTransform, 0, 150, 600, 56);
+            title.font = heading;
+            title.fontSize = 36;
+            title.color = cream;
+            var divider = ModalChrome.Picture("TitleDivider", panel.transform, theme.divider,
+                0, 112, 260, 38, Color.white);
+            divider.preserveAspect = true;
+            divider.transform.SetSiblingIndex(title.transform.GetSiblingIndex() + 1);
+
+            var field = input.GetComponent<Image>();
+            Place(field.rectTransform, 0, 36, 580, 64);
+            ModalChrome.Box(field, theme, new Color(.16f, .12f, .14f, .95f),
+                ModalChrome.MutedOutline);
+            foreach (var text in input.GetComponentsInChildren<TMP_Text>(true))
+            {
+                text.rectTransform.sizeDelta = new Vector2(540, 52);
+                text.font = font;
+                text.fontSize = 27;
+            }
+            input.textComponent.color = cream;
+            if (input.placeholder is TMP_Text placeholder)
+                placeholder.color = new Color(cream.r, cream.g, cream.b, .45f);
+            input.selectionColor = new Color(.85f, .41f, .38f, .55f);
+            input.caretColor = cream;
+            input.customCaretColor = true;
+
+            Place(feedback.rectTransform, 0, -40, 580, 58);
+            feedback.font = font;
+            feedback.fontSize = 22;
+            feedback.color = new Color(cream.r, cream.g, cream.b, .85f);
+            Place((RectTransform)accept.transform, 0, -132, 260, 58);
+            ModalChrome.StyleButton(accept, theme, true);
+            acceptLabel.font = font;
+
+            var exit = (RectTransform)cancel.transform;
+            // Centred on the panel corner: half inside, half outside the frame.
+            exit.anchorMin = exit.anchorMax = Vector2.one;
+            exit.pivot = new Vector2(.5f, .5f);
+            Place(exit, 0, 0, 72, 72);
+            var exitImage = (Image)cancel.targetGraphic;
+            exitImage.sprite = theme.close;
+            exitImage.color = Color.white;
+            exitImage.preserveAspect = true;
+            foreach (var label in cancel.GetComponentsInChildren<TMP_Text>(true)) label.text = "";
+            exit.SetAsLastSibling();
+
+            var confirmPanel = confirmationModal.transform.Find("Panel").GetComponent<Image>();
+            confirmPanel.rectTransform.sizeDelta = new Vector2(700, 390);
+            ModalChrome.Frame(confirmPanel, theme, 62);
+            ModalChrome.Title(confirmPanel.transform, theme, font, "Xác nhận đổi tên",
+                132, 600, 34);
+            Place(confirmationText.rectTransform, 0, 8, 600, 130);
+            confirmationText.font = font;
+            confirmationText.fontSize = 24;
+            confirmationText.color = cream;
+            Place((RectTransform)confirm.transform, 150, -122, 250, 58);
+            Place((RectTransform)back.transform, -150, -122, 250, 58);
+            ModalChrome.StyleButton(confirm, theme, true);
+            ModalChrome.StyleButton(back, theme, false);
+            foreach (var button in new[] { confirm, back })
+                foreach (var label in button.GetComponentsInChildren<TMP_Text>(true))
+                    label.font = font;
+
+            // Restyling replaces the colours BindControls captured from the scene.
+            feedbackColor = feedback.color;
+            confirmationColor = confirmationText.color;
+            colorsCaptured = true;
+        }
+
+        public void CloseTop()
+        {
+            if (busy) return;
+            if (confirmationModal != null && confirmationModal.activeSelf) Back();
+            else Close();
+        }
+
+        public void Dismiss()
+        {
+            ++generation;
+            if (modal != null) modal.SetActive(false);
+            if (confirmationModal != null) confirmationModal.SetActive(false);
+        }
 
         /// <summary>Used by both the installer and runtime; authored controls are reused.</summary>
         public static void Attach(TMP_Text username)
@@ -368,6 +493,12 @@ namespace KLTN.UI
         #endregion
 
         #region UI Helpers
+
+        private static void Place(RectTransform rect, float x, float y, float w, float h)
+        {
+            rect.anchoredPosition = new Vector2(x, y);
+            rect.sizeDelta = new Vector2(w, h);
+        }
 
         private static Image Box(Transform parent, string name, Color color,
             Vector2 position, Vector2 size)

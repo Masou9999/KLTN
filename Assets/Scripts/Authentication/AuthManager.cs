@@ -96,6 +96,30 @@ public class AuthManager : MonoBehaviour
     /// <summary>Firebase UID of the signed-in player, or null.</summary>
     public string CurrentUserId => authService != null && authService.IsLoggedIn ? authService.UserId : null;
 
+    /// <summary>Reads display-only email from this authenticated Firebase session.</summary>
+    public async Task<string> GetCurrentEmailAsync()
+    {
+        string uid = CurrentUserId;
+        if (string.IsNullOrEmpty(uid)) return null;
+        if (!string.IsNullOrEmpty(authService.Email)) return authService.Email;
+        // Refresh-token responses omit email. The Firebase-issued ID token retains it.
+        string token = await GetValidIdTokenAsync();
+        if (uid != CurrentUserId || string.IsNullOrEmpty(token)) return null;
+        try
+        {
+            string[] parts = token.Split('.');
+            if (parts.Length != 3) return null;
+            string payload = parts[1].Replace('-', '+').Replace('_', '/');
+            payload = payload.PadRight((payload.Length + 3) / 4 * 4, '=');
+            var claims = Newtonsoft.Json.Linq.JObject.Parse(
+                System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(payload)));
+            // This is display data, never an authorization source.
+            return (string)claims["sub"] == uid ? (string)claims["email"] : null;
+        }
+        catch (FormatException) { return null; }
+        catch (Newtonsoft.Json.JsonException) { return null; }
+    }
+
     /// <summary>
     /// Returns a Firebase ID token valid for at least a few more minutes,
     /// refreshing it through the secure token endpoint when needed.

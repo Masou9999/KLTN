@@ -24,6 +24,14 @@ namespace KLTN.Game.Editor
             new Rect(237, 86, 244, 91),
         };
 
+        private static readonly Rect[] AvatarOpenings =
+        {
+            new Rect(74, 84, 120, 120), new Rect(74, 77, 117, 117),
+            new Rect(66, 74, 112, 113), new Rect(61, 89, 106, 102),
+            new Rect(68, 81, 118, 117), new Rect(52, 68, 118, 117),
+            new Rect(69, 81, 112, 109),
+        };
+
         [MenuItem("Tools/KLTN/Install Main Menu Profile")]
         public static void Install()
         {
@@ -57,7 +65,7 @@ namespace KLTN.Game.Editor
                 importer.SaveAndReimport();
                 catalog.entries[i] = new ProfileFrameEntry
                 {
-                    tier = tier, informationRect = Interiors[i],
+                    tier = tier, informationRect = Interiors[i], avatarRect = AvatarOpenings[i],
                     sprite = AssetDatabase.LoadAssetAtPath<Sprite>(path),
                 };
             }
@@ -93,6 +101,7 @@ namespace KLTN.Game.Editor
             serialized.FindProperty("catalog").objectReferenceValue = catalog;
             serialized.ApplyModifiedPropertiesWithoutUndo();
             UsernameChangeView.Attach(username);
+            group.Find("ChangeUsername")?.gameObject.SetActive(false);
             EditorSceneManager.MarkSceneDirty(scene);
             EditorSceneManager.SaveScene(scene);
             ValidateAndPreview();
