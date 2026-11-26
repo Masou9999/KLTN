@@ -61,13 +61,24 @@ namespace KLTN.Infrastructure.Firestore
         // runQuery / runAggregationQuery answer with a JSON array; it is wrapped under this key.
         private const string ArrayResultsKey = "results";
 
-        public string ProjectId { get; }
-        public string DatabaseRoot { get; }
+        private readonly string explicitProjectId;
+        private readonly string databaseId;
+        private string resolvedProjectId;
+        private static bool warnedFallback;
+
+        /// <summary>
+        /// Resolved on first use, not in the constructor: on WebGL the project ID arrives with
+        /// the async Firebase config download, which may finish after this client is created.
+        /// </summary>
+        public string ProjectId =>
+            explicitProjectId ?? (resolvedProjectId ??= ResolveProjectId()) ?? FallbackProjectId;
+
+        public string DatabaseRoot => $"projects/{ProjectId}/databases/{databaseId}/documents";
 
         public FirestoreRestClient(string projectId = null, string databaseId = "(default)")
         {
-            ProjectId = string.IsNullOrWhiteSpace(projectId) ? LoadProjectId() : projectId;
-            DatabaseRoot = $"projects/{ProjectId}/databases/{databaseId}/documents";
+            explicitProjectId = string.IsNullOrWhiteSpace(projectId) ? null : projectId;
+            this.databaseId = databaseId;
         }
 
         /// <summary>Full resource name used in commit writes.</summary>
@@ -473,8 +484,34 @@ namespace KLTN.Infrastructure.Firestore
             }
         }
 
+        /// <summary>Returns null when nothing is configured yet, so the next call retries.</summary>
+        private static string ResolveProjectId()
+        {
+            string projectId = LoadProjectId();
+
+            if (!string.IsNullOrWhiteSpace(projectId))
+            {
+                return projectId;
+            }
+
+            if (!warnedFallback)
+            {
+                warnedFallback = true;
+                Debug.LogWarning($"[Firestore] Project ID not configured; using fallback '{FallbackProjectId}'.");
+            }
+
+            // Not cached: a later call may see the ID once the config download completes.
+            return null;
+        }
+
         private static string LoadProjectId()
         {
+#if UNITY_WEBGL && !UNITY_EDITOR
+            // StreamingAssets is a URL in the browser, so File cannot read it and the desktop
+            // google-services file is stripped from WebGL builds. FirebaseAuthConfig downloads
+            // firebase-auth-config.json before any authenticated Firestore call.
+            return FirebaseAuthConfig.ProjectId;
+#else
             try
             {
                 string path = Path.Combine(Application.streamingAssetsPath, ConfigFileName);
@@ -494,7 +531,8 @@ namespace KLTN.Infrastructure.Firestore
                 Debug.LogWarning($"[Firestore] Could not read project ID: {exception.Message}");
             }
 
-            return FallbackProjectId;
+            return FirebaseAuthConfig.ProjectId;
+#endif
         }
 
         #endregion

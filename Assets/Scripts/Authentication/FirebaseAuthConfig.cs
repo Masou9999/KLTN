@@ -5,7 +5,8 @@ using UnityEngine;
 using UnityEngine.Networking;
 
 /// <summary>
-/// Loads the Firebase Web API key from <c>StreamingAssets/firebase-auth-config.json</c>.
+/// Loads the Firebase Web API key (and, optionally, the project ID) from
+/// <c>StreamingAssets/firebase-auth-config.json</c>.
 /// Desktop reads the file directly; WebGL must download it because StreamingAssets is a URL
 /// in the browser and <see cref="File"/> cannot reach it.
 /// </summary>
@@ -21,6 +22,16 @@ public static class FirebaseAuthConfig
     #region Runtime State
 
     private static Task<string> pendingLoad;
+
+    #endregion
+
+    #region Public State
+
+    /// <summary>
+    /// Firebase project ID from the config file, or null until a load has parsed one.
+    /// WebGL builds read it here because the desktop google-services file is not shipped.
+    /// </summary>
+    public static string ProjectId { get; private set; }
 
     #endregion
 
@@ -115,6 +126,11 @@ public static class FirebaseAuthConfig
             return string.Empty;
         }
 
+        if (!string.IsNullOrWhiteSpace(data.projectId))
+        {
+            ProjectId = data.projectId.Trim();
+        }
+
         Debug.Log($"[FirebaseAuth] Đã tải cấu hình từ StreamingAssets/{ConfigFileName}.");
         return data.apiKey.Trim();
     }
@@ -125,6 +141,7 @@ public static class FirebaseAuthConfig
     private class FirebaseAuthConfigData
     {
         public string apiKey;
+        public string projectId;
     }
 #pragma warning restore CS0649
 
