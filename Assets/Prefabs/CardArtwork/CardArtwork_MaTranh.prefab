@@ -130,9 +130,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::KLTN.Game.Presentation.CardLoreProfile
   role: "\u0110\u1EA5u s\u0129"
-  skillDescription: "[Chi ti\u1EBFt k\u1EF9 n\u0103ng]\r\n[Fearsome], [Play]\r\n-
-    Khi tri\u1EC7u h\u1ED3i ta, gi\u1EBFt 2 k\u1EBB \u0111\u1ECBch y\u1EBFu nh\u1EA5t
-    n\u1EBFu m\u1ED9t \u0111\u1ED3ng minh \u0111\xE3 ch\u1EBFt trong v\xF2ng tr\u01B0\u1EDBc."
+  skillDescription: "[Chi ti\u1EBFt k\u1EF9 n\u0103ng]\r\n- Khi tri\u1EC7u h\u1ED3i ta, gi\u1EBFt 2 k\u1EBB \u0111\u1ECBch y\u1EBFu nh\u1EA5t n\u1EBFu m\u1ED9t \u0111\u1ED3ng minh \u0111\xE3 ch\u1EBFt trong v\xF2ng tr\u01B0\u1EDBc."
   folklore: "Ta l\xE0 ma tr\xE0nh \u2014 h\u1ED3n ng\u01B0\u1EDDi b\u1ECB h\u1ED5
     \u0103n th\u1ECBt, ph\u1EA3i l\xE0m n\xF4 l\u1EC7 cho h\u1ED5. Ta h\xF3a th\xE0nh
     ng\u01B0\u1EDDi gi\xE0, tr\u1EBB nh\u1ECF ho\u1EB7c ng\u01B0\u1EDDi \u0111\u1EB9p

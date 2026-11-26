@@ -130,10 +130,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::KLTN.Game.Presentation.CardLoreProfile
   role: "\u0110\u1EA5u s\u0129"
-  skillDescription: "[Chi ti\u1EBFt k\u1EF9 n\u0103ng]\r\n[Ephemeral], [Lifesteal]\r\n-
-    Ta s\u1EBD ch\u1EBFt sau khi t\u1EA5n c\xF4ng ho\u1EB7c k\u1EBFt th\xFAc l\u01B0\u1EE3t.\r\n-
-    h\u1ED3i cho ng\u01B0\u1EDDi ch\u01A1i l\u01B0\u1EE3ng s\xE1t th\u01B0\u01A1ng
-    g\xE2y ra."
+  skillDescription: "[Chi ti\u1EBFt k\u1EF9 n\u0103ng]"
   folklore: "Ta l\xE0 ma lai \u2014 ban ng\xE0y mang h\xECnh ng\u01B0\u1EDDi, ban
     \u0111\xEAm \u0111\u1EA7u v\xE0 n\u1ED9i t\u1EA1ng t\xE1ch kh\u1ECFi th\xE2n
     r\u1ED3i bay \u0111i ki\u1EBFm \u0111\u1ED3 \xF4 u\u1EBF ho\u1EB7c h\xFAt sinh

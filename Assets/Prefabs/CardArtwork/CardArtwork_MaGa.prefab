@@ -130,9 +130,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::KLTN.Game.Presentation.CardLoreProfile
   role: "H\u1ED7 tr\u1EE3"
-  skillDescription: "[Chi ti\u1EBFt k\u1EF9 n\u0103ng]\r\n[Play]\r\n- Khi tri\u1EC7u
-    h\u1ED3i ta, gi\u1EA3m mana m\u1ED9t \u0111\u1ED3ng minh tr\xEAn tay \u0111i
-    1."
+  skillDescription: "[Chi ti\u1EBFt k\u1EF9 n\u0103ng]\r\n- Khi tri\u1EC7u h\u1ED3i ta, gi\u1EA3m mana m\u1ED9t \u0111\u1ED3ng minh tr\xEAn tay \u0111i 1."
   folklore: "Ta l\xE0 ma g\xE0, c\xF2n g\u1ECDi ma ch\xE0i hay ma ng\u0169 h\u1EA3i
     trong l\u1EDDi truy\u1EC1n v\xF9ng T\xE0y, N\xF9ng. Ng\u01B0\u1EDDi ta \u0111\u1ED3n
     ta \u0111\u01B0\u1EE3c nu\xF4i trong h\u0169 t\u1ED1i b\u1EB1ng b\xF9a ng\u1EA3i;

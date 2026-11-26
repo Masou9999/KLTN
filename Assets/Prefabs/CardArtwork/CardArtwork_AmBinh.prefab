@@ -130,10 +130,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::KLTN.Game.Presentation.CardLoreProfile
   role: "\u0110\u1EA5u s\u0129"
-  skillDescription: "[Chi ti\u1EBFt k\u1EF9 n\u0103ng]\r\n[Can\u2019t block], [Last
-    Breath]\r\n- Khi ta ch\u1EBFt, H\u1ED3i sinh ta khi b\u1EAFt \u0111\u1EA7u v\xF2ng
-    sau v\xE0 ban ta +1/ +1 v\u1EDBi m\u1ED7i l\u1EA7n ta \u0111\xE3 ch\u1EBFt.\r\n-
-    Ta kh\xF4ng th\u1EC3 th\u1EE7."
+  skillDescription: "[Chi ti\u1EBFt k\u1EF9 n\u0103ng]\r\n- Khi ta ch\u1EBFt, H\u1ED3i sinh ta khi b\u1EAFt \u0111\u1EA7u v\xF2ng sau v\xE0 ban ta +1/ +1 v\u1EDBi m\u1ED7i l\u1EA7n ta \u0111\xE3 ch\u1EBFt."
   folklore: "Ta l\xE0 \xE2m binh \u2014 nh\u1EEFng vong l\xEDnh tr\u1EADn ho\u1EB7c
     c\xF4 h\u1ED3n \u0111\u01B0\u1EE3c th\u1EA7n linh, th\u1EA7y ph\xE1p thu nh\u1EADn
     th\xE0nh \u0111\u1ED9i qu\xE2n c\xF5i \xE2m. Ta \u0111\u01B0\u1EE3c sai \u0111i

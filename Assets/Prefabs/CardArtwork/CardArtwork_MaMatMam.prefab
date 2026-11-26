@@ -130,8 +130,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::KLTN.Game.Presentation.CardLoreProfile
   role: "H\u1ED7 tr\u1EE3"
-  skillDescription: "[Chi ti\u1EBFt k\u1EF9 n\u0103ng]\r\n[Last Breath]\r\n- Khi
-    ta ch\u1EBFt, r\xFAt 1 l\xE1 v\xE0 h\u1ED3i 2 m\xE1u cho b\u1EA1n."
+  skillDescription: "[Chi ti\u1EBFt k\u1EF9 n\u0103ng]\r\n- Khi ta ch\u1EBFt, r\xFAt 1 l\xE1 v\xE0 h\u1ED3i 2 m\xE1u cho b\u1EA1n."
   folklore: "Ta l\xE0 ma m\u1EB7t m\xE2m, c\xF2n g\u1ECDi qu\u1EF7 m\u1EB7t nia \u2014
     \u0111\u1EA7u ta to, d\u1EB9t nh\u01B0 chi\u1EBFc m\xE2m tr\xEAn m\u1ED9t th\xE2n
     h\xECnh nh\u1ECF. Ta xu\u1EA5t hi\u1EC7n \u1EDF n\u01A1i hoang v\u1EAFng \u0111\u1EC3
