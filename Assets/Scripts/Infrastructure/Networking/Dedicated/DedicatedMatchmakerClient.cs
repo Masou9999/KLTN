@@ -182,13 +182,15 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
 
         if (NetworkManager.Singleton == null)
         {
-            ShowResultState("Không tìm thấy NetworkManager.");
+            Debug.LogError("[Matchmaker] NetworkManager is missing.");
+            ShowResultState(MatchmakingFailure.Failed(MatchmakingFailure.NetworkManagerMissing));
             return;
         }
 
         if (NetworkManager.Singleton.IsListening)
         {
-            ShowResultState("NetworkManager đang chạy.");
+            Debug.LogError("[Matchmaker] NetworkManager is already listening.");
+            ShowResultState(MatchmakingFailure.Failed(MatchmakingFailure.NetworkManagerBusy));
             return;
         }
 
@@ -247,7 +249,7 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
         {
             Debug.LogException(exception);
             await DeleteActiveTicketAsync();
-            ShowResultState($"Tìm trận thất bại: {exception.Message}");
+            ShowResultState(MatchmakingFailure.Describe(exception));
         }
         finally
         {
@@ -273,9 +275,20 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
     /// client's own leaderboard row. Throws when the backend is unreachable, which ends the
     /// search with a message (the allocator would refuse the ticket anyway).
     /// </summary>
-    private static Task<RankTier> ResolveRankTierAsync()
+    private static async Task<RankTier> ResolveRankTierAsync()
     {
-        return MatchServerModuleClient.GetTicketTierAsync();
+        try
+        {
+            return await MatchServerModuleClient.GetTicketTierAsync();
+        }
+        catch (Exception exception)
+        {
+            throw new MatchmakingFailedException(
+                MatchmakingFailure.Failed(MatchmakingFailure.RankUnavailable),
+                "Ticket rank tier unavailable.",
+                exception
+            );
+        }
     }
 
     private async Task<IpPortAssignment> WaitForAssignmentAsync(
@@ -292,12 +305,18 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
 
             if (serverStartStarted.HasValue && now - serverStartStarted.Value > MaxServerStartSeconds)
             {
-                throw new TimeoutException("Không khởi tạo được server trận đấu, hãy thử lại sau.");
+                throw new MatchmakingFailedException(
+                    MatchmakingFailure.ServerStartTimedOut,
+                    "Match server did not start in time."
+                );
             }
 
             if (now - searchStarted > MaxSearchSeconds)
             {
-                throw new TimeoutException("Chưa tìm được trận, hãy thử lại sau.");
+                throw new MatchmakingFailedException(
+                    MatchmakingFailure.SearchTimedOut,
+                    "Search exceeded the client time limit."
+                );
             }
 
             TicketStatusResponse ticketStatus =
@@ -306,13 +325,14 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
 
             if (ticketStatus == null || ticketStatus.Type == typeof(NoneAssignment))
             {
-                await Task.Delay(PollDelayMilliseconds, cancellationToken);
+                await FrameDelay.Delay(PollDelayMilliseconds, cancellationToken);
                 continue;
             }
 
             if (ticketStatus.Type != typeof(IpPortAssignment))
             {
-                throw new InvalidOperationException(
+                throw new MatchmakingFailedException(
+                    MatchmakingFailure.Failed(MatchmakingFailure.AssignmentInvalid),
                     $"Unexpected assignment type: {ticketStatus.Type}"
                 );
             }
@@ -329,12 +349,14 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
                     return assignment;
 
                 case IpPortAssignment.StatusOptions.Failed:
-                    throw new InvalidOperationException(
+                    throw new MatchmakingFailedException(
+                        MatchmakingFailure.Failed(MatchmakingFailure.AssignmentFailed),
                         assignment.Message ?? "Matchmaker assignment failed."
                     );
 
                 case IpPortAssignment.StatusOptions.Timeout:
-                    throw new TimeoutException(
+                    throw new MatchmakingFailedException(
+                        MatchmakingFailure.SearchTimedOut,
                         assignment.Message ?? "Matchmaker assignment timed out."
                     );
 
@@ -344,14 +366,13 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
                     break;
 
                 default:
-                    throw new ArgumentOutOfRangeException(
-                        nameof(assignment.Status),
-                        assignment.Status,
-                        "Unknown assignment status."
+                    throw new MatchmakingFailedException(
+                        MatchmakingFailure.Failed(MatchmakingFailure.AssignmentInvalid),
+                        $"Unknown assignment status: {assignment.Status}"
                     );
             }
 
-            await Task.Delay(PollDelayMilliseconds, cancellationToken);
+            await FrameDelay.Delay(PollDelayMilliseconds, cancellationToken);
         }
     }
 
@@ -359,7 +380,8 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
     {
         if (string.IsNullOrWhiteSpace(assignment.Ip))
         {
-            throw new InvalidOperationException(
+            throw new MatchmakingFailedException(
+                MatchmakingFailure.Failed(MatchmakingFailure.AssignmentInvalid),
                 "Assignment does not contain an IP address."
             );
         }
@@ -370,7 +392,10 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
             || assignment.Port.Value > ushort.MaxValue
         )
         {
-            throw new InvalidOperationException("Assignment contains an invalid port.");
+            throw new MatchmakingFailedException(
+                MatchmakingFailure.Failed(MatchmakingFailure.AssignmentInvalid),
+                "Assignment contains an invalid port."
+            );
         }
     }
 
@@ -436,14 +461,18 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
 
         if (transport == null)
         {
-            throw new InvalidOperationException(
+            throw new MatchmakingFailedException(
+                MatchmakingFailure.Failed(MatchmakingFailure.ClientStartFailed),
                 "NetworkManager does not contain UnityTransport."
             );
         }
 
         ushort port = checked((ushort)assignment.Port.Value);
-        Debug.Log($"Connecting to Edgegap endpoint {assignment.Ip}:{port}");
-        transport.SetConnectionData(assignment.Ip, port);
+        Debug.Log(
+            $"Connecting to Edgegap endpoint {assignment.Ip}:{port} "
+                + $"({(TransportProfile.RequiresTls(assignment.Ip) ? "wss" : "ws")})"
+        );
+        TransportProfile.ConfigureDedicatedClient(transport, assignment.Ip, port);
         ConfigureConnectionApproval(networkManager, assignment.MatchId);
 
         // Remembered so a lost connection can be retried within the 30 s grace period.
@@ -460,7 +489,8 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
         if (!networkManager.StartClient())
         {
             isConnecting = false;
-            throw new InvalidOperationException(
+            throw new MatchmakingFailedException(
+                MatchmakingFailure.Failed(MatchmakingFailure.ClientStartFailed),
                 "NetworkManager.StartClient returned false."
             );
         }
@@ -489,7 +519,10 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
         networkManager.OnClientStopped += RestoreListenConfig;
     }
 
-    /// <summary>Host/Join (listen-host) runs without approval; undo the dedicated settings.</summary>
+    /// <summary>
+    /// Host/Join (listen-host) runs without approval over Relay; undo the dedicated
+    /// approval payload and WebSocket/TLS settings.
+    /// </summary>
     private static void RestoreListenConfig(bool wasHost)
     {
         NetworkManager networkManager = NetworkManager.Singleton;
@@ -502,6 +535,13 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
         networkManager.OnClientStopped -= RestoreListenConfig;
         networkManager.NetworkConfig.ConnectionApproval = false;
         networkManager.NetworkConfig.ConnectionData = Array.Empty<byte>();
+
+        UnityTransport transport = networkManager.GetComponent<UnityTransport>();
+
+        if (transport != null)
+        {
+            TransportProfile.ConfigureListen(transport);
+        }
     }
 
     private void OnClientConnected(ulong clientId)
@@ -533,10 +573,11 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
         string reason = networkManager.DisconnectReason;
         SetActionLabel("Tìm trận");
 
+        Debug.LogWarning($"[Matchmaker] Disconnected ({networkManager.DisconnectEvent}): {reason}");
         ShowResultState(
-            string.IsNullOrWhiteSpace(reason)
-                ? "Đã mất kết nối với server."
-                : $"Mất kết nối: {reason}"
+            MatchConnectionController.IsServerReason(reason)
+                ? $"Mất kết nối: {reason}"
+                : "Đã mất kết nối với server."
         );
 
         if (matchmakingButton != null)

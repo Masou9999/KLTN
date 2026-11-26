@@ -36,14 +36,14 @@ namespace KLTN.Game.Editor
         private const string MainMenuPath = "Assets/Scenes/MainMenu.unity";
         private const string SettingsPath = "Assets/Resources/RankingSettings.asset";
         private const string CatalogPath = "Assets/Resources/RankCatalog.asset";
-        private const string FontPath = "Assets/Font/XTypewriter-Bold SDF.asset";
+        private const string FontPath = "Assets/Fonts/XTypewriter-Bold SDF.asset";
         private const string SchedulePath = "CloudCode/SeasonModule/deploy/season-tick.sched";
 
         // Bronze, Silver, Gold, Platinum | Diamond, Master, Challenger (left to right in each sheet).
         private static readonly string[] RankSheets =
         {
-            "Assets/Sprites/Ranks/Bronze to Plate.png",
-            "Assets/Sprites/Ranks/Diamond to Challenger.png",
+            "Assets/Art/UI/Ranks/Bronze to Plate.png",
+            "Assets/Art/UI/Ranks/Diamond to Challenger.png",
         };
 
         #endregion
@@ -127,7 +127,7 @@ namespace KLTN.Game.Editor
             {
                 Debug.LogWarning(
                     $"[LeaderboardBuilder] Expected {RankPolicy.TierCount} rank sprites, found {icons.Count}. "
-                        + "Check the sprite slicing in Assets/Sprites/Ranks and the order in RankCatalog."
+                        + "Check the sprite slicing in Assets/Art/UI/Ranks and the order in RankCatalog."
                 );
             }
 

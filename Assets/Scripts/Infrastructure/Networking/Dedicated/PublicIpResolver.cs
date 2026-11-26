@@ -26,7 +26,8 @@ public static class PublicIpResolver
 
         if (request.result != UnityWebRequest.Result.Success)
         {
-            throw new InvalidOperationException(
+            throw new MatchmakingFailedException(
+                MatchmakingFailure.NoConnection,
                 $"Cannot resolve public IP: {request.error}"
             );
         }
@@ -35,7 +36,10 @@ public static class PublicIpResolver
 
         if (string.IsNullOrWhiteSpace(publicIp))
         {
-            throw new InvalidOperationException("Public IP response was empty.");
+            throw new MatchmakingFailedException(
+                MatchmakingFailure.NoConnection,
+                "Public IP response was empty."
+            );
         }
 
         return publicIp;

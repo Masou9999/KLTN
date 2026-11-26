@@ -470,21 +470,24 @@ public class EdgegapAllocator(
                         };
                     }
 
-                    if (deploymentStatus.PublicIp == null)
+                    // gameport is WebSocket with Edgegap TLS upgrade: the certificate covers the
+                    // FQDN, not the IP, so clients (WebGL included) must dial wss://<fqdn>:<port>.
+                    string? host = string.IsNullOrWhiteSpace(deploymentStatus.Fqdn)
+                        ? deploymentStatus.PublicIp
+                        : deploymentStatus.Fqdn;
+
+                    if (string.IsNullOrWhiteSpace(host))
                     {
                         return new PollResponse(PollStatus.Error)
                         {
                             Message =
-                                $"Deployment is READY but public_ip is missing. Response: {responseContent}",
+                                $"Deployment is READY but fqdn/public_ip is missing. Response: {responseContent}",
                         };
                     }
 
                     return new PollResponse(PollStatus.Allocated)
                     {
-                        AssignmentData = AssignmentData.IpPort(
-                            deploymentStatus.PublicIp,
-                            port.External
-                        ),
+                        AssignmentData = AssignmentData.IpPort(host, port.External),
                     };
                 }
                 case DeploymentStatus.Error:

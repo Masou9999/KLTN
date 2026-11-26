@@ -99,6 +99,9 @@ namespace KLTN.Game.Domain
             }
             if (triggered.Ability.Condition == AbilityCondition.AllyDiedThisRound)
                 context += " (đã có đồng minh chết trong vòng này)";
+            else if (triggered.Ability.Condition
+                == AbilityCondition.AllyDiedPreviousRound)
+                context += " (đã có đồng minh chết ở vòng trước)";
             foreach (var effect in triggered.Ability.Effects)
             {
                 if (effect.Target == EffectTarget.WeakestEnemies) { context += " — chọn kẻ địch yếu nhất"; break; }

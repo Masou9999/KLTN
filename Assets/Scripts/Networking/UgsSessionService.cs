@@ -191,7 +191,7 @@ public sealed class UgsSessionService
         {
             if (DateTime.UtcNow >= deadline)
                 throw new TimeoutException("Chưa thể dừng kết nối mạng. Vui lòng thử rời phòng lại.");
-            await Task.Yield();
+            await FrameDelay.NextFrame();
         }
     }
 

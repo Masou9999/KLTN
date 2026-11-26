@@ -197,7 +197,8 @@ namespace KLTN.Game.Presentation
             launch.anchoredPosition = settingsRect.anchoredPosition - new Vector2(settingsRect.sizeDelta.x + 18, 0);
             launch.localScale = settingsRect.localScale;
             var icon = launch.gameObject.AddComponent<MatchLogIcon>();
-            icon.color = new Color(.81f, .77f, .77f);
+            // Same glyph grey as the sprite icons beside it ("ingame - SETTING.png").
+            icon.color = new Color32(161, 149, 148, 255);
             modal.openButton = launch.gameObject.AddComponent<Button>();
             modal.openButton.targetGraphic = icon;
             modal.openButton.colors = settingsButton.colors;

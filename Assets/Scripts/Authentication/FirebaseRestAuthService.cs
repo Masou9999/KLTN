@@ -1,5 +1,4 @@
 using System;
-using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 using KLTN.Infrastructure.Resilience;
@@ -10,7 +9,6 @@ public class FirebaseRestAuthService : IAuthService
 {
     #region Endpoints and Configuration
 
-    private const string ConfigFileName = "firebase-auth-config.json";
     private const string SIGN_UP_URL = "https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=";
     private const string SIGN_IN_URL = "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=";
     private const string SIGN_IN_IDP_URL = "https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdp?key=";
@@ -23,7 +21,7 @@ public class FirebaseRestAuthService : IAuthService
     private static readonly NetworkRetryPolicy RetryPolicy = NetworkRetryPolicy.Default;
     private static readonly System.Random RetryJitter = new();
 
-    private readonly string apiKey;
+    private string apiKey;
 
     #endregion
 
@@ -41,7 +39,8 @@ public class FirebaseRestAuthService : IAuthService
 
     public FirebaseRestAuthService()
     {
-        apiKey = LoadApiKey();
+        // WebGL cannot read StreamingAssets synchronously; the key arrives on first use.
+        apiKey = FirebaseAuthConfig.LoadApiKey();
     }
 
     #endregion
@@ -61,7 +60,7 @@ public class FirebaseRestAuthService : IAuthService
 
     public async Task<AuthResultData> RegisterAsync(string email, string password)
     {
-        if (!IsConfigured) { return MissingConfigurationResult(); }
+        if (!await EnsureConfiguredAsync()) { return MissingConfigurationResult(); }
 
         FirebaseAuthRequest request = new FirebaseAuthRequest
         {
@@ -111,7 +110,7 @@ public class FirebaseRestAuthService : IAuthService
 
     public async Task<AuthResultData> LoginAsync(string email, string password)
     {
-        if (!IsConfigured) { return MissingConfigurationResult(); }
+        if (!await EnsureConfiguredAsync()) { return MissingConfigurationResult(); }
 
         FirebaseAuthRequest request = new FirebaseAuthRequest
         {
@@ -160,7 +159,7 @@ public class FirebaseRestAuthService : IAuthService
 
     public async Task<AuthResultData> LoginWithGoogleAsync(string googleIdToken)
     {
-        if (!IsConfigured) { return MissingConfigurationResult(); }
+        if (!await EnsureConfiguredAsync()) { return MissingConfigurationResult(); }
 
         // Payload theo chuẩn REST API của Firebase cho Identity Providers
         FirebaseIdpRequest request = new FirebaseIdpRequest
@@ -211,7 +210,7 @@ public class FirebaseRestAuthService : IAuthService
 
     public async Task<AuthResultData> LoginWithRefreshTokenAsync(string savedRefreshToken)
     {
-        if (!IsConfigured) { return MissingConfigurationResult(); }
+        if (!await EnsureConfiguredAsync()) { return MissingConfigurationResult(); }
 
         UnityWebRequest request = null;
 
@@ -253,7 +252,7 @@ public class FirebaseRestAuthService : IAuthService
 
     public async Task<AuthResultData> SendPasswordResetEmailAsync(string email)
     {
-        if (!IsConfigured) { return MissingConfigurationResult(); }
+        if (!await EnsureConfiguredAsync()) { return MissingConfigurationResult(); }
 
         FirebaseOobCodeRequest request = new FirebaseOobCodeRequest
         {
@@ -313,35 +312,17 @@ public class FirebaseRestAuthService : IAuthService
 
     private bool IsConfigured => !string.IsNullOrWhiteSpace(apiKey);
 
-    private static string LoadApiKey()
+    /// <summary>
+    /// Makes sure the Web API key is loaded, downloading it on WebGL the first time.
+    /// </summary>
+    private async Task<bool> EnsureConfiguredAsync()
     {
-        string configPath = Path.Combine(Application.streamingAssetsPath, ConfigFileName);
-
-        if (!File.Exists(configPath))
+        if (!IsConfigured)
         {
-            Debug.LogError($"[FirebaseAuth] Không tìm thấy StreamingAssets/{ConfigFileName}.");
-            return string.Empty;
+            apiKey = await FirebaseAuthConfig.LoadApiKeyAsync();
         }
 
-        try
-        {
-            string json = File.ReadAllText(configPath);
-            FirebaseAuthConfigData data = JsonUtility.FromJson<FirebaseAuthConfigData>(json);
-
-            if (data == null || string.IsNullOrWhiteSpace(data.apiKey))
-            {
-                Debug.LogError($"[FirebaseAuth] {ConfigFileName} không chứa apiKey hợp lệ.");
-                return string.Empty;
-            }
-
-            Debug.Log($"[FirebaseAuth] Đã tải cấu hình từ StreamingAssets/{ConfigFileName}.");
-            return data.apiKey.Trim();
-        }
-        catch (Exception exception)
-        {
-            Debug.LogError($"[FirebaseAuth] Không thể đọc cấu hình: {exception.Message}");
-            return string.Empty;
-        }
+        return IsConfigured;
     }
 
     private static AuthResultData MissingConfigurationResult()
@@ -437,7 +418,7 @@ public class FirebaseRestAuthService : IAuthService
             TimeSpan delay = RetryPolicy.GetDelay(attempt - 1, RetryJitter.NextDouble());
             Debug.LogWarning($"[FirebaseAuth] Request failed ({request.responseCode} {request.error}), retry {attempt}/{RetryPolicy.MaxAttempts - 1} in {delay.TotalSeconds:0.0} s.");
             request.Dispose();
-            await Task.Delay(delay);
+            await FrameDelay.Delay(delay);
         }
     }
 
@@ -548,12 +529,6 @@ public class FirebaseRestAuthService : IAuthService
         public string email;
         public string password;
         public bool returnSecureToken;
-    }
-
-    [Serializable]
-    private class FirebaseAuthConfigData
-    {
-        public string apiKey;
     }
 
     [Serializable]

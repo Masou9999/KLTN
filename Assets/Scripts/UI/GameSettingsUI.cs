@@ -6,7 +6,7 @@ using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 /// <summary>
-/// Shares audio and device-local resolution controls between menu and match panels.
+/// Shares audio controls between menu and match panels.
 /// </summary>
 public class GameSettingsUI : MonoBehaviour
 {
@@ -24,6 +24,10 @@ public class GameSettingsUI : MonoBehaviour
     [SerializeField] private AudioSource musicAudioSource;
     [SerializeField] private AudioSource sfxAudioSource;
 
+    [Header("Style")]
+    [Tooltip("LoginScene modal sprites; leave empty to keep the authored look.")]
+    [SerializeField] private ModalTheme theme = new ModalTheme();
+
     #endregion
 
     private Button saveButton;
@@ -31,11 +35,6 @@ public class GameSettingsUI : MonoBehaviour
     private AudioVolumeSettings.PreviewCheckpoint previewCheckpoint;
     private TMP_Text saveLabel;
     private TMP_Text saveStatus;
-    private Toggle[] resolutionToggles;
-    private Toggle fullscreenToggle;
-    private bool selectedFullscreen;
-    private int selectedResolution;
-    private string resolutionStatus;
 
     #region Unity Lifecycle
 
@@ -44,17 +43,13 @@ public class GameSettingsUI : MonoBehaviour
     /// <summary>Binds authored controls, creating missing controls only once.</summary>
     public void InitializeControls()
     {
-        if (saveButton != null && resolutionToggles != null
-            && fullscreenToggle != null) return;
-        selectedResolution = WindowResolutionSettings.SavedIndex;
-        selectedFullscreen = WindowResolutionSettings.SavedFullscreen;
+        if (saveButton != null) return;
         BuildSaveControls();
         if (closeButton != null)
         {
-            resolutionToggles = ResolutionSettingsControls.Build(
-                closeButton.transform.parent, saveLabel, SelectResolution);
-            fullscreenToggle = ResolutionSettingsControls.BuildFullscreen(
-                closeButton.transform.parent, saveLabel, SelectFullscreen);
+            SettingsPanelLayout.ApplyLayout(closeButton.transform.parent);
+            SettingsModalStyle.ApplySettings(
+                (RectTransform)closeButton.transform.parent, theme);
         }
         Refresh();
     }
@@ -101,7 +96,8 @@ public class GameSettingsUI : MonoBehaviour
         saveStatus.rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
         saveStatus.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
         saveStatus.rectTransform.pivot = new Vector2(0.5f, 0.5f);
-        saveStatus.rectTransform.anchoredPosition = new Vector2(0, -214);
+        saveStatus.rectTransform.anchoredPosition =
+            new Vector2(0, SettingsPanelLayout.StatusY);
         saveStatus.rectTransform.sizeDelta = new Vector2(600, 22);
         saveStatus.enableAutoSizing = true;
         saveStatus.fontSizeMin = 14;
@@ -117,60 +113,27 @@ public class GameSettingsUI : MonoBehaviour
         var rect = (RectTransform)button.transform;
         rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
         rect.pivot = new Vector2(0.5f, 0.5f);
-        rect.anchoredPosition = new Vector2(x, -276);
+        rect.anchoredPosition = new Vector2(x, SettingsPanelLayout.ActionY);
         rect.sizeDelta = new Vector2(220, 52);
     }
 
     public async void SaveAudio()
     {
         if (AudioVolumeSettings.IsSaving) return;
-        if (selectedResolution != WindowResolutionSettings.SavedIndex
-            || selectedFullscreen != WindowResolutionSettings.SavedFullscreen)
-        {
-            WindowResolutionSettings.Save(selectedResolution, selectedFullscreen);
-            resolutionStatus = "Đã lưu cài đặt hiển thị trên máy.";
-        }
         await AudioVolumeSettings.SaveAsync();
         if (this != null) Refresh();
-    }
-
-    private void SelectResolution(int index)
-    {
-        selectedResolution = index;
-        resolutionStatus = null;
-        UIClickManager.Instance?.PlayClick();
-        Refresh();
-    }
-
-    private void SelectFullscreen(bool fullscreen)
-    {
-        selectedFullscreen = fullscreen;
-        resolutionStatus = null;
-        UIClickManager.Instance?.PlayClick();
-        Refresh();
-    }
-
-    /// <summary>Rebases only fullscreen after F11, preserving other modal drafts.</summary>
-    private void SyncFullscreen()
-    {
-        selectedFullscreen = WindowResolutionSettings.SavedFullscreen;
-        resolutionStatus = "Đã lưu cài đặt hiển thị trên máy.";
-        Refresh();
     }
 
     private void OnEnable()
     {
         InitializeControls();
-        selectedFullscreen = WindowResolutionSettings.SavedFullscreen;
         AudioVolumeSettings.Changed += Refresh;
-        WindowResolutionSettings.FullscreenChanged += SyncFullscreen;
         Refresh();
     }
 
     private void OnDisable()
     {
         AudioVolumeSettings.Changed -= Refresh;
-        WindowResolutionSettings.FullscreenChanged -= SyncFullscreen;
     }
 
     #endregion
@@ -183,9 +146,6 @@ public class GameSettingsUI : MonoBehaviour
         if (previewCheckpoint == null)
         {
             previewCheckpoint = AudioVolumeSettings.CapturePreview();
-            selectedResolution = WindowResolutionSettings.SavedIndex;
-            selectedFullscreen = WindowResolutionSettings.SavedFullscreen;
-            resolutionStatus = null;
         }
         Refresh();
         if (menuGroup != null)
@@ -201,9 +161,6 @@ public class GameSettingsUI : MonoBehaviour
         if (AudioVolumeSettings.IsSaving) return;
         AudioVolumeSettings.RestorePreview(previewCheckpoint);
         previewCheckpoint = null;
-        selectedResolution = WindowResolutionSettings.SavedIndex;
-        selectedFullscreen = WindowResolutionSettings.SavedFullscreen;
-        resolutionStatus = null;
         settingsPanel.SetActive(false);
         if (menuGroup != null)
         {
@@ -236,23 +193,6 @@ public class GameSettingsUI : MonoBehaviour
 
     private void Refresh()
     {
-        bool resolutionChanged =
-            selectedResolution != WindowResolutionSettings.SavedIndex
-            || selectedFullscreen != WindowResolutionSettings.SavedFullscreen;
-        if (fullscreenToggle != null)
-        {
-            fullscreenToggle.SetIsOnWithoutNotify(selectedFullscreen);
-            fullscreenToggle.interactable = !AudioVolumeSettings.IsSaving;
-        }
-        if (resolutionToggles != null)
-        {
-            for (int i = 0; i < resolutionToggles.Length; i++)
-            {
-                resolutionToggles[i].SetIsOnWithoutNotify(i == selectedResolution);
-                resolutionToggles[i].interactable = !AudioVolumeSettings.IsSaving
-                    && (selectedFullscreen || WindowResolutionSettings.FitsDisplay(i));
-            }
-        }
         if (closeButton != null)
         {
             closeButton.interactable = !AudioVolumeSettings.IsSaving;
@@ -260,10 +200,11 @@ public class GameSettingsUI : MonoBehaviour
         if (saveButton != null)
         {
             saveButton.interactable = !AudioVolumeSettings.IsSaving
-                && (AudioVolumeSettings.CanSave || resolutionChanged);
+                && AudioVolumeSettings.CanSave;
             saveLabel.text = AudioVolumeSettings.IsSaving ? "Đang lưu…" : "Lưu";
-            saveStatus.text = resolutionChanged ? "Có thay đổi chưa lưu"
-                : AudioVolumeSettings.Status ?? resolutionStatus
+            // The button tint does not reach its TMP label; fade the label with it.
+            saveLabel.alpha = saveButton.interactable ? 1f : .45f;
+            saveStatus.text = AudioVolumeSettings.Status
                 ?? (AudioVolumeSettings.HasChanges ? "Có thay đổi chưa lưu" : "");
         }
         // Show the effective music level without losing the pre-mute saved level.

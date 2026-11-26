@@ -59,6 +59,11 @@ public sealed class MainMenuController : MonoBehaviour
         SceneManager.LoadScene(SceneNames.Leaderboard);
     }
 
+    public void OpenCredits()
+    {
+        SceneManager.LoadScene(SceneNames.Credits);
+    }
+
     public void Logout()
     {
         ShowConfirmation(PendingAction.Logout,

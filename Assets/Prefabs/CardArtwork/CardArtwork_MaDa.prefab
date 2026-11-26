@@ -130,11 +130,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::KLTN.Game.Presentation.CardLoreProfile
   role: "\u0110\u1EA5u s\u0129"
-  skillDescription: "[Chi ti\u1EBFt k\u1EF9 n\u0103ng]\r\n[Can\u2019t block], [Last
-    Breath], [Ephemeral]\r\n- Ta s\u1EBD ch\u1EBFt sau khi t\u1EA5n c\xF4ng ho\u1EB7c
-    k\u1EBFt th\xFAc l\u01B0\u1EE3t.\r\n- Khi c\xF3 m\u1ED9t \u0111\u1ED3ng minh
-    t\u1EA5n c\xF4ng, h\u1ED3i sinh ta \u0111\u1EC3 c\xF9ng t\u1EA5n c\xF4ng.\r\n-
-    Ta kh\xF4ng th\u1EC3 th\u1EE7."
+  skillDescription: "[Chi ti\u1EBFt k\u1EF9 n\u0103ng]\r\n- Khi c\xF3 m\u1ED9t \u0111\u1ED3ng minh t\u1EA5n c\xF4ng, h\u1ED3i sinh ta \u0111\u1EC3 c\xF9ng t\u1EA5n c\xF4ng."
   folklore: "Ta l\xE0 ma da \u2014 h\u1ED3n ng\u01B0\u1EDDi ch\u1EBFt \u0111u\u1ED1i
     m\u1EAFc l\u1EA1i d\u01B0\u1EDBi s\xF4ng. Mu\u1ED1n \u0111\u01B0\u1EE3c th\u1EBF
     ch\u1ED7 \u0111\u1EC3 \u0111\u1EA7u thai, ta th\u01B0\u1EDDng b\u1ECB k\u1EC3

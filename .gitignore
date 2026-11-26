@@ -79,6 +79,9 @@ sysinfo.txt
 *.unitypackage.meta
 *.app
 
+# Burst output from WebGL builds (regenerated on every build)
+/[Dd]ata/[Pp]lugins/
+
 # Crashlytics generated file
 crashlytics-build.properties
 
@@ -105,3 +108,19 @@ Tools/LoadTest/results-*/
 
 # Local MatchServerModule guide
 /CloudCode/MatchServerModule/README.md
+
+# Công cụ kiểm tra dùng một lần và kết quả test cục bộ
+/CloudCode/UsernameClient.Tests/
+/TestResults*.xml
+
+# Tài liệu/ghi chú do coding agent tạo (chỉ giữ local)
+/Assets/**/README.md
+/Assets/**/README.md.meta
+/Assets/**/SourceNotes.txt
+/Assets/**/SourceNotes.txt.meta
+/Assets/**/*.prompt.txt
+/Assets/**/*.prompt.txt.meta
+/Firebase/USERNAME.md
+/CloudCode/SeasonModule/README.md
+/CloudCode/EdgegapAllocator/README.md
+/ci/server/README.md

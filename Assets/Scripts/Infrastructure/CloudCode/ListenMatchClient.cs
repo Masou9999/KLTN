@@ -71,7 +71,7 @@ namespace KLTN.Infrastructure.CloudCode
                     CloudCodeMatchResultReporter.ModuleName, endpoint, parameters);
                 try
                 {
-                    if (await Task.WhenAny(call, Task.Delay(15000, cancellationToken)) != call)
+                    if (await Task.WhenAny(call, FrameDelay.Delay(15000, cancellationToken)) != call)
                     {
                         ObserveFailure(call);
                         cancellationToken.ThrowIfCancellationRequested();
@@ -81,7 +81,7 @@ namespace KLTN.Infrastructure.CloudCode
                 }
                 catch when (attempt < 2 && !cancellationToken.IsCancellationRequested)
                 {
-                    await Task.Delay(1000 << attempt, cancellationToken);
+                    await FrameDelay.Delay(1000 << attempt, cancellationToken);
                 }
             }
         }

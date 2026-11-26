@@ -31,7 +31,7 @@ namespace KLTN.Game.Editor
         private const string ItemPrefabPath = "Assets/Prefabs/UI/ShopCardItem.prefab";
         private const string CardPrefabPath = "Assets/Prefabs/Networking/NetworkCardView.prefab";
         private const string PresentationCatalogPath = "Assets/CardData/Presentation/CardPresentationCatalog.asset";
-        private const string FontPath = "Assets/Font/XTypewriter-Bold SDF.asset";
+        private const string FontPath = "Assets/Fonts/XTypewriter-Bold SDF.asset";
 
         private static readonly Color Background = new Color(0.07f, 0.06f, 0.08f, 1f);
         private static readonly Color Panel = new Color(0.12f, 0.1f, 0.12f, 0.95f);

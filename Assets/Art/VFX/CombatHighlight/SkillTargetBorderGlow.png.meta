@@ -1,0 +1,1885 @@
+fileFormatVersion: 2
+guid: 09c627994b13d434ea8e8bacc4097112
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -1184512676537043933
+    second: SkillTargetBorderGlow_0
+  - first:
+      213: 1192320073245638216
+    second: SkillTargetBorderGlow_1
+  - first:
+      213: 8266015355968233611
+    second: SkillTargetBorderGlow_2
+  - first:
+      213: 6539998787061138339
+    second: SkillTargetBorderGlow_3
+  - first:
+      213: 6046498351934237783
+    second: SkillTargetBorderGlow_4
+  - first:
+      213: 8896239485480123471
+    second: SkillTargetBorderGlow_5
+  - first:
+      213: 3774931559412508580
+    second: SkillTargetBorderGlow_6
+  - first:
+      213: -2291804874349676144
+    second: SkillTargetBorderGlow_7
+  - first:
+      213: 4625062990640591737
+    second: SkillTargetBorderGlow_8
+  - first:
+      213: 7258754127758594948
+    second: SkillTargetBorderGlow_9
+  - first:
+      213: 7409814575530487319
+    second: SkillTargetBorderGlow_10
+  - first:
+      213: 747502757358375640
+    second: SkillTargetBorderGlow_11
+  - first:
+      213: -3866178388191354705
+    second: SkillTargetBorderGlow_12
+  - first:
+      213: -2187131324998559416
+    second: SkillTargetBorderGlow_13
+  - first:
+      213: 4358178387402041095
+    second: SkillTargetBorderGlow_14
+  - first:
+      213: 2589810820664099624
+    second: SkillTargetBorderGlow_15
+  - first:
+      213: 5630119187933442614
+    second: SkillTargetBorderGlow_16
+  - first:
+      213: 8549982505077526200
+    second: SkillTargetBorderGlow_17
+  - first:
+      213: -3914962575520074154
+    second: SkillTargetBorderGlow_18
+  - first:
+      213: -5068191541966718470
+    second: SkillTargetBorderGlow_19
+  - first:
+      213: 3869396370419526876
+    second: SkillTargetBorderGlow_20
+  - first:
+      213: -412259931837394354
+    second: SkillTargetBorderGlow_21
+  - first:
+      213: 6412472437974599463
+    second: SkillTargetBorderGlow_22
+  - first:
+      213: -6391885870003982889
+    second: SkillTargetBorderGlow_23
+  - first:
+      213: 7083749303228379827
+    second: SkillTargetBorderGlow_24
+  - first:
+      213: -3753175433326926484
+    second: SkillTargetBorderGlow_25
+  - first:
+      213: -8008436775840737642
+    second: SkillTargetBorderGlow_26
+  - first:
+      213: -7934308718807254553
+    second: SkillTargetBorderGlow_27
+  - first:
+      213: 856776892372674995
+    second: SkillTargetBorderGlow_28
+  - first:
+      213: -5758560134870162242
+    second: SkillTargetBorderGlow_29
+  - first:
+      213: 6564829707910888577
+    second: SkillTargetBorderGlow_30
+  - first:
+      213: 2382212076485697393
+    second: SkillTargetBorderGlow_31
+  - first:
+      213: -1021181315330348472
+    second: SkillTargetBorderGlow_32
+  - first:
+      213: 445328897639223672
+    second: SkillTargetBorderGlow_33
+  - first:
+      213: 4626858018801969491
+    second: SkillTargetBorderGlow_34
+  - first:
+      213: -858136224675876185
+    second: SkillTargetBorderGlow_35
+  - first:
+      213: 1409793489770584987
+    second: SkillTargetBorderGlow_36
+  - first:
+      213: -4412357710795645432
+    second: SkillTargetBorderGlow_37
+  - first:
+      213: -5309604544928451962
+    second: SkillTargetBorderGlow_38
+  - first:
+      213: 2744251738567975382
+    second: SkillTargetBorderGlow_39
+  - first:
+      213: 4109563460309249693
+    second: SkillTargetBorderGlow_40
+  - first:
+      213: 5454460943587772899
+    second: SkillTargetBorderGlow_41
+  - first:
+      213: -3557244539774585587
+    second: SkillTargetBorderGlow_42
+  - first:
+      213: 8847940394480050297
+    second: SkillTargetBorderGlow_43
+  - first:
+      213: 1001470063862963219
+    second: SkillTargetBorderGlow_44
+  - first:
+      213: -7459926790740198653
+    second: SkillTargetBorderGlow_45
+  - first:
+      213: -581493333499960352
+    second: SkillTargetBorderGlow_46
+  - first:
+      213: -4135983470522574676
+    second: SkillTargetBorderGlow_47
+  - first:
+      213: 7655245540326173222
+    second: SkillTargetBorderGlow_48
+  - first:
+      213: 188037519000525222
+    second: SkillTargetBorderGlow_49
+  - first:
+      213: 4391959786874593919
+    second: SkillTargetBorderGlow_50
+  - first:
+      213: -7803036231011757203
+    second: SkillTargetBorderGlow_51
+  - first:
+      213: 6398066554358332477
+    second: SkillTargetBorderGlow_52
+  - first:
+      213: -3541872986039459254
+    second: SkillTargetBorderGlow_53
+  - first:
+      213: -6944772485783403970
+    second: SkillTargetBorderGlow_54
+  - first:
+      213: -3194675062740797994
+    second: SkillTargetBorderGlow_55
+  - first:
+      213: -2604192429438397671
+    second: SkillTargetBorderGlow_56
+  - first:
+      213: -6290824680845472178
+    second: SkillTargetBorderGlow_57
+  - first:
+      213: 1187399869481802033
+    second: SkillTargetBorderGlow_58
+  - first:
+      213: 7402152866872734720
+    second: SkillTargetBorderGlow_59
+  - first:
+      213: 7938725198789644365
+    second: SkillTargetBorderGlow_60
+  - first:
+      213: -5413632369247616365
+    second: SkillTargetBorderGlow_61
+  - first:
+      213: 7638898412524613057
+    second: SkillTargetBorderGlow_62
+  - first:
+      213: -7427547645644761610
+    second: SkillTargetBorderGlow_63
+  - first:
+      213: 4654840610543725138
+    second: SkillTargetBorderGlow_64
+  - first:
+      213: -3289115498122384415
+    second: SkillTargetBorderGlow_65
+  - first:
+      213: -1652190476535172132
+    second: SkillTargetBorderGlow_66
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 1
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: iOS
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: WebGL
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 1774
+        height: 887
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 324ff0b1ff3cf8fe0800000000000000
+      internalID: -1184512676537043933
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_1
+      rect:
+        serializedVersion: 2
+        x: 129
+        y: 870
+        width: 32
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 84ebf581ac8fb8010800000000000000
+      internalID: 1192320073245638216
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_2
+      rect:
+        serializedVersion: 2
+        x: 898
+        y: 882
+        width: 13
+        height: 5
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b802968cb29c6b270800000000000000
+      internalID: 8266015355968233611
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_3
+      rect:
+        serializedVersion: 2
+        x: 909
+        y: 870
+        width: 17
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3a3c3461f3eb2ca50800000000000000
+      internalID: 6539998787061138339
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_4
+      rect:
+        serializedVersion: 2
+        x: 1441
+        y: 852
+        width: 42
+        height: 35
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 75c6602273a79e350800000000000000
+      internalID: 6046498351934237783
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_5
+      rect:
+        serializedVersion: 2
+        x: 95
+        y: 855
+        width: 23
+        height: 21
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f4cb8d08daac57b70800000000000000
+      internalID: 8896239485480123471
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_6
+      rect:
+        serializedVersion: 2
+        x: 458
+        y: 860
+        width: 11
+        height: 21
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4a7a13ab040436430800000000000000
+      internalID: 3774931559412508580
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_7
+      rect:
+        serializedVersion: 2
+        x: 877
+        y: 870
+        width: 9
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 099f0e9fb9fd130e0800000000000000
+      internalID: -2291804874349676144
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_8
+      rect:
+        serializedVersion: 2
+        x: 1034
+        y: 874
+        width: 7
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 97330fc09468f2040800000000000000
+      internalID: 4625062990640591737
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_9
+      rect:
+        serializedVersion: 2
+        x: 1287
+        y: 852
+        width: 20
+        height: 24
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 48393f0bb664cb460800000000000000
+      internalID: 7258754127758594948
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_10
+      rect:
+        serializedVersion: 2
+        x: 210
+        y: 862
+        width: 7
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 71ea10af813f4d660800000000000000
+      internalID: 7409814575530487319
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_11
+      rect:
+        serializedVersion: 2
+        x: 345
+        y: 856
+        width: 11
+        height: 16
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8d298f02cc9af5a00800000000000000
+      internalID: 747502757358375640
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_12
+      rect:
+        serializedVersion: 2
+        x: 1161
+        y: 854
+        width: 31
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: fa0ef856d33985ac0800000000000000
+      internalID: -3866178388191354705
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_13
+      rect:
+        serializedVersion: 2
+        x: 1411
+        y: 843
+        width: 31
+        height: 26
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 849d458d5afb5a1e0800000000000000
+      internalID: -2187131324998559416
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_14
+      rect:
+        serializedVersion: 2
+        x: 161
+        y: 108
+        width: 15
+        height: 15
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 70722e8172c5b7c30800000000000000
+      internalID: 4358178387402041095
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_15
+      rect:
+        serializedVersion: 2
+        x: 208
+        y: 7
+        width: 339
+        height: 116
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8238521583bd0f320800000000000000
+      internalID: 2589810820664099624
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_16
+      rect:
+        serializedVersion: 2
+        x: 264
+        y: 112
+        width: 13
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 63232ef5293322e40800000000000000
+      internalID: 5630119187933442614
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_17
+      rect:
+        serializedVersion: 2
+        x: 443
+        y: 112
+        width: 18
+        height: 30
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8be43f2e9c3a7a670800000000000000
+      internalID: 8549982505077526200
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_18
+      rect:
+        serializedVersion: 2
+        x: 457
+        y: 110
+        width: 20
+        height: 15
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6567d29a7424ba9c0800000000000000
+      internalID: -3914962575520074154
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_19
+      rect:
+        serializedVersion: 2
+        x: 595
+        y: 94
+        width: 17
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: af93f6f15aa2aa9b0800000000000000
+      internalID: -5068191541966718470
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_20
+      rect:
+        serializedVersion: 2
+        x: 657
+        y: 9
+        width: 576
+        height: 146
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cdcaa0a7f7bd2b530800000000000000
+      internalID: 3869396370419526876
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_21
+      rect:
+        serializedVersion: 2
+        x: 1419
+        y: 102
+        width: 25
+        height: 23
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e4294b7b6cb574af0800000000000000
+      internalID: -412259931837394354
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_22
+      rect:
+        serializedVersion: 2
+        x: 1449
+        y: 114
+        width: 14
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 727857525bdadf850800000000000000
+      internalID: 6412472437974599463
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_23
+      rect:
+        serializedVersion: 2
+        x: 1484
+        y: 118
+        width: 9
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7dde299baa57b47a0800000000000000
+      internalID: -6391885870003982889
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_24
+      rect:
+        serializedVersion: 2
+        x: 1697
+        y: 78
+        width: 42
+        height: 41
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3b239d0c5788e4260800000000000000
+      internalID: 7083749303228379827
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_25
+      rect:
+        serializedVersion: 2
+        x: 1740
+        y: 116
+        width: 13
+        height: 15
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c6563dc14da0aebc0800000000000000
+      internalID: -3753175433326926484
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_26
+      rect:
+        serializedVersion: 2
+        x: 1750
+        y: 112
+        width: 9
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 69696d1de215cd090800000000000000
+      internalID: -8008436775840737642
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_27
+      rect:
+        serializedVersion: 2
+        x: 151
+        y: 87
+        width: 9
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7e9753d024ca3e190800000000000000
+      internalID: -7934308718807254553
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_28
+      rect:
+        serializedVersion: 2
+        x: 172
+        y: 104
+        width: 12
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3b9e2a15b02e3eb00800000000000000
+      internalID: 856776892372674995
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_29
+      rect:
+        serializedVersion: 2
+        x: 181
+        y: 96
+        width: 8
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: eb4a657411c7510b0800000000000000
+      internalID: -5758560134870162242
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_30
+      rect:
+        serializedVersion: 2
+        x: 645
+        y: 104
+        width: 7
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 18cb5fe56d5fa1b50800000000000000
+      internalID: 6564829707910888577
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_31
+      rect:
+        serializedVersion: 2
+        x: 1264
+        y: 80
+        width: 29
+        height: 35
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 17f539613415f0120800000000000000
+      internalID: 2382212076485697393
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_32
+      rect:
+        serializedVersion: 2
+        x: 1363
+        y: 25
+        width: 184
+        height: 80
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 84ae770110904d1f0800000000000000
+      internalID: -1021181315330348472
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_33
+      rect:
+        serializedVersion: 2
+        x: 1401
+        y: 88
+        width: 19
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8719000e5402e2600800000000000000
+      internalID: 445328897639223672
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_34
+      rect:
+        serializedVersion: 2
+        x: 70
+        y: 82
+        width: 6
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 359ebdc9ad6e53040800000000000000
+      internalID: 4626858018801969491
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_35
+      rect:
+        serializedVersion: 2
+        x: 75
+        y: 41
+        width: 57
+        height: 59
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7a2bc4776a94714f0800000000000000
+      internalID: -858136224675876185
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_36
+      rect:
+        serializedVersion: 2
+        x: 603
+        y: 96
+        width: 7
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b9b1f64a5b7909310800000000000000
+      internalID: 1409793489770584987
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_37
+      rect:
+        serializedVersion: 2
+        x: 611
+        y: 61
+        width: 39
+        height: 38
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 80ed11a2a0824c2c0800000000000000
+      internalID: -4412357710795645432
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_38
+      rect:
+        serializedVersion: 2
+        x: 1551
+        y: 41
+        width: 49
+        height: 57
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6827db14cce7056b0800000000000000
+      internalID: -5309604544928451962
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_39
+      rect:
+        serializedVersion: 2
+        x: 151
+        y: 43
+        width: 52
+        height: 48
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6d1a793aa6a851620800000000000000
+      internalID: 2744251738567975382
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_40
+      rect:
+        serializedVersion: 2
+        x: 538
+        y: 39
+        width: 58
+        height: 56
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d9e68a9913a180930800000000000000
+      internalID: 4109563460309249693
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_41
+      rect:
+        serializedVersion: 2
+        x: 589
+        y: 78
+        width: 19
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3e98ac7445322bb40800000000000000
+      internalID: 5454460943587772899
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_42
+      rect:
+        serializedVersion: 2
+        x: 643
+        y: 80
+        width: 13
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d05b98b20f022aec0800000000000000
+      internalID: -3557244539774585587
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_43
+      rect:
+        serializedVersion: 2
+        x: 1248
+        y: 25
+        width: 122
+        height: 68
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 97020de09e23aca70800000000000000
+      internalID: 8847940394480050297
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_44
+      rect:
+        serializedVersion: 2
+        x: 64
+        y: 66
+        width: 10
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 31c5db197bfe5ed00800000000000000
+      internalID: 1001470063862963219
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_45
+      rect:
+        serializedVersion: 2
+        x: 70
+        y: 63
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 30bb283bb14097890800000000000000
+      internalID: -7459926790740198653
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_46
+      rect:
+        serializedVersion: 2
+        x: 135
+        y: 63
+        width: 9
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0e32a71e4ee1ee7f0800000000000000
+      internalID: -581493333499960352
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_47
+      rect:
+        serializedVersion: 2
+        x: 589
+        y: 47
+        width: 23
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ca85d9a62f80a96c0800000000000000
+      internalID: -4135983470522574676
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_48
+      rect:
+        serializedVersion: 2
+        x: 651
+        y: 59
+        width: 15
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 62ae88b7245ec3a60800000000000000
+      internalID: 7655245540326173222
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_49
+      rect:
+        serializedVersion: 2
+        x: 1222
+        y: 61
+        width: 15
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6a9d874902b0c9200800000000000000
+      internalID: 188037519000525222
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_50
+      rect:
+        serializedVersion: 2
+        x: 1546
+        y: 55
+        width: 7
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f72e574182063fc30800000000000000
+      internalID: 4391959786874593919
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_51
+      rect:
+        serializedVersion: 2
+        x: 1701
+        y: 63
+        width: 10
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d639a01e3eb06b390800000000000000
+      internalID: -7803036231011757203
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_52
+      rect:
+        serializedVersion: 2
+        x: 137
+        y: 43
+        width: 7
+        height: 16
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d3cf5ddf1af7ac850800000000000000
+      internalID: 6398066554358332477
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_53
+      rect:
+        serializedVersion: 2
+        x: 1717
+        y: 53
+        width: 10
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a42e09be84db8dec0800000000000000
+      internalID: -3541872986039459254
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_54
+      rect:
+        serializedVersion: 2
+        x: 30
+        y: 35
+        width: 11
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e3249fa18363f9f90800000000000000
+      internalID: -6944772485783403970
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_55
+      rect:
+        serializedVersion: 2
+        x: 193
+        y: 41
+        width: 10
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6d53980e4fb3aa3d0800000000000000
+      internalID: -3194675062740797994
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_56
+      rect:
+        serializedVersion: 2
+        x: 633
+        y: 31
+        width: 9
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 913109478cc0cdbd0800000000000000
+      internalID: -2604192429438397671
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_57
+      rect:
+        serializedVersion: 2
+        x: 1242
+        y: 31
+        width: 15
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e4e02f1784082b8a0800000000000000
+      internalID: -6290824680845472178
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_58
+      rect:
+        serializedVersion: 2
+        x: 1433
+        y: 29
+        width: 24
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 139dec2e3ed7a7010800000000000000
+      internalID: 1187399869481802033
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_59
+      rect:
+        serializedVersion: 2
+        x: 1457
+        y: 31
+        width: 6
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 004b61b60dab9b660800000000000000
+      internalID: 7402152866872734720
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_60
+      rect:
+        serializedVersion: 2
+        x: 103
+        y: 23
+        width: 9
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d409c43d1840c2e60800000000000000
+      internalID: 7938725198789644365
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_61
+      rect:
+        serializedVersion: 2
+        x: 560
+        y: 23
+        width: 12
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3928076fa0aeed4b0800000000000000
+      internalID: -5413632369247616365
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_62
+      rect:
+        serializedVersion: 2
+        x: 1279
+        y: 25
+        width: 13
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1cd23d132a1d20a60800000000000000
+      internalID: 7638898412524613057
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_63
+      rect:
+        serializedVersion: 2
+        x: 1462
+        y: 29
+        width: 7
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6f51e05e4cc0ce890800000000000000
+      internalID: -7427547645644761610
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_64
+      rect:
+        serializedVersion: 2
+        x: 1465
+        y: 29
+        width: 8
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 25a65857fd0599040800000000000000
+      internalID: 4654840610543725138
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_65
+      rect:
+        serializedVersion: 2
+        x: 552
+        y: 15
+        width: 14
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1ebee2581e6ba52d0800000000000000
+      internalID: -3289115498122384415
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SkillTargetBorderGlow_66
+      rect:
+        serializedVersion: 2
+        x: 1699
+        y: 15
+        width: 12
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cd376d8e38d3219e0800000000000000
+      internalID: -1652190476535172132
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 5e97eb03825dee720800000000000000
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      SkillTargetBorderGlow_0: -1184512676537043933
+      SkillTargetBorderGlow_1: 1192320073245638216
+      SkillTargetBorderGlow_10: 7409814575530487319
+      SkillTargetBorderGlow_11: 747502757358375640
+      SkillTargetBorderGlow_12: -3866178388191354705
+      SkillTargetBorderGlow_13: -2187131324998559416
+      SkillTargetBorderGlow_14: 4358178387402041095
+      SkillTargetBorderGlow_15: 2589810820664099624
+      SkillTargetBorderGlow_16: 5630119187933442614
+      SkillTargetBorderGlow_17: 8549982505077526200
+      SkillTargetBorderGlow_18: -3914962575520074154
+      SkillTargetBorderGlow_19: -5068191541966718470
+      SkillTargetBorderGlow_2: 8266015355968233611
+      SkillTargetBorderGlow_20: 3869396370419526876
+      SkillTargetBorderGlow_21: -412259931837394354
+      SkillTargetBorderGlow_22: 6412472437974599463
+      SkillTargetBorderGlow_23: -6391885870003982889
+      SkillTargetBorderGlow_24: 7083749303228379827
+      SkillTargetBorderGlow_25: -3753175433326926484
+      SkillTargetBorderGlow_26: -8008436775840737642
+      SkillTargetBorderGlow_27: -7934308718807254553
+      SkillTargetBorderGlow_28: 856776892372674995
+      SkillTargetBorderGlow_29: -5758560134870162242
+      SkillTargetBorderGlow_3: 6539998787061138339
+      SkillTargetBorderGlow_30: 6564829707910888577
+      SkillTargetBorderGlow_31: 2382212076485697393
+      SkillTargetBorderGlow_32: -1021181315330348472
+      SkillTargetBorderGlow_33: 445328897639223672
+      SkillTargetBorderGlow_34: 4626858018801969491
+      SkillTargetBorderGlow_35: -858136224675876185
+      SkillTargetBorderGlow_36: 1409793489770584987
+      SkillTargetBorderGlow_37: -4412357710795645432
+      SkillTargetBorderGlow_38: -5309604544928451962
+      SkillTargetBorderGlow_39: 2744251738567975382
+      SkillTargetBorderGlow_4: 6046498351934237783
+      SkillTargetBorderGlow_40: 4109563460309249693
+      SkillTargetBorderGlow_41: 5454460943587772899
+      SkillTargetBorderGlow_42: -3557244539774585587
+      SkillTargetBorderGlow_43: 8847940394480050297
+      SkillTargetBorderGlow_44: 1001470063862963219
+      SkillTargetBorderGlow_45: -7459926790740198653
+      SkillTargetBorderGlow_46: -581493333499960352
+      SkillTargetBorderGlow_47: -4135983470522574676
+      SkillTargetBorderGlow_48: 7655245540326173222
+      SkillTargetBorderGlow_49: 188037519000525222
+      SkillTargetBorderGlow_5: 8896239485480123471
+      SkillTargetBorderGlow_50: 4391959786874593919
+      SkillTargetBorderGlow_51: -7803036231011757203
+      SkillTargetBorderGlow_52: 6398066554358332477
+      SkillTargetBorderGlow_53: -3541872986039459254
+      SkillTargetBorderGlow_54: -6944772485783403970
+      SkillTargetBorderGlow_55: -3194675062740797994
+      SkillTargetBorderGlow_56: -2604192429438397671
+      SkillTargetBorderGlow_57: -6290824680845472178
+      SkillTargetBorderGlow_58: 1187399869481802033
+      SkillTargetBorderGlow_59: 7402152866872734720
+      SkillTargetBorderGlow_6: 3774931559412508580
+      SkillTargetBorderGlow_60: 7938725198789644365
+      SkillTargetBorderGlow_61: -5413632369247616365
+      SkillTargetBorderGlow_62: 7638898412524613057
+      SkillTargetBorderGlow_63: -7427547645644761610
+      SkillTargetBorderGlow_64: 4654840610543725138
+      SkillTargetBorderGlow_65: -3289115498122384415
+      SkillTargetBorderGlow_66: -1652190476535172132
+      SkillTargetBorderGlow_7: -2291804874349676144
+      SkillTargetBorderGlow_8: 4625062990640591737
+      SkillTargetBorderGlow_9: 7258754127758594948
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

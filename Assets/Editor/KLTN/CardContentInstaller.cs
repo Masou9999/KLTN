@@ -62,7 +62,7 @@ namespace KLTN.Game.Editor
                 2,
                 UnitKeyword.None,
                 "Hỗ trợ khi tấn công hoặc phòng thủ: đồng minh "
-                    + "bên phải nhận +2|+0 trong vòng này.",
+                    + "bên phải nhận +2|+0 khi còn trên sân.",
                 Passive(),
                 Ability(
                     "quy_cau_support",
@@ -73,7 +73,7 @@ namespace KLTN.Game.Editor
                             EffectKind.Buff,
                             EffectTarget.TriggerSubject,
                             amount: 2,
-                            duration: EffectDuration.ThisRound
+                            duration: EffectDuration.WhileOnBoard
                         ),
                     }
                 )
@@ -223,7 +223,7 @@ namespace KLTN.Game.Editor
                 8,
                 UnitKeyword.Fearsome,
                 "Đáng sợ. Summon: nếu một đồng minh đã chết "
-                    + "trong vòng này, giết 2 kẻ địch yếu nhất.",
+                    + "ở vòng trước, giết 2 kẻ địch yếu nhất.",
                 Passive(),
                 Ability(
                     "ma_tranh_summon",
@@ -232,7 +232,7 @@ namespace KLTN.Game.Editor
                     {
                         Effect(EffectKind.Kill, EffectTarget.WeakestEnemies, count: 2),
                     },
-                    condition: AbilityCondition.AllyDiedThisRound
+                    condition: AbilityCondition.AllyDiedPreviousRound
                 )
             );
 

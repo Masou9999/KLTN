@@ -145,6 +145,9 @@ namespace KLTN.Game.Domain
             );
 
             // Combat damage and its death triggers form one resolution chain.
+            // While-on-board buffs (Support) end as survivors leave the board.
+            ClearBoardModifiers(state.Host);
+            ClearBoardModifiers(state.Guest);
             state.Host.ReturnBoardCardsToReserve();
             state.Guest.ReturnBoardCardsToReserve();
 
@@ -208,5 +211,17 @@ namespace KLTN.Game.Domain
         }
 
         #endregion
+
+        private void ClearBoardModifiers(PlayerState player)
+        {
+            foreach (CardInstance card in player.Board)
+            {
+                if (!card.IsDead
+                    && definitionsById.TryGetValue(card.DefinitionId, out CardDefinition definition))
+                {
+                    card.ClearBoardModifiers(definition);
+                }
+            }
+        }
     }
 }

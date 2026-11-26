@@ -15,5 +15,5 @@ MonoBehaviour:
   seasonDurationHours: 168
   pointsLockMinutes: 30
   scheduleCron: '0 * * * *'
-  hostClientPointsEnabled: 1
+  hostClientPointsEnabled: 0
   pageSize: 50

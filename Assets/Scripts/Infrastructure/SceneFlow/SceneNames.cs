@@ -11,6 +11,7 @@ public static class SceneNames
     public const string GameScene = "GameScene";
     public const string Shop = "ShopScene";
     public const string Leaderboard = "LeaderboardScene";
+    public const string Credits = "CreditsScene";
 
     #endregion
 }

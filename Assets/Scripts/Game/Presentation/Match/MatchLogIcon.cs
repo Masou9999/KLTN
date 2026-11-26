@@ -8,22 +8,30 @@ namespace KLTN.Game.Presentation
     public sealed class MatchLogIcon : MaskableGraphic
     {
         public bool downArrow;
+
+        /// <summary>
+        /// Ring shared with the scene's sprite icons ("ingame - SETTING.png") and the
+        /// MainMenu shortcuts: grey edge 11 % of the radius over a black disc.
+        /// </summary>
+        [SerializeField] private Color ringColor = new Color32(165, 153, 152, 255);
+        private const float RingInner = .89f;
         protected override void OnPopulateMesh(VertexHelper vh)
         {
             vh.Clear();
             Rect r = rectTransform.rect;
             Vector2 center = r.center;
-            float radius = Mathf.Min(r.width, r.height) * .44f;
+            float radius = Mathf.Min(r.width, r.height) * .5f;
             const int segments = 64;
             for (int i = 0; i < segments; i++)
             {
                 float a = i * Mathf.PI * 2 / segments, b = (i + 1) * Mathf.PI * 2 / segments;
                 Vector2 u = new Vector2(Mathf.Cos(a), Mathf.Sin(a));
                 Vector2 v = new Vector2(Mathf.Cos(b), Mathf.Sin(b));
-                Quad(vh, center, center + u * radius, center + v * radius, center, new Color32(13, 12, 17, 245));
-                Quad(vh, center + u * radius, center + v * radius, center + v * radius * .84f, center + u * radius * .84f, color);
+                Quad(vh, center, center + u * radius, center + v * radius, center, new Color32(0, 0, 0, 255));
+                Quad(vh, center + u * radius, center + v * radius, center + v * radius * RingInner, center + u * radius * RingInner, ringColor);
             }
-            float scale = radius;
+            // Glyph keeps its previous size (it was drawn against a .44 radius).
+            float scale = radius * .88f;
             if (downArrow)
             {
                 Line(vh, center + new Vector2(0, .43f) * scale, center + new Vector2(0, -.35f) * scale, scale * .11f);

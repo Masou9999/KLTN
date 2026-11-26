@@ -130,11 +130,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::KLTN.Game.Presentation.CardLoreProfile
   role: "\u0110\u1EA5u s\u0129"
-  skillDescription: "[Chi ti\u1EBFt k\u1EF9 n\u0103ng]\r\n[Fearsome], [Play], [Last
-    Breath]\r\n- Khi tri\u1EC7u h\u1ED3i ta, G\xE2y s\xE1t th\u01B0\u01A1ng l\xEAn
-    ng\u01B0\u1EDDi ch\u01A1i \u0111\u1ED1i th\u1EE7 m\u1ED9t l\u01B0\u1EE3ng b\u1EB1ng
-    m\u1ED9t n\u1EEDa m\xE1u c\u1EE7a h\u1ECD, l\xE0m tr\xF2n l\xEAn.\r\n- Khi ta
-    ch\u1EBFt, \u0110\u01B0a ta v\u1EC1 tay."
+  skillDescription: "[Chi ti\u1EBFt k\u1EF9 n\u0103ng]\r\n- Khi tri\u1EC7u h\u1ED3i ta, G\xE2y s\xE1t th\u01B0\u01A1ng l\xEAn ng\u01B0\u1EDDi ch\u01A1i \u0111\u1ED1i th\u1EE7 m\u1ED9t l\u01B0\u1EE3ng b\u1EB1ng m\u1ED9t n\u1EEDa m\xE1u c\u1EE7a h\u1ECD, l\xE0m tr\xF2n l\xEAn.\r\n- Khi ta ch\u1EBFt, \u0110\u01B0a ta v\u1EC1 tay."
   folklore: "Ta l\xE0 D\u1EA1 xoa \u2014 qu\u1EF7 th\u1EA7n chi\u1EBFn c\xF3 g\u1ED1c
     t\u1EEB Ph\u1EADt gi\xE1o, \u0111i v\xE0o truy\u1EC7n k\u1EC3 Vi\u1EC7t v\u1EDBi
     th\xE2n h\xECnh l\u1EF1c l\u01B0\u1EE1ng, nanh s\u1EEBng d\u1EEF t\u1EE3n. C\xF3

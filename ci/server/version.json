@@ -8,7 +8,7 @@
   "restart_policy": "never",
   "termination_grace_period_seconds": 5,
   "ports": [
-    { "name": "gameport", "port": 7777, "protocol": "UDP", "to_check": true, "tls_upgrade": false }
+    { "name": "gameport", "port": 7777, "protocol": "WS", "to_check": true, "tls_upgrade": true }
   ],
   "envs": []
 }

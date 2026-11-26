@@ -130,8 +130,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::KLTN.Game.Presentation.CardLoreProfile
   role: "\u0110\u1EA5u s\u0129"
-  skillDescription: "[Chi ti\u1EBFt k\u1EF9 n\u0103ng]\r\n[Fearsome]\r\n- ch\u1EC9
-    k\u1EBB \u0111\u1ECBch v\u1EDBi 3 ST tr\u1EDF l\xEAn c\xF3 th\u1EC3 th\u1EE7."
+  skillDescription: "[Chi ti\u1EBFt k\u1EF9 n\u0103ng]"
   folklore: "Ta l\xE0 qu\u1EF7 m\u1ED9t gi\xF2 \u2014 b\xF3ng qu\u1EF7 ch\u1EC9 c\xF3
     m\u1ED9t ch\xE2n, th\u01B0\u1EDDng nh\u1EA3y qua \u0111\u01B0\u1EDDng v\u1EAFng
     v\xE0 r\u1EEBng n\xFAi l\xFAc \u0111\xEAm khuya. H\xECnh d\xE1ng khuy\u1EBFt
