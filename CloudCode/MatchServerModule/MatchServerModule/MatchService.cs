@@ -171,10 +171,18 @@ namespace KLTN.CloudCode.MatchServer
             return ReportCoreAsync(firestore, report, nowUtcMs, hostPlayerId);
         }
 
+        internal static Task<ReportResultResponse> ReportExpiredAsync(
+            FirestoreAdmin db, Report report, long now)
+        {
+            return db.RunTransactionAsync(tx => TryReportAsync(tx, report, MatchOutcome.GuestWon,
+                SeatId.Host, now, report.HostPlayerId, true));
+        }
+
         private static async Task<ReportResultResponse> ReportCoreAsync(
             FirestoreAdmin firestore, Report report, long nowUtcMs, string listenHostPlayerId)
         {
-            MatchOutcome outcome = ParseOutcome(report.Outcome);
+            MatchOutcome outcome = listenHostPlayerId == null && report.Outcome == "AbandonedDraw"
+                ? MatchOutcome.Draw : ParseOutcome(report.Outcome);
 
             if (report.RoundNumber < 0)
             {
@@ -199,7 +207,7 @@ namespace KLTN.CloudCode.MatchServer
             MatchOutcome outcome,
             SeatId? surrenderedSeat,
             long nowUtcMs,
-            string listenHostPlayerId
+            string listenHostPlayerId, bool expiryOnly = false
         )
         {
             string matchPath = MatchRecords.MatchPath(report.MatchId);
@@ -233,10 +241,25 @@ namespace KLTN.CloudCode.MatchServer
                 return stored;
             }
 
+            bool hostExpired = listenHostPlayerId != null && MatchRecovery.Expired(matchFields, nowUtcMs);
+            if (expiryOnly && !hostExpired) return new ReportResultResponse();
+            string loser = FirestoreAdmin.GetString(matchFields, "requestedLoser");
+            if (loser == null && hostExpired) loser = report.HostPlayerId;
+            if (loser != null)
+            {
+                // A delayed sweep must apply the same round/season rules as an immediate lookup.
+                nowUtcMs = FirestoreAdmin.GetLong(matchFields, "surrenderAtMs",
+                    hostExpired ? FirestoreAdmin.GetLong(matchFields, "hostDueMs") : nowUtcMs);
+                surrenderedSeat = loser == report.HostPlayerId ? SeatId.Host : SeatId.Guest;
+                outcome = surrenderedSeat == SeatId.Host ? MatchOutcome.GuestWon : MatchOutcome.HostWon;
+            }
+
             long createdAt = FirestoreAdmin.ParseTimestamp(matchFields["createdAt"]);
             long startedAt = SaneStart(report.MatchStartedUtcMs, createdAt, nowUtcMs);
             bool ranked = FirestoreAdmin.GetBool(matchFields, "ranked", true);
-            SeasonWindow? season = await SeasonDocuments.RunningAsync(firestore, nowUtcMs);
+            bool recordOnly = (!ranked && listenHostPlayerId != null)
+                || (report.Outcome == "AbandonedDraw" && outcome == MatchOutcome.Draw);
+            SeasonWindow? season = recordOnly ? null : await SeasonDocuments.RunningAsync(firestore, nowUtcMs);
             RankedEligibility eligibility = RankedEligibilityPolicy.Check(season, startedAt, nowUtcMs);
 
             var writes = new JsonArray();
@@ -246,6 +269,14 @@ namespace KLTN.CloudCode.MatchServer
             foreach (SeatId seat in new[] { SeatId.Host, SeatId.Guest })
             {
                 string playerId = seat == SeatId.Host ? report.HostPlayerId : report.GuestPlayerId;
+                var player = new PlayerSettlement { PlayerId = playerId };
+                if (recordOnly)
+                {
+                    player.Result = outcome == MatchOutcome.Draw ? "draw" :
+                        (outcome == MatchOutcome.HostWon) == (seat == SeatId.Host) ? "win" : "loss";
+                    response.Players.Add(player);
+                    continue;
+                }
                 string uid = await PlayerDirectory.GetUidAsync(firestore, playerId);
 
                 if (uid == null)
@@ -265,7 +296,6 @@ namespace KLTN.CloudCode.MatchServer
                     throw new MatchRejectedException("no_profile:" + playerId);
                 }
 
-                var player = new PlayerSettlement { PlayerId = playerId };
                 await AddRewardAsync(firestore, writes, player, uid, report, outcome, seat, surrenderedSeat, nowUtcMs);
                 await AddStandingAsync(
                     firestore,
@@ -292,7 +322,11 @@ namespace KLTN.CloudCode.MatchServer
                 new JsonObject
                 {
                     ["reportedAt"] = FirestoreAdmin.Timestamp(nowUtcMs),
-                    ["outcome"] = FirestoreAdmin.String(report.Outcome),
+                    ["outcome"] = FirestoreAdmin.String(outcome.ToString()),
+                    ["decidedLoser"] = FirestoreAdmin.String(loser ?? report.SurrenderedPlayerId),
+                    ["winnerPlayerId"] = FirestoreAdmin.String(outcome == MatchOutcome.Draw ? null :
+                        outcome == MatchOutcome.HostWon ? report.HostPlayerId : report.GuestPlayerId),
+                    ["hostDueMs"] = new JsonObject { ["nullValue"] = null },
                     ["roundNumber"] = FirestoreAdmin.Integer(report.RoundNumber),
                     ["matchStartedAt"] = FirestoreAdmin.Timestamp(startedAt),
                     ["settlement"] = FirestoreAdmin.String(JsonConvert.SerializeObject(response)),

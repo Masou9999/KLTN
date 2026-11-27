@@ -58,11 +58,6 @@ namespace KLTN.Game.Networking
 
             if (!MatchServerContext.IsDedicated)
             {
-                if (!session.IsRanked)
-                {
-                    PublishSettlementToAll(session, MatchSettlementState.PrivateMatch, null);
-                    return;
-                }
                 PublishSettlementToAll(session, MatchSettlementState.Saving, null);
                 _ = SettleListenAsync(session);
                 return;
@@ -78,7 +73,7 @@ namespace KLTN.Game.Networking
             MatchServerContext.TrackReport(ReportAndPublishAsync(session, report));
         }
 
-        private bool TryBuildReport(MatchSession session, out MatchResultReport report)
+        private bool TryBuildReport(MatchSession session, out MatchResultReport report, bool abandonedDraw = false)
         {
             report = null;
             string hostPlayerId = PlayerIdForSeat(session, SeatId.Host);
@@ -102,7 +97,7 @@ namespace KLTN.Game.Networking
                 state.Outcome,
                 surrenderedPlayerId,
                 state.RoundNumber,
-                session.StartedUtcMs
+                session.StartedUtcMs, abandonedDraw
             );
             return true;
         }
@@ -141,7 +136,8 @@ namespace KLTN.Game.Networking
             PublishSeat(session, SeatId.Guest, Build(report.MatchId, result.For(report.GuestPlayerId)));
         }
 
-        private static MatchSettlementDto Build(string matchId, PlayerSettlement player)
+        private static MatchSettlementDto Build(string matchId, PlayerSettlement player,
+            bool privateMatch = false)
         {
             if (player == null)
             {
@@ -156,7 +152,7 @@ namespace KLTN.Game.Networking
             return new MatchSettlementDto
             {
                 matchId = matchId,
-                state = (int)MatchSettlementState.Saved,
+                state = (int)(privateMatch ? MatchSettlementState.PrivateMatch : MatchSettlementState.Saved),
                 result = player.Result,
                 coins = player.Coins,
                 silver = player.Silver,
@@ -243,7 +239,7 @@ namespace KLTN.Game.Networking
 
         /// <summary>
         /// Both players stayed away: the draw changes no points and pays nothing (HLD 10.1),
-        /// so nothing is reported. Marked as settled so a late command cannot report it.
+        /// persist a terminal receipt so returning clients can clear the recovery prompt.
         /// </summary>
         private void SkipSettlementForAbandonedDraw(MatchSession session)
         {
@@ -253,7 +249,8 @@ namespace KLTN.Game.Networking
             }
 
             RuntimeOf(session).SettlementBySeat.Clear();
-            Debug.Log($"[Settlement] Match {session.MatchId} ended as an abandoned draw; not reported.");
+            if (MatchServerContext.IsDedicated && TryBuildReport(session, out var report, abandonedDraw: true))
+                MatchServerContext.TrackReport(ReportAndPublishAsync(session, report));
             PublishSettlementToAll(
                 session,
                 MatchSettlementState.PrivateMatch,

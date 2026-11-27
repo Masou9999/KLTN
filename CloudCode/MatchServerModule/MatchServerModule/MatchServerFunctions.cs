@@ -269,6 +269,48 @@ namespace KLTN.CloudCode.MatchServer
                 DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
         }
 
+        [CloudCodeFunction("RecoverMatch")]
+        public async Task<string> RecoverMatch(IExecutionContext context, string matchId, bool surrender)
+        {
+            return await MatchRecovery.PlayerAsync(await FirestoreAsync(context), matchId,
+                context.PlayerId, surrender, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+        }
+
+        [CloudCodeFunction("ListenPulse")]
+        public async Task<string> ListenPulse(IExecutionContext context, string matchId, int round)
+        {
+            if (string.IsNullOrEmpty(context.PlayerId)) throw new InvalidOperationException();
+            return await MatchRecovery.PollAsync(await FirestoreAsync(context), matchId,
+                context.PlayerId, null, round, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+        }
+
+        [CloudCodeFunction("PollSurrender")]
+        public async Task<string> PollSurrender(IExecutionContext context, string matchId, string matchToken)
+        {
+            RequireServer(context, "PollSurrender");
+            return await MatchRecovery.PollAsync(await FirestoreAsync(context), matchId,
+                null, matchToken, 0, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+        }
+
+        [CloudCodeFunction("SweepListenMatches")]
+        public async Task SweepListenMatches(IExecutionContext context)
+        {
+            RequireServer(context, "SweepListenMatches");
+            var db = await FirestoreAsync(context);
+            long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            await MatchRecovery.SweepAsync(db, now);
+        }
+
+        [CloudCodeFunction("FinishPrivateMatch")]
+        public async Task<ReportResultResponse> FinishPrivateMatch(IExecutionContext context,
+            string matchId, string outcome, bool hostSurrendered, bool guestSurrendered, int roundNumber)
+        {
+            if (string.IsNullOrEmpty(context.PlayerId)) throw new InvalidOperationException();
+            return await ListenMatchService.ReportAsync(await FirestoreAsync(context), context.PlayerId,
+                matchId, outcome, hostSurrendered, guestSurrendered, roundNumber,
+                DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), privateResult: true);
+        }
+
         #region Helpers
 
         private static void RequireServer(IExecutionContext context, string function)

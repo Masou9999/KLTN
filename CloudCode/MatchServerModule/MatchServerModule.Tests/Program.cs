@@ -43,8 +43,9 @@ class P
 
     static async Task<int> Main()
     {
-        fs = new FirestoreAdmin(http, null, "demo-kltn", "http://127.0.0.1:8080");
-        await http.DeleteAsync("http://127.0.0.1:8080/emulator/v1/projects/demo-kltn/databases/(default)/documents");
+        string emulator = "http://127.0.0.1:" + (Environment.GetEnvironmentVariable("KLTN_TEST_EMULATOR_PORT") ?? "8080");
+        fs = new FirestoreAdmin(http, null, "demo-kltn", emulator);
+        await http.DeleteAsync(emulator + "/emulator/v1/projects/demo-kltn/databases/(default)/documents");
 
         long H = 3_600_000, M = 60_000;
         long T = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
@@ -178,7 +179,7 @@ class P
         string tx = await NewMatch("mx", T + 30 * M);
         ReportResultResponse ended = await MatchService.ReportAsync(fs, Rep("mx", tx, "HostWon", null, 5, T + 31 * M), T + 2 * H + M);
         Check(ended.Players.All(p => !p.Ranked && p.NotScoredReason == "started_before_season"), "reported after its season ended: not scored in the next season");
-        var drop = new HttpRequestMessage(HttpMethod.Delete, "http://127.0.0.1:8080/v1/projects/demo-kltn/databases/(default)/documents/config/season");
+        var drop = new HttpRequestMessage(HttpMethod.Delete, emulator + "/v1/projects/demo-kltn/databases/(default)/documents/config/season");
         drop.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "owner");
         (await http.SendAsync(drop)).EnsureSuccessStatusCode();
         string tn = await NewMatch("mn", T + 40 * M);
@@ -257,6 +258,28 @@ class P
         _ = cToken;
         _ = dToken;
 
+        var recoveryId = MatchRecords.NewMatchId();
+        var recoveryToken = await NewMatch(recoveryId, T);
+        Check(await Throws(() => MatchRecovery.PlayerAsync(fs, recoveryId, "outsider", true, now),
+            "not_in_match"), "recovery checks authenticated roster");
+        Check(await Throws(() => MatchRecovery.PollAsync(fs, recoveryId, null, "invalid", 1, now),
+            "bad_token"), "dedicated poll requires its own match token");
+        Check(await MatchRecovery.PlayerAsync(fs, recoveryId, "p2", true, now) == "preparing",
+            "allocated seat cannot surrender before the match starts");
+        await MatchRecovery.PollAsync(fs, recoveryId, null, recoveryToken, 1, now);
+        await MatchRecovery.PlayerAsync(fs, recoveryId, "p2", true, now);
+        Check(await MatchRecovery.PollAsync(fs, recoveryId, null, recoveryToken, 1, now) == "p2",
+            "dedicated receives pending surrender");
+        await MatchService.ReportAsync(fs, Rep(recoveryId, recoveryToken, "HostWon", "p2", 3, T), now);
+        Check(await MatchRecovery.PlayerAsync(fs, recoveryId, "p2", true, now) == "lost",
+            "lost acknowledgement returns finalized dedicated result");
+        recoveryId = MatchRecords.NewMatchId();
+        recoveryToken = await NewMatch(recoveryId, T);
+        var beforeDraw = await Coins("u1");
+        await MatchService.ReportAsync(fs, Rep(recoveryId, recoveryToken, "AbandonedDraw", null, 3, T), now);
+        Check(await Coins("u1") == beforeDraw &&
+            await MatchRecovery.PlayerAsync(fs, recoveryId, "p1", false, now) == "finished",
+            "both absent closes recovery without rewards");
         await CheckListenMatches(lookup, T + 10 * H);
 
         Console.WriteLine(fails == 0 ? "\nall passed" : $"\n{fails} failed");
@@ -359,6 +382,45 @@ class P
             "profile-only match cannot award currency or points");
         Check(await Coins("u1") == wallet, "profile reads leave wallet unchanged");
         Check(await Casual("p2") == "p2", "profile-only reconnect preserves roster");
+        async Task<string> RecoveryRoom()
+        {
+            var id = MatchRecords.NewMatchId();
+            foreach (var player in new[] { "p1", "p2" })
+                await ListenMatchService.RegisterAsync(fs, lookup, Project, player, "tok", id,
+                    "p1", at, ranked: false);
+            await MatchRecovery.PollAsync(fs, id, "p1", null, 1, at);
+            return id;
+        }
+        var room = await RecoveryRoom();
+        Check(await MatchRecovery.PlayerAsync(fs, room, "p2", false, at + 44999) == "active",
+            "held for exactly 45 seconds");
+        Check(await Throws(() => MatchRecovery.PollAsync(fs, room, "p2", null, 1, at + 1000),
+            "not_listen_host"), "guest cannot renew host lease");
+        await MatchRecovery.PollAsync(fs, room, "p1", null, 3, at + 40000);
+        Check(await MatchRecovery.PlayerAsync(fs, room, "p2", false, at + 45000) == "active",
+            "guest losing contact cannot forfeit a live host");
+        Check((await fs.DueListenMatchesAsync(at + 85000)).Contains(room), "sweeper finds overdue match");
+        var decisions = await Task.WhenAll(MatchRecovery.PlayerAsync(fs, room, "p2", false, at + 85000),
+            MatchRecovery.PlayerAsync(fs, room, "p1", true, at + 85001));
+        Check(decisions[0] == "won" && decisions[1] == "lost", "simultaneous expiry and quit settle once");
+        Check(await Coins("u1") == wallet, "casual recovery does not pay rewards");
+        room = await RecoveryRoom();
+        Check(await MatchRecovery.PlayerAsync(fs, room, "p2", true, at + 1) == "pending"
+            && await MatchRecovery.PlayerAsync(fs, room, "p2", true, at + 2) == "pending",
+            "surrender survives lost reply and retry");
+        Check(await MatchRecovery.PollAsync(fs, room, "p1", null, 3, at + 3) == "p2",
+            "host receives surrender from registered guest");
+        Check(await MatchRecovery.PlayerAsync(fs, room, "p2", false, at + 50000) == "lost",
+            "earlier surrender survives host expiry");
+        room = await RecoveryRoom();
+        Check(await MatchRecovery.PlayerAsync(fs, room, "p1", true, at + 1) == "lost",
+            "explicit host exit settles immediately");
+        room = await RecoveryRoom();
+        await MatchRecovery.SweepAsync(fs, at + 45000);
+        var finalized = FirestoreAdmin.Fields((await fs.GetAsync(MatchRecords.MatchPath(room))).document);
+        Check(FirestoreAdmin.GetString(finalized, "winnerPlayerId") == "p2"
+            && !(await fs.DueListenMatchesAsync(at + 50000)).Contains(room),
+            "offline sweep closes match without either participant and removes it from due matches");
         var noSeason = await PublicMatchProfile.ReadAsync(fs, "u1", at - 120000);
         Check(noSeason.SeasonId == 0 && noSeason.Points == -1,
             "no active season is unavailable, not fabricated Bronze zero");

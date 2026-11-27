@@ -52,7 +52,10 @@ namespace KLTN.Game.Networking
             // match only needs the remaining player to see the result.
             if (!session.IsFinished && !session.IsClosed)
             {
-                HoldSeat(session, leavingSeat);
+                if (!session.IsStarted && RuntimeOf(session).Listen != null)
+                    CloseUnregisteredRoom(session);
+                else
+                    HoldSeat(session, leavingSeat);
             }
 
             BroadcastUpdate(session);

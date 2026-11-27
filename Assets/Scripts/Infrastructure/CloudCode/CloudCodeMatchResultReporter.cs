@@ -72,6 +72,16 @@ namespace KLTN.Infrastructure.CloudCode
 
         #region IMatchResultReporter
 
+        public async Task<string> PollSurrenderAsync(string matchId, CancellationToken token)
+        {
+            var call = await CallAsync("PollSurrender", new JObject
+            {
+                ["matchId"] = matchId, ["matchToken"] = tokenForMatch(matchId)
+            }, token);
+            if (!call.Success) throw new InvalidOperationException(call.Message);
+            return call.Output.Value<string>();
+        }
+
         public async Task<PlayerAdmission> AdmitPlayerAsync(
             string matchId,
             string playerId,
@@ -141,7 +151,7 @@ namespace KLTN.Infrastructure.CloudCode
                 ["matchToken"] = tokenForMatch(report.MatchId),
                 ["hostPlayerId"] = report.HostPlayerId,
                 ["guestPlayerId"] = report.GuestPlayerId,
-                ["outcome"] = MatchResultBannerPolicy.WireName(report.Outcome),
+                ["outcome"] = report.AbandonedDraw ? "AbandonedDraw" : MatchResultBannerPolicy.WireName(report.Outcome),
                 ["surrenderedPlayerId"] = string.IsNullOrEmpty(report.SurrenderedPlayerId)
                     ? JValue.CreateNull()
                     : new JValue(report.SurrenderedPlayerId),

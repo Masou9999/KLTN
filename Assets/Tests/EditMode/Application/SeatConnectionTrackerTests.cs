@@ -20,6 +20,16 @@ namespace KLTN.Game.ApplicationLayer.Tests
         }
 
         [Test]
+        public void DefaultDeadlineIs45SecondsAfterDisconnect()
+        {
+            var seats = new SeatConnectionTracker();
+            seats.Bind(SeatId.Host, HostPlayer);
+            seats.MarkDisconnected(SeatId.Host, 1000);
+            Assert.IsTrue(seats.CanReconnect(HostPlayer, 45999));
+            Assert.IsFalse(seats.CanReconnect(HostPlayer, 46000));
+        }
+
+        [Test]
         public void BothConnected_IsNotPaused()
         {
             Assert.IsFalse(tracker.IsPaused);

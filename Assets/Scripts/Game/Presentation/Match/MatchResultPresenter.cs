@@ -146,6 +146,21 @@ public class MatchResultPresenter : MonoBehaviour
             return;
         if ((MatchSettlementState)settlement.state == MatchSettlementState.Saving) return;
 
+        // A backend-confirmed forfeit may race the last local command or host lease.
+        switch (settlement.result)
+        {
+            case "draw":
+                finishedOutcome = MatchOutcome.Draw;
+                break;
+            case "win":
+                finishedOutcome = viewerSeat == SeatId.Host ? MatchOutcome.HostWon : MatchOutcome.GuestWon;
+                break;
+            case "loss":
+            case "surrender":
+            case "surrender_early":
+                finishedOutcome = viewerSeat == SeatId.Host ? MatchOutcome.GuestWon : MatchOutcome.HostWon;
+                break;
+        }
         shownSettlement = settlement;
         if ((MatchSettlementState)settlement.state == MatchSettlementState.Saved)
             RefreshProfileAndStanding(settlement.matchId);

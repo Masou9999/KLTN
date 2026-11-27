@@ -17,6 +17,13 @@ public sealed class MainMenuController : MonoBehaviour
     private PendingAction pendingAction;
     private GameObject previousSelection;
 
+    private System.Collections.IEnumerator Start()
+    {
+        while (Unity.Services.Core.UnityServices.State != Unity.Services.Core.ServicesInitializationState.Initialized
+            || !AuthenticationService.Instance.IsSignedIn) yield return null;
+        MatchConnectionController.RestoreAtMenu();
+    }
+
     #region UI Events
 
     public void OpenFindMatch()

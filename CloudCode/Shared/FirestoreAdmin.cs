@@ -94,6 +94,29 @@ namespace KLTN.CloudCode.Shared
             root = $"projects/{projectId}/databases/(default)/documents";
         }
 
+        public async Task<List<string>> DueListenMatchesAsync(long now)
+        {
+            var query = new JsonObject {
+                ["from"] = new JsonArray(new JsonObject { ["collectionId"] = "matches" }),
+                ["where"] = new JsonObject { ["fieldFilter"] = new JsonObject {
+                    ["field"] = new JsonObject { ["fieldPath"] = "hostDueMs" },
+                    ["op"] = "LESS_THAN_OR_EQUAL", ["value"] = Integer(now) } },
+                ["limit"] = 100
+            };
+            using var request = await RequestAsync(HttpMethod.Post, $"{host}/v1/{root}:runQuery");
+            request.Content = new StringContent(new JsonObject { ["structuredQuery"] = query }.ToJsonString(),
+                Encoding.UTF8, "application/json");
+            using var response = await http.SendAsync(request);
+            response.EnsureSuccessStatusCode();
+            var ids = new List<string>();
+            foreach (var row in JsonNode.Parse(await response.Content.ReadAsStringAsync()).AsArray())
+            {
+                string name = row["document"]?["name"]?.GetValue<string>();
+                if (name != null) ids.Add(name.Substring(name.LastIndexOf('/') + 1));
+            }
+            return ids;
+        }
+
         public async Task<(JsonObject document, string updateTime)> GetAsync(string path)
         {
             if (transaction != null) return await GetInTransactionAsync(path);

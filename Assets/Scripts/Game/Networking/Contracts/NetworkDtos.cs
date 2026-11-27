@@ -158,6 +158,7 @@ namespace KLTN.Game.Networking
         // (Unix ms, UTC) so clients can apply the end-of-season points lock.
         public bool isRanked;
         public long matchStartedUtcMs;
+        public bool supportsMenuRecovery;
 
         // FR-NET-04/06: SeatConnectionState of both seats (0 empty, 1 connected,
         // 2 disconnected and held, 3 abandoned). Commands are refused while paused.

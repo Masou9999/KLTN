@@ -43,7 +43,7 @@ namespace KLTN.Game.Networking
             return clientId == NetworkManager.LocalClientId ? ListenHostPlayerKey : ListenGuestPlayerKey;
         }
 
-        /// <summary>Seats are bound to player keys, held for 30 s after a drop (FR-NET-06/07).</summary>
+        /// <summary>Seats are bound to player keys, held for 45 s after a drop (FR-NET-06/07).</summary>
         private void BindSeat(MatchSession session, ulong clientId, SeatId seat)
         {
             if (session.Seats.IsBound(seat))

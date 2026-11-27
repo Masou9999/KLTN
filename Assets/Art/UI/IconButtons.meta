@@ -1,7 +1,12 @@
 fileFormatVersion: 2
+<<<<<<<< Updated upstream:Assets/Art/UI/IconButtons.meta
 guid: 81ef8aeecdd048c2a2cfc9f80e42f251
 folderAsset: yes
 DefaultImporter:
+========
+guid: f0774dd0ee79a854d8b8f99e2e72b3f5
+TextScriptImporter:
+>>>>>>>> Stashed changes:Assets/Ui/HostClient/README.md.meta
   externalObjects: {}
   userData: 
   assetBundleName: 

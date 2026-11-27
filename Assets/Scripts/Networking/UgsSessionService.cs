@@ -70,7 +70,7 @@ public sealed class UgsSessionService
         finally { lifecycleGate.Release(); }
     }
 
-    public async Task JoinByCodeAsync(string joinCode)
+    public async Task JoinByCodeAsync(string joinCode, string expectedSessionId = null)
     {
         if (string.IsNullOrWhiteSpace(joinCode))
         {
@@ -99,7 +99,10 @@ public sealed class UgsSessionService
                 // A guest whose game was closed mid-match is still a member of the room, and the
                 // service refuses to join it again ("already a member"); reconnect instead so
                 // the held seat can be taken back (FR-NET-07).
-                session = await ReconnectToJoinedSessionAsync(joinCode.Trim());
+                session = string.IsNullOrEmpty(expectedSessionId)
+                    ? await ReconnectToJoinedSessionAsync(joinCode.Trim())
+                    : await MultiplayerService.Instance.ReconnectToSessionAsync(expectedSessionId,
+                        new ReconnectSessionOptions { Type = SessionType });
 
                 if (session == null)
                 {
@@ -107,6 +110,11 @@ public sealed class UgsSessionService
                 }
             }
 
+            if (!string.IsNullOrEmpty(expectedSessionId) && session?.Id != expectedSessionId)
+            {
+                await LeaveCoreAsync();
+                throw new InvalidOperationException("Phòng ban đầu đã đóng.");
+            }
             Attach(session);
             PlayerCountChanged?.Invoke(session.PlayerCount);
         }

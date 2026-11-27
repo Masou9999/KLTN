@@ -59,6 +59,8 @@ namespace KLTN.Infrastructure.CloudCode
         public int RoundNumber { get; }
         public long MatchStartedUtcMs { get; }
 
+        public bool AbandonedDraw { get; }
+
         public MatchResultReport(
             string matchId,
             string hostPlayerId,
@@ -66,7 +68,7 @@ namespace KLTN.Infrastructure.CloudCode
             MatchOutcome outcome,
             string surrenderedPlayerId,
             int roundNumber,
-            long matchStartedUtcMs
+            long matchStartedUtcMs, bool abandonedDraw = false
         )
         {
             MatchId = matchId;
@@ -76,6 +78,7 @@ namespace KLTN.Infrastructure.CloudCode
             SurrenderedPlayerId = surrenderedPlayerId;
             RoundNumber = roundNumber;
             MatchStartedUtcMs = matchStartedUtcMs;
+            AbandonedDraw = abandonedDraw;
         }
     }
 

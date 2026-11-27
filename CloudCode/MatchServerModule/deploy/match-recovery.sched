@@ -1,0 +1,12 @@
+{
+  "$schema": "https://ugs-config-schemas.unity3d.com/v1/schedules.schema.json",
+  "Configs": {
+    "match-recovery": {
+      "EventName": "match-recovery",
+      "Type": "recurring",
+      "Schedule": "0 * * * *",
+      "PayloadVersion": 1,
+      "Payload": "{}"
+    }
+  }
+}

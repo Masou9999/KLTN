@@ -20,8 +20,7 @@ namespace KLTN.Infrastructure.CloudCode
             string matchId, string hostPlayerId, CancellationToken cancellationToken,
             bool ranked = true)
         {
-            return CallAsync<string>(ranked ? "RegisterListenMatch"
-                : "RegisterUnrankedListenMatch", new Dictionary<string, object>
+            return CallAsync<string>(ranked ? "RegisterListenMatch" : "RegisterUnrankedListenMatch", new Dictionary<string, object>
             {
                 ["matchId"] = matchId,
                 ["hostPlayerId"] = hostPlayerId,
@@ -37,11 +36,27 @@ namespace KLTN.Infrastructure.CloudCode
                 cancellationToken);
         }
 
+        public static Task<string> RecoverAsync(string matchId, bool surrender)
+        {
+            return CallAsync<string>("RecoverMatch", new Dictionary<string, object>
+            {
+                ["matchId"] = matchId, ["surrender"] = surrender
+            }, CancellationToken.None);
+        }
+
+        public static Task<string> PulseAsync(string matchId, int round, CancellationToken token)
+        {
+            return CallAsync<string>("ListenPulse", new Dictionary<string, object>
+            {
+                ["matchId"] = matchId, ["round"] = round
+            }, token);
+        }
+
         public static async Task<MatchSettlementResult> ReportAsync(
             string matchId, MatchOutcome outcome, SeatId? surrenderedSeat, int roundNumber,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken, bool ranked = true)
         {
-            JObject response = await CallAsync<JObject>("ReportListenResult",
+            JObject response = await CallAsync<JObject>(ranked ? "ReportListenResult" : "FinishPrivateMatch",
                 new Dictionary<string, object>
                 {
                     ["matchId"] = matchId,
@@ -64,9 +79,12 @@ namespace KLTN.Infrastructure.CloudCode
             string endpoint, Dictionary<string, object> parameters,
             CancellationToken cancellationToken)
         {
+            string owner = PlayerId;
             for (int attempt = 0; ; attempt++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                if (!AuthenticationService.Instance.IsSignedIn || owner != PlayerId)
+                    throw new OperationCanceledException("Tài khoản đã thay đổi.");
                 Task<T> call = CloudCodeService.Instance.CallModuleEndpointAsync<T>(
                     CloudCodeMatchResultReporter.ModuleName, endpoint, parameters);
                 try

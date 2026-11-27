@@ -1,0 +1,11 @@
+{
+  "$schema": "https://ugs-config-schemas.unity3d.com/v1/triggers.schema.json",
+  "Configs": [
+    {
+      "Name": "match-recovery-sweep",
+      "EventType": "com.unity.services.scheduler.match-recovery.v1",
+      "ActionType": "cloud-code",
+      "ActionUrn": "urn:ugs:cloud-code:MatchServerModule/SweepListenMatches"
+    }
+  ]
+}

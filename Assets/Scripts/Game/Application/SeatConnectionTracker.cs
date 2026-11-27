@@ -53,7 +53,7 @@ namespace KLTN.Game.ApplicationLayer
     {
         #region Constants
 
-        public const long DefaultGracePeriodMilliseconds = 30000;
+        public const long DefaultGracePeriodMilliseconds = 45000;
 
         #endregion
 

@@ -58,8 +58,8 @@ namespace KLTN.CloudCode.MatchServer
                     if (await PlayerDirectory.GetUidAsync(firestore, hostPlayerId) == uid)
                         throw new MatchRejectedException("same_account");
                     players.Add(playerId);
-                    await firestore.CommitAsync(new JsonArray { firestore.Patch(path,
-                        new JsonObject { ["players"] = FirestoreAdmin.StringArray(players) }, version) });
+                    var update = new JsonObject { ["players"] = FirestoreAdmin.StringArray(players) };
+                    await firestore.CommitAsync(new JsonArray { firestore.Patch(path, update, version) });
                     return playerId;
                 }
                 catch (FirestoreConflictException) when (attempt < 3) { }
@@ -69,13 +69,13 @@ namespace KLTN.CloudCode.MatchServer
         public static async Task<ReportResultResponse> ReportAsync(
             FirestoreAdmin firestore, string callerPlayerId, string matchId,
             string outcome, bool hostSurrendered, bool guestSurrendered,
-            int roundNumber, long nowUtcMs)
+            int roundNumber, long nowUtcMs, bool privateResult = false)
         {
             ValidateId(matchId);
             (JsonObject match, _) = await firestore.GetAsync(MatchRecords.MatchPath(matchId));
             JsonObject fields = FirestoreAdmin.Fields(match);
             CheckHost(fields, callerPlayerId);
-            if (!FirestoreAdmin.GetBool(fields, "ranked"))
+            if (FirestoreAdmin.GetBool(fields, "ranked") == privateResult)
                 throw new MatchRejectedException("unranked_match");
             var players = FirestoreAdmin.GetStrings(fields, "players");
             if (players.Count != 2 || players[0] != callerPlayerId)

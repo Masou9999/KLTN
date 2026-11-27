@@ -37,6 +37,14 @@ namespace KLTN.Game.Networking
                 return false;
             }
 
+            if (!MatchServerContext.IsDedicated)
+            {
+                var registration = RuntimeOf(session).Listen;
+                if (registration == null)
+                    BeginListenRegistration(session, RankingSettings.Load().HostClientPointsEnabled);
+                if (registration == null || !registration.RosterReady) return false;
+            }
+
             try
             {
                 IReadOnlyList<CardDefinition> hostDeck = BuildDeckForSeat(session, SeatId.Host);
@@ -64,7 +72,7 @@ namespace KLTN.Game.Networking
                 // Listen-host snapshots the Inspector switch once for both points and rewards.
                 bool ranked = MatchServerContext.IsDedicated
                     ? MatchServerContext.Reporter.IsRanked
-                    : RankingSettings.Load().HostClientPointsEnabled;
+                    : RuntimeOf(session).Listen.Ranked;
 
                 session.Start(
                     state,
@@ -72,7 +80,8 @@ namespace KLTN.Game.Networking
                     ranked,
                     DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
                 );
-                BeginListenRegistration(session);
+                if (MatchServerContext.IsDedicated && MatchServerContext.Reporter is CloudCodeMatchResultReporter)
+                    _ = MonitorRecoveryAsync(session, listenLifetime.Token);
 
                 Debug.Log(
                     $"Match initialized. "
@@ -296,6 +305,8 @@ namespace KLTN.Game.Networking
             {
                 snapshot = snapshotBuilder.Build(
                     session.State, viewerSeat, opponentConnected, session.Revision);
+                snapshot.supportsMenuRecovery = !MatchServerContext.IsDedicated
+                    || MatchServerContext.Reporter is CloudCodeMatchResultReporter;
                 snapshot.isRanked = session.IsRanked;
                 snapshot.matchStartedUtcMs = session.StartedUtcMs;
             }

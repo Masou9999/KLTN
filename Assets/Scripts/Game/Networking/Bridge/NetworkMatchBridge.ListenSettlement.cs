@@ -17,6 +17,8 @@ namespace KLTN.Game.Networking
         {
             public string HostPlayerId;
             public bool HostReady;
+            public bool Ranked;
+            public bool RosterReady;
             public readonly TaskCompletionSource<string> Guest =
                 new TaskCompletionSource<string>();
             public Task Ready;
@@ -25,10 +27,9 @@ namespace KLTN.Game.Networking
         private string joiningListenMatch;
         private CancellationTokenSource listenLifetime;
 
-        private void BeginListenRegistration(MatchSession session)
+        private void BeginListenRegistration(MatchSession session, bool ranked)
         {
-            if (MatchServerContext.IsDedicated) return;
-            var registration = new ListenRegistration();
+            var registration = new ListenRegistration { Ranked = ranked };
             RuntimeOf(session).Listen = registration;
             registration.Ready = RegisterListenHostAsync(session, registration);
         }
@@ -41,10 +42,11 @@ namespace KLTN.Game.Networking
             {
                 registration.HostPlayerId = ListenMatchClient.PlayerId;
                 await ListenMatchClient.RegisterAsync(
-                    session.MatchId, registration.HostPlayerId, cancellationToken, session.IsRanked);
+                    session.MatchId, registration.HostPlayerId, cancellationToken, registration.Ranked);
                 cancellationToken.ThrowIfCancellationRequested();
-                if (this == null || !IsSpawned) return;
+                if (this == null || !IsSpawned || session.IsClosed) return;
                 registration.HostReady = true;
+                _ = MonitorRecoveryAsync(session, cancellationToken);
                 InviteListenGuest(session);
                 _ = LoadListenProfilesAsync(session, registration, cancellationToken);
             }
@@ -54,18 +56,83 @@ namespace KLTN.Game.Networking
                 // Keep failure observable by settlement without an unobserved faulted task.
                 registration.Guest.TrySetResult(null);
                 Debug.LogWarning("[Settlement] Could not register listen host.");
+                if (IsBridgeAlive() && !session.IsClosed) CloseUnregisteredRoom(session);
             }
+        }
+
+        private void CloseUnregisteredRoom(MatchSession session)
+        {
+            session.Close();
+            RegistrationFailedRpc();
+        }
+
+        [Rpc(SendTo.Everyone, InvokePermission = RpcInvokePermission.Server)]
+        private void RegistrationFailedRpc()
+        {
+            MatchConnectionController.ShowRegistrationFailure();
+        }
+
+        private async Task MonitorRecoveryAsync(MatchSession session, CancellationToken token)
+        {
+            float registrationDeadline = Time.realtimeSinceStartup + 60f;
+            try
+            {
+                while (!token.IsCancellationRequested && !session.IsFinished && !session.IsClosed)
+                {
+                    try
+                    {
+                        bool dedicated = MatchServerContext.IsDedicated;
+                        if (!session.IsStarted && Time.realtimeSinceStartup >= registrationDeadline)
+                        {
+                            CloseUnregisteredRoom(session);
+                            return;
+                        }
+                        string loser = dedicated
+                            ? await ((CloudCodeMatchResultReporter)MatchServerContext.Reporter)
+                                .PollSurrenderAsync(session.MatchId, token)
+                            : await ListenMatchClient.PulseAsync(session.MatchId, session.State?.RoundNumber ?? 0, token);
+                        if (token.IsCancellationRequested || session.IsClosed || session.IsFinished) return;
+                        if (!session.IsStarted && !dedicated)
+                        {
+                            if (loser == "waiting") InviteListenGuest(session);
+                            else
+                            {
+                                RuntimeOf(session).Listen.RosterReady = true;
+                                if (TryInitializeMatch(session)) BroadcastUpdate(session);
+                            }
+                        }
+                        if (session.IsStarted && !string.IsNullOrEmpty(loser))
+                        {
+                            string host = dedicated ? PlayerIdForSeat(session, SeatId.Host)
+                                : ListenMatchClient.PlayerId;
+                            SeatId seat = host == loser ? SeatId.Host : SeatId.Guest;
+                            if (session.Rules.TrySurrender(session.State, seat).Accepted)
+                            {
+                                BroadcastUpdate(session);
+                                TrySettleFinishedMatch(session);
+                                return;
+                            }
+                        }
+                    }
+                    catch (Exception ex) when (!token.IsCancellationRequested)
+                    {
+                        Debug.LogWarning($"[Reconnect] Recovery status unavailable: {ex.Message}");
+                    }
+                    await FrameDelay.Delay(session.IsStarted ? 10000 : 1000, token);
+                }
+            }
+            catch (OperationCanceledException) when (token.IsCancellationRequested) { }
         }
 
         private void InviteListenGuest(MatchSession session)
         {
             ListenRegistration registration = RuntimeOf(session).Listen;
-            if (registration == null || !registration.HostReady || registration.Guest.Task.IsCompleted)
+            if (registration == null || !registration.HostReady || registration.RosterReady)
                 return;
             foreach (ulong clientId in session.ConnectionsOf(SeatId.Guest))
             {
                 if (NetworkObject.IsNetworkVisibleTo(clientId))
-                    RegisterListenGuestRpc(session.MatchId, registration.HostPlayerId, session.IsRanked,
+                    RegisterListenGuestRpc(session.MatchId, registration.HostPlayerId, registration.Ranked,
                         RpcTarget.Single(clientId, RpcTargetUse.Temp));
             }
         }
@@ -92,7 +159,8 @@ namespace KLTN.Game.Networking
             {
                 Debug.LogWarning("[Settlement] Could not register listen guest.");
             }
-            if (!cancellationToken.IsCancellationRequested && this != null && IsSpawned)
+            if (string.IsNullOrEmpty(playerId)) joiningListenMatch = null;
+            if (!cancellationToken.IsCancellationRequested && this != null && IsSpawned && playerId != null)
                 ConfirmListenRegistrationRpc(matchId, playerId ?? string.Empty);
         }
 
@@ -149,18 +217,13 @@ namespace KLTN.Game.Networking
                 ListenRegistration registration = RuntimeOf(session).Listen;
                 if (registration == null) throw new InvalidOperationException();
                 await registration.Ready;
-                if (IsBridgeAlive()) InviteListenGuest(session);
                 if (!registration.HostReady) throw new InvalidOperationException();
-                // The guest may disconnect after backend registration but before its ACK.
-                // The backend roster remains authoritative even when that ACK was lost.
-                await Task.WhenAny(registration.Guest.Task,
-                    FrameDelay.Delay(55000, cancellationToken));
                 cancellationToken.ThrowIfCancellationRequested();
                 MatchSettlementResult result = await ListenMatchClient.ReportAsync(
-                    matchId, outcome, surrenderedSeat, roundNumber, cancellationToken);
+                    matchId, outcome, surrenderedSeat, roundNumber, cancellationToken, session.IsRanked);
                 if (!IsBridgeAlive())
                 {
-                    if (result.Success) await RefreshLocalStandingAsync();
+                    if (result.Success && session.IsRanked) await RefreshLocalStandingAsync();
                     return;
                 }
                 if (!result.Success)
@@ -169,13 +232,13 @@ namespace KLTN.Game.Networking
                     return;
                 }
                 PublishSeat(session, SeatId.Host,
-                    Build(matchId, result.For(registration.HostPlayerId)));
+                    Build(matchId, result.For(registration.HostPlayerId), !session.IsRanked));
                 PlayerSettlement guest = null;
                 foreach (PlayerSettlement player in result.Players)
                 {
                     if (player.PlayerId != registration.HostPlayerId) guest = player;
                 }
-                PublishSeat(session, SeatId.Guest, Build(matchId, guest));
+                PublishSeat(session, SeatId.Guest, Build(matchId, guest, !session.IsRanked));
             }
             catch (Exception exception)
             {

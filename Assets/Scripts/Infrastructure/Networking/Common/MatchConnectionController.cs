@@ -11,18 +11,15 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 
 /// <summary>
-/// Client side of the reconnect grace period (FR-NET-06/07). Remembers how the local player
-/// reached the current match, shows the opponent's connection state from the snapshot, and
-/// when the local connection drops mid-match: retries the dedicated server for 30 s, offers
-/// a "Vào lại" button with the old join code on listen-host, or reports that the host left.
-/// Lives on a DontDestroyOnLoad object created by the first Remember call.
+/// Remembers the local seat, presents the reconnect decision, and restores the route
+/// after sign-in. The host or dedicated server owns the disconnect deadline.
 /// </summary>
 [DisallowMultipleComponent]
-public sealed class MatchConnectionController : MonoBehaviour
+public sealed partial class MatchConnectionController : MonoBehaviour
 {
     #region Constants
 
-    private const float ReconnectWindowSeconds = 30f;
+    private const float ReconnectWindowSeconds = SeatConnectionTracker.DefaultGracePeriodMilliseconds / 1000f;
 
     // Approval can wait up to 10 s for AdmitPlayer, plus a Cloud Code cold start.
     private const float AttemptTimeoutSeconds = 15f;
@@ -31,7 +28,7 @@ public sealed class MatchConnectionController : MonoBehaviour
     private const float ReconnectedNoticeSeconds = 2f;
 
     private const string BackToMenuText = "Về menu";
-    private const string RejoinText = "Vào lại";
+    private const string RejoinText = "Kết nối lại";
 
     // NGO prefixes the reasons it builds from transport events; server-sent reasons have none.
     private const string GeneratedReasonPrefix = "[Disconnect Event]";
@@ -139,6 +136,9 @@ public static bool IsDedicatedMatch
             return;
         }
 
+        instance.recoveryView++;
+        instance.saved = null;
+        instance.expectedResumeId = null;
         instance.StopAllCoroutines();
         instance.route = Route.None;
         instance.leavingOnPurpose = true;
@@ -170,12 +170,16 @@ public static bool IsDedicatedMatch
 
     private void OnEnable()
     {
+        MatchSettlementRegistry.SettlementChanged += OnSettlementConfirmed;
+        Application.wantsToQuit += OnQuitRequested;
         UgsSessionService.Instance.HostSessionEnded += OnHostSessionEnded;
         MatchProjectionRegistry.Current.SnapshotChanged += OnMatchSnapshotChanged;
     }
 
     private void OnDisable()
     {
+        MatchSettlementRegistry.SettlementChanged -= OnSettlementConfirmed;
+        Application.wantsToQuit -= OnQuitRequested;
         UgsSessionService.Instance.HostSessionEnded -= OnHostSessionEnded;
         MatchProjectionRegistry.Current.SnapshotChanged -= OnMatchSnapshotChanged;
 
@@ -351,6 +355,12 @@ public static bool IsDedicatedMatch
         Debug.LogWarning(
             $"[Reconnect] Lost connection mid-match ({route}). Event: {disconnectEvent?.ToString() ?? "unknown"}. Reason: {reason}");
 
+        if (saved != null)
+        {
+            OpenRecovery();
+            return;
+        }
+
         switch (route)
         {
             case Route.Dedicated:
@@ -377,7 +387,7 @@ public static bool IsDedicatedMatch
 
     private void OnHostSessionEnded()
     {
-        if (leavingOnPurpose || IsLeaving || route != Route.ListenGuest)
+        if (leavingOnPurpose || IsLeaving || reconnecting || route != Route.ListenGuest)
         {
             return;
         }
@@ -395,7 +405,8 @@ public static bool IsDedicatedMatch
         {
             StopAllCoroutines();
             reconnecting = false;
-            ShowFinal("Chủ phòng đã rời, trận đấu kết thúc.");
+            if (saved != null) OpenRecovery();
+            else ShowFinal("Chủ phòng đã rời, trận đấu kết thúc.");
         }
     }
 
@@ -404,14 +415,17 @@ public static bool IsDedicatedMatch
     #region Dedicated Reconnect
 
     /// <summary>
-    /// Retries the remembered server with a fresh payload until the 30 s window closes.
+    /// Retries the remembered server with a fresh payload until the 45 s window closes.
     /// GameScene is left first: NGO then loads a clean copy while synchronizing the
     /// returning client instead of reusing in-scene objects that were despawned locally.
     /// </summary>
     private IEnumerator ReconnectDedicated()
     {
         reconnecting = true;
-        reconnectDeadline = Time.realtimeSinceStartup + ReconnectWindowSeconds;
+        // For a restored match the server owns the original seat deadline.
+        // Give this connection attempt a transport timeout only.
+        reconnectDeadline = Time.realtimeSinceStartup +
+            (saved != null ? AttemptTimeoutSeconds : ReconnectWindowSeconds);
         string lastReason = null;
         overlay.ShowDialog(ReconnectMessage(null), BackToMenuText, GoToMainMenu);
 
@@ -424,6 +438,8 @@ public static bool IsDedicatedMatch
 
         SceneManager.LoadScene(SceneNames.FindMatch);
         yield return null;
+        HookNetworkManager();
+        networkManager = NetworkManager.Singleton;
 
         while (networkManager != null && Time.realtimeSinceStartup < reconnectDeadline)
         {
@@ -481,8 +497,13 @@ public static bool IsDedicatedMatch
         }
 
         reconnecting = false;
+        if (saved != null)
+        {
+            OpenRecovery();
+            yield break;
+        }
         ShowFinal(
-            "Không thể vào lại trận trong 30 giây. Bạn bị xử thua do mất kết nối."
+            "Không thể kết nối lại. Chưa xác nhận được kết quả trận."
                 + (string.IsNullOrWhiteSpace(lastReason) ? string.Empty : $"\n({lastReason})")
         );
     }
@@ -505,6 +526,7 @@ public static bool IsDedicatedMatch
 
     private string ReconnectMessage(string lastReason)
     {
+        if (saved != null) return "Đang kết nối lại…";
         int seconds = Mathf.CeilToInt(Mathf.Max(0f, reconnectDeadline - Time.realtimeSinceStartup));
         string message = $"Mất kết nối – đang thử vào lại... ({seconds} s)";
         return string.IsNullOrWhiteSpace(lastReason) ? message : $"{message}\n{lastReason}";
@@ -516,7 +538,7 @@ public static bool IsDedicatedMatch
 
     private void ShowListenRejoinDialog(string error)
     {
-        string message = "Mất kết nối với chủ phòng. Chỗ của bạn được giữ trong 30 giây.";
+        string message = "Mất kết nối với chủ phòng. Chỗ của bạn được giữ trong 45 giây.";
 
         if (!string.IsNullOrWhiteSpace(error))
         {
@@ -548,7 +570,8 @@ public static bool IsDedicatedMatch
 
             // Leave GameScene so the host's scene synchronization loads a clean copy.
             SceneManager.LoadScene(SceneNames.HostClientMenu);
-            await UgsSessionService.Instance.JoinByCodeAsync(listenJoinCode);
+            HookNetworkManager();
+            await UgsSessionService.Instance.JoinByCodeAsync(listenJoinCode, saved?.sessionId);
 
             if (this == null || IsLeaving || route == Route.None)
             {
@@ -570,6 +593,11 @@ public static bool IsDedicatedMatch
 
             reconnecting = false;
 
+            if (saved != null)
+            {
+                OpenRecovery();
+                return;
+            }
             if (Time.realtimeSinceStartup < reconnectDeadline)
             {
                 ShowListenRejoinDialog("Không vào lại được. Có thể chủ phòng đã rời trận.");
@@ -592,7 +620,8 @@ public static bool IsDedicatedMatch
         {
             MatchSnapshotDto snapshot = MatchProjectionRegistry.Current.Current;
 
-            if (SceneManager.GetActiveScene().name == SceneNames.GameScene && snapshot != null)
+            if (SceneManager.GetActiveScene().name == SceneNames.GameScene && snapshot != null
+                && (saved == null || snapshot.matchId == saved.matchId && snapshot.matchStartedUtcMs > 0))
             {
                 overlay.HideDialog();
                 yield break;
@@ -665,6 +694,11 @@ public static bool IsDedicatedMatch
 
     private void OnMatchSnapshotChanged(MatchSnapshotDto snapshot)
     {
+        if (snapshot != null && snapshot.matchStartedUtcMs > 0)
+        {
+            matchRunning = snapshot.outcome == (int)MatchOutcome.Running;
+            if (snapshot.supportsMenuRecovery) TrackRecovery(snapshot);
+        }
         // Despawn clears the projection before OnClientStopped; retain the final result now.
         if (snapshot != null && snapshot.outcome != (int)MatchOutcome.Running)
         {

@@ -221,7 +221,6 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
             {
                 new Player(AuthenticationService.Instance.PlayerId, customData),
             };
-            ShowSearchingState("ĐANG TẠO TICKET:");
 
             CreateTicketResponse ticket =
                 await MatchmakerService.Instance.CreateTicketAsync(
@@ -231,7 +230,6 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
             activeTicketId = ticket.Id;
             cancellationToken.ThrowIfCancellationRequested();
             Debug.Log($"Created matchmaker ticket: {activeTicketId}");
-            ShowSearchingState("ĐANG TÌM ĐỐI THỦ:");
             IpPortAssignment assignment = await WaitForAssignmentAsync(cancellationToken);
 
             cancellationToken.ThrowIfCancellationRequested();
@@ -362,7 +360,6 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
 
                 case IpPortAssignment.StatusOptions.InProgress:
                     serverStartStarted ??= Time.realtimeSinceStartup;
-                    ShowSearchingState("ĐANG KHỞI TẠO SERVER:");
                     break;
 
                 default:
@@ -475,7 +472,7 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
         TransportProfile.ConfigureDedicatedClient(transport, assignment.Ip, port);
         ConfigureConnectionApproval(networkManager, assignment.MatchId);
 
-        // Remembered so a lost connection can be retried within the 30 s grace period.
+        // Remembered so a lost connection can be retried within the 45 s grace period.
         MatchConnectionController.RememberDedicated(assignment.Ip, port, assignment.MatchId);
         isConnecting = true;
         SetActionLabel("Đang kết nối");
@@ -624,7 +621,7 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
         }
     }
 
-    private void ShowSearchingState(string message = "ĐANG TÌM TRẬN:")
+    private void ShowSearchingState()
     {
         SetActive(findingMatchLabel, true);
         SetActive(timerLabel, true);
@@ -632,7 +629,12 @@ public sealed class DedicatedMatchmakerClient : MonoBehaviour
 
         if (findingMatchLabel != null)
         {
-            findingMatchLabel.text = message;
+            findingMatchLabel.text = "Đang tìm trận";
+        }
+
+        if (timerLabel != null)
+        {
+            timerLabel.text = "00:00";
         }
     }
 
